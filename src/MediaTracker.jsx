@@ -1087,7 +1087,7 @@ const MediaTracker = () => {
 
               <div className="mb-2 text-sm text-slate-300">Primary color</div>
               <div className="flex gap-2 mb-3">
-                {['#0b1220','#2563eb','#10b981','#ef4444','#7c3aed','#f59e0b'].map(c => (
+                {['#0b1220','#153883ff','#1a5a45ff','#882a2aff','#472384ff','#9b670dff'].map(c => (
                   <button
                     key={c}
                     onClick={() => setPrimaryColor(c)}
@@ -1108,7 +1108,7 @@ const MediaTracker = () => {
 
               <div className="mb-2 text-sm text-slate-300">Highlight color</div>
               <div className="flex gap-2">
-                {['#7c3aed','#f59e0b','#fde68a','#60a5fa','#fb7185','#34d399'].map(c => (
+                {['#7c3aed','#2692eaff','#75ce4cff','#ea3939ff','#b433ffff','#ffb732ff'].map(c => (
                   <button
                     key={c}
                     onClick={() => setHighlightColor(c)}

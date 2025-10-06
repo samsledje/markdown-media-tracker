@@ -64,21 +64,25 @@ If you don't provide an OMDb API key the movie search functionality will be limi
 
 ## Demo screens (placeholders)
 
-Below are example screenshots referenced by filename. These are placeholders — take screenshots from your running app and put them in `public/screenshots/` or `docs/screenshots/` and update the README references if you like.
+### Select directory screen
 
-- Select Directory screen (placeholder): `screenshots/select-directory.png`
-	- Suggested shot: app landing page with the "Select Directory" button visible.
+![Directory select](public/screenshots/directory-select.jpg)
 
-- Main list / grid view: `screenshots/main-list.png`
-	- Suggested shot: after selecting a directory showing several items in the grid, search bar visible, and filters open.
+### Main grid view
 
-- Item detail modal: `screenshots/item-detail.png`
-	- Suggested shot: opened item detail modal showing metadata and markdown content.
+![Main panel](public/screenshots/main-panel.jpg)
 
-- Search modal (OMDb / Open Library results): `screenshots/search-modal.png`
-	- Suggested shot: search results returned from online lookup.
+### Item detail modal
 
-Place screenshots at the paths above relative to the project root (for example `public/screenshots/main-list.png`).
+![Item detail modal](public/screenshots/item-detail.jpg)
+
+### Online search
+
+![Online search](public/screenshots/online-search.jpg)
+
+### Customize appearance
+
+![Customize appearance](public/screenshots/custom-colors.jpg)
 
 ## Troubleshooting
 

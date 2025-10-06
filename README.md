@@ -62,7 +62,7 @@ If you don't provide an OMDb API key the movie search functionality will be limi
 - Selection Mode: Toggle selection to batch-edit or delete multiple items.
 - Customize: Click "Customize Style" (bottom-right) to change card size and theme colors.
 
-## Demo screens (placeholders)
+## Demo Screenshots
 
 ### Select directory screen
 

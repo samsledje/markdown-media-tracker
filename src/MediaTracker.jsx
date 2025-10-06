@@ -24,6 +24,16 @@ const MediaTracker = () => {
   const [cardSize, setCardSize] = useState(() => {
     return localStorage.getItem('cardSize') || 'medium';
   });
+  // Theme (primary + highlight) with persistence
+  // sensible darker defaults for good contrast with white text
+  const [primaryColor, setPrimaryColor] = useState(() => {
+    return localStorage.getItem('themePrimary') || '#0b1220'; // dark navy
+  });
+  // default highlight: medium purple for a pleasant accent on dark backgrounds
+  const [highlightColor, setHighlightColor] = useState(() => {
+    return localStorage.getItem('themeHighlight') || '#7c3aed'; // purple-600
+  });
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   
   // (No slider presets — using fixed card sizes)
 
@@ -78,6 +88,34 @@ const MediaTracker = () => {
       // ignore
     }
   }, [cardSize]);
+
+  // Persist and apply theme colors as CSS variables
+  useEffect(() => {
+    try {
+      localStorage.setItem('themePrimary', primaryColor);
+      localStorage.setItem('themeHighlight', highlightColor);
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      document.documentElement.style.setProperty('--mt-primary', primaryColor);
+      document.documentElement.style.setProperty('--mt-highlight', highlightColor);
+    } catch (e) {
+      // ignore (server-side or non-browser)
+    }
+  }, [primaryColor, highlightColor]);
+
+  // small helper to convert hex to rgba for inline styles
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex) return `rgba(0,0,0,${alpha})`;
+    const h = hex.replace('#', '');
+    const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
 
   const parseMarkdown = (content) => {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -487,7 +525,7 @@ const MediaTracker = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+    <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
       <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -499,7 +537,8 @@ const MediaTracker = () => {
               {!directoryHandle ? (
                 <button
                   onClick={selectDirectory}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                 >
                   <FolderOpen className="w-4 h-4" />
                   Select Directory
@@ -508,14 +547,16 @@ const MediaTracker = () => {
                 <>
                   <button
                     onClick={() => setIsSearching(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                   >
                     <Search className="w-4 h-4" />
                     Search Online
                   </button>
                   <button
                     onClick={() => setIsAdding(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                   >
                     <Plus className="w-4 h-4" />
                     Add Manually
@@ -537,7 +578,8 @@ const MediaTracker = () => {
           </p>
           <button
             onClick={selectDirectory}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-lg"
+            className="px-6 py-3 rounded-lg transition text-lg"
+            style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
           >
             Select Directory
           </button>
@@ -562,9 +604,10 @@ const MediaTracker = () => {
                   onClick={() => setFilterType(type)}
                   className={`px-4 py-2 rounded-lg transition capitalize ${
                     filterType === type
-                      ? 'bg-blue-600 text-white'
+                      ? ''
                       : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
                   }`}
+                  style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                 >
                   {type}
                 </button>
@@ -618,7 +661,8 @@ const MediaTracker = () => {
                   setSelectionMode(!selectionMode);
                   if (!selectionMode) setSelectedIds(new Set());
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${selectionMode ? 'bg-yellow-600' : 'bg-slate-700/50 hover:bg-slate-700'}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${selectionMode ? '' : 'bg-slate-700/50 hover:bg-slate-700'}`}
+                style={selectionMode ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                 title="Toggle selection mode"
               >
                 <CheckSquare className="w-4 h-4" />
@@ -639,7 +683,8 @@ const MediaTracker = () => {
               </button>
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                className="px-4 py-2 rounded-lg transition text-sm"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
               >
                 Clear
               </button>
@@ -651,7 +696,8 @@ const MediaTracker = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setFilterRating(0)}
-                          className={`px-3 py-1 rounded-lg ${filterRating === 0 ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                          className={`px-3 py-1 rounded-lg ${filterRating === 0 ? '' : 'bg-slate-700/50'}`}
+                          style={filterRating === 0 ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         >
                           Any
                         </button>
@@ -659,7 +705,8 @@ const MediaTracker = () => {
                           <button
                             key={r}
                             onClick={() => setFilterRating(r)}
-                            className={`px-2 py-1 rounded-lg ${filterRating === r ? 'bg-yellow-500' : 'bg-slate-700/50'}`}
+                            className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
+                            style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                             title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
                           >
                             <Star className={`w-4 h-4 ${r <= (filterRating || 0) ? 'text-yellow-400' : 'text-slate-600'}`} />
@@ -673,25 +720,29 @@ const MediaTracker = () => {
                       <div className="flex items-center gap-2 mb-3">
                         <button
                           onClick={() => setFilterRecent('any')}
-                          className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'any' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         >
                           Any
                         </button>
                         <button
                           onClick={() => setFilterRecent('last7')}
-                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last7' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         >
                           Last 7 days
                         </button>
                         <button
                           onClick={() => setFilterRecent('last30')}
-                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last30' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         >
                           Last 30 days
                         </button>
                         <button
                           onClick={() => setFilterRecent('last90')}
-                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last90' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         >
                           Last 90 days
                         </button>
@@ -705,7 +756,8 @@ const MediaTracker = () => {
                             <button
                               key={tag}
                               onClick={() => toggleTagFilter(tag)}
-                              className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? 'bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                              className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                              style={filterTags.includes(tag) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                             >
                               {tag}
                             </button>
@@ -723,11 +775,12 @@ const MediaTracker = () => {
               <div className="mb-3">
                 <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setFilterRating(0)}
-                    className={`px-3 py-1 rounded-lg ${filterRating === 0 ? 'bg-blue-600' : 'bg-slate-700/50'}`}
-                  >
-                    Any
+                        <button
+                          onClick={() => setFilterRating(r)}
+                          className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
+                          style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                          title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
+                        >
                   </button>
                   {[1, 2, 3, 4, 5].map(r => (
                     <button
@@ -745,46 +798,51 @@ const MediaTracker = () => {
               <div>
                 <div className="text-sm text-slate-300 mb-2">Recently read / watched</div>
                 <div className="flex items-center gap-2 mb-3">
-                  <button
-                    onClick={() => setFilterRecent('any')}
-                    className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
-                  >
-                    Any
-                  </button>
-                  <button
-                    onClick={() => setFilterRecent('last7')}
-                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
-                  >
-                    Last 7 days
-                  </button>
-                  <button
-                    onClick={() => setFilterRecent('last30')}
-                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
-                  >
-                    Last 30 days
-                  </button>
-                  <button
-                    onClick={() => setFilterRecent('last90')}
-                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
-                  >
-                    Last 90 days
-                  </button>
+                        <button
+                          onClick={() => setFilterRecent('any')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'any' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          Any
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last7')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last7' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          Last 7 days
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last30')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last30' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          Last 30 days
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last90')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? '' : 'bg-slate-700/50'}`}
+                          style={filterRecent === 'last90' ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          Last 90 days
+                        </button>
                 </div>
                 <div className="text-sm text-slate-300 mb-2">Tags</div>
                 <div className="flex flex-wrap gap-2">
-                  {allTags.length === 0 ? (
-                    <div className="text-sm text-slate-400">No tags available</div>
-                  ) : (
-                    allTags.map(tag => (
-                      <button
-                        key={tag}
-                        onClick={() => toggleTagFilter(tag)}
-                        className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? 'bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
-                      >
-                        {tag}
-                      </button>
-                    ))
-                  )}
+                        {allTags.length === 0 ? (
+                          <div className="text-sm text-slate-400">No tags available</div>
+                        ) : (
+                          allTags.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => toggleTagFilter(tag)}
+                              className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                              style={filterTags.includes(tag) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                            >
+                              {tag}
+                            </button>
+                          ))
+                        )}
                 </div>
               </div>
             </div>
@@ -796,27 +854,31 @@ const MediaTracker = () => {
               <div className="flex gap-2 ml-auto">
                 <button
                   onClick={() => setShowBatchEdit(true)}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                  className="px-3 py-1 rounded-lg transition text-sm"
+                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                 >
                   Batch Edit
                 </button>
                 <button
                   onClick={deleteSelected}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                  className="px-3 py-1 rounded-lg transition text-sm"
+                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                 >
                   Delete Selected
                 </button>
                 {undoStack.length > 0 && (
                   <button
                     onClick={undoLastTrash}
-                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition text-sm"
+                    className="px-3 py-1 rounded-lg transition text-sm"
+                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                   >
                     Undo Last
                   </button>
                 )}
                 <button
                   onClick={clearSelection}
-                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg transition text-sm"
+                  className="px-3 py-1 rounded-lg transition text-sm"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
                 >
                   Clear
                 </button>
@@ -909,13 +971,14 @@ const MediaTracker = () => {
                   {item.tags && item.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {item.tags.slice(0, 3).map((tag, i) => (
-                        <span
-                          key={i}
-                          className="text-xs px-2 py-1 bg-slate-600/50 rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                            <span
+                              key={i}
+                              className="text-xs px-2 py-1 rounded"
+                              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
                       {item.tags.length > 3 && (
                         <span className="text-xs px-2 py-1 bg-slate-600/50 rounded">
                           +{item.tags.length - 3}
@@ -983,32 +1046,88 @@ const MediaTracker = () => {
           selectedItems={items.filter(it => selectedIds.has(it.id))}
         />
       )}
-      {/* Floating card size control pinned to bottom-right */}
+      {/* Floating Customize Style panel pinned to bottom-right */}
       <div className="fixed z-50 bottom-6 right-6">
-        <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-full p-3 shadow-lg flex items-center gap-3">
+        <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-lg p-3 shadow-lg flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
-            <Maximize className="w-5 h-5 text-slate-300" />
+            <button
+              onClick={() => setCustomizeOpen(!customizeOpen)}
+              className="flex items-center gap-2 px-3 py-2 rounded-full transition"
+              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+              aria-expanded={customizeOpen}
+              title="Customize style"
+            >
+              <Maximize className="w-5 h-5" />
+              <span className="hidden sm:inline">Customize Style</span>
+            </button>
           </div>
-          {/* Slider mapping 0..4 to size presets */}
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min="0"
-              max="4"
-              step="1"
-              value={['tiny','small','medium','large','xlarge'].indexOf(cardSize)}
-              onChange={(e) => {
-                const mapping = ['tiny','small','medium','large','xlarge'];
-                const val = parseInt(e.target.value, 10);
-                setCardSize(mapping[val] || 'medium');
-              }}
-              className="h-2 w-40 accent-blue-600"
-              aria-label="Card size"
-            />
-            <div className="px-2 py-1 rounded text-sm bg-slate-700/40 text-slate-200">
-              {cardSize === 'tiny' ? 'Tiny' : cardSize === 'small' ? 'Small' : cardSize === 'medium' ? 'Medium' : cardSize === 'large' ? 'Large' : 'XLarge'}
+
+          {customizeOpen && (
+            <div className="mt-2 w-72 p-3 bg-slate-800/80 border border-slate-700 rounded-lg">
+              <div className="mb-2 text-sm text-slate-300">Card size</div>
+              <div className="flex items-center gap-3 mb-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="1"
+                  value={['tiny','small','medium','large','xlarge'].indexOf(cardSize)}
+                  onChange={(e) => {
+                    const mapping = ['tiny','small','medium','large','xlarge'];
+                    const val = parseInt(e.target.value, 10);
+                    setCardSize(mapping[val] || 'medium');
+                  }}
+                  className="h-2 w-full accent-current"
+                  aria-label="Card size"
+                />
+                <div className="px-2 py-1 rounded text-sm bg-slate-700/40 text-slate-200">
+                  {cardSize === 'tiny' ? 'Tiny' : cardSize === 'small' ? 'Small' : cardSize === 'medium' ? 'Medium' : cardSize === 'large' ? 'Large' : 'XLarge'}
+                </div>
+              </div>
+
+              <div className="mb-2 text-sm text-slate-300">Primary color</div>
+              <div className="flex gap-2 mb-3">
+                {['#0b1220','#2563eb','#10b981','#ef4444','#7c3aed','#f59e0b'].map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setPrimaryColor(c)}
+                    title={c}
+                    className={`w-8 h-8 rounded-full border-2 ${primaryColor === c ? 'border-white' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-8 h-8 p-0"
+                  style={{ border: '2px solid rgba(255,255,255,0.06)', borderRadius: 8, cursor: 'pointer' }}
+                  aria-label="Custom primary color"
+                />
+              </div>
+
+              <div className="mb-2 text-sm text-slate-300">Highlight color</div>
+              <div className="flex gap-2">
+                {['#7c3aed','#f59e0b','#fde68a','#60a5fa','#fb7185','#34d399'].map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setHighlightColor(c)}
+                    title={c}
+                    className={`w-8 h-8 rounded-full border-2 ${highlightColor === c ? 'border-white' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={highlightColor}
+                  onChange={(e) => setHighlightColor(e.target.value)}
+                  className="w-8 h-8 p-0"
+                  style={{ border: '2px solid rgba(255,255,255,0.06)', borderRadius: 8, cursor: 'pointer' }}
+                  aria-label="Custom highlight color"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -1157,7 +1276,8 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
                 />
                 <button
                   onClick={() => setShowApiKeyInput(false)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                  className="px-4 py-2 rounded-lg transition"
+                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                 >
                   Save
                 </button>
@@ -1172,9 +1292,10 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
                 onClick={() => setSearchType(type)}
                 className={`px-4 py-2 rounded-lg transition capitalize flex items-center gap-2 ${
                   searchType === type
-                    ? 'bg-blue-600 text-white'
+                    ? ''
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
+                style={searchType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
               >
                 {type === 'book' ? <Book className="w-4 h-4" /> : <Film className="w-4 h-4" />}
                 {type}
@@ -1193,7 +1314,8 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
             >
               <Search className="w-4 h-4" />
               Search
@@ -1304,8 +1426,8 @@ const BatchEditModal = ({ onClose, onApply, sampleItem, selectedItems = [] }) =>
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">Batch Edit Preview</h2>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded">Close</button>
-            <button onClick={handleApply} className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded">Apply to {selectedItems.length} items</button>
+            <button onClick={onClose} className="px-3 py-1 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.04)', color: 'white' }}>Close</button>
+            <button onClick={handleApply} className="px-3 py-1 rounded" style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}>Apply to {selectedItems.length} items</button>
           </div>
         </div>
         <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1398,13 +1520,15 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete }) => {
               <>
                 <button
                   onClick={handleDelete}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded transition text-sm"
+                  className="px-3 py-1 rounded transition text-sm"
+                  style={{ backgroundColor: 'rgba(255,0,0,0.16)', color: 'white' }}
                 >
                   Delete
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded transition text-sm"
+                  className="px-3 py-1 rounded transition text-sm"
+                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                 >
                   Edit
                 </button>
@@ -1412,7 +1536,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete }) => {
             ) : (
               <button
                 onClick={handleSave}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded transition text-sm flex items-center gap-1"
+                className="px-3 py-1 rounded transition text-sm flex items-center gap-1"
+                style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
               >
                 <Save className="w-4 h-4" />
                 Save
@@ -1483,13 +1608,15 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition"
+              className="px-4 py-2 rounded-lg transition"
+              style={{ backgroundColor: 'rgba(255,255,255,0.04)', color: 'white' }}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition flex items-center gap-2"
+              className="px-4 py-2 rounded-lg transition flex items-center gap-2"
+              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
             >
               <Save className="w-4 h-4" />
               Save Item
@@ -1538,9 +1665,10 @@ const EditForm = ({ item, onChange }) => {
               onClick={() => onChange({ ...item, type })}
               className={`px-4 py-2 rounded-lg transition capitalize ${
                 item.type === type
-                  ? 'bg-blue-600 text-white'
+                  ? ''
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
+              style={item.type === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
             >
               {type}
             </button>
@@ -1592,7 +1720,8 @@ const EditForm = ({ item, onChange }) => {
               />
               <button
                 onClick={() => onChange({ ...item, dateRead: '' })}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                className="px-3 py-2 rounded-lg transition text-sm"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
                 title="Clear date"
               >
                 Clear
@@ -1627,7 +1756,8 @@ const EditForm = ({ item, onChange }) => {
               />
               <button
                 onClick={addActor}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                className="px-4 py-2 rounded-lg transition"
+                style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
               >
                 Add
               </button>
@@ -1657,7 +1787,8 @@ const EditForm = ({ item, onChange }) => {
               />
               <button
                 onClick={() => onChange({ ...item, dateWatched: '' })}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                className="px-3 py-2 rounded-lg transition text-sm"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
                 title="Clear date"
               >
                 Clear
@@ -1712,7 +1843,8 @@ const EditForm = ({ item, onChange }) => {
           />
           <button
             onClick={addTag}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            className="px-4 py-2 rounded-lg transition"
+            style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
           >
             Add
           </button>
@@ -1867,14 +1999,15 @@ const ViewDetails = ({ item }) => {
             Tags
           </div>
           <div className="flex flex-wrap gap-2">
-            {item.tags.map((tag, i) => (
-              <span
-                key={i}
-                className="px-3 py-1 bg-blue-600/20 border border-blue-500/30 rounded-full text-sm text-blue-300"
-              >
-                {tag}
-              </span>
-            ))}
+                      {item.tags.map((tag, i) => (
+            <span
+              key={i}
+              className="px-3 py-1 rounded-full text-sm"
+              style={{ backgroundColor: hexToRgba(highlightColor, 0.12), color: 'white', border: `1px solid ${hexToRgba(highlightColor, 0.12)}` }}
+            >
+              {tag}
+            </span>
+          ))}
           </div>
         </div>
       )}

@@ -28,6 +28,21 @@ const MediaTracker = () => {
   // Get all unique tags from items
   const allTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
 
+  const toggleTagFilter = (tag) => {
+    if (filterTags.includes(tag)) {
+      setFilterTags(filterTags.filter(t => t !== tag));
+    } else {
+      setFilterTags([...filterTags, tag]);
+    }
+  };
+
+  const clearFilters = () => {
+    setFilterTags([]);
+    setFilterRating(0);
+    setFilterType('all');
+    setSearchTerm('');
+  };
+
   const parseMarkdown = (content) => {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
     const match = content.match(frontmatterRegex);
@@ -314,8 +329,97 @@ const MediaTracker = () => {
             </div>
           </div>
 
+          <div className="mb-4 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-300">Sort:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none"
+              >
+                <option value="dateAdded">Date Added</option>
+                <option value="title">Title</option>
+                <option value="author">Author / Director</option>
+                <option value="year">Year</option>
+                <option value="rating">Rating</option>
+              </select>
+
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg ml-2"
+                title="Toggle sort order"
+              >
+                {sortOrder === 'asc' ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition"
+              >
+                Filters
+              </button>
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          {showFilters && (
+            <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700 rounded-lg">
+              <div className="mb-3">
+                <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFilterRating(0)}
+                    className={`px-3 py-1 rounded-lg ${filterRating === 0 ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                  >
+                    Any
+                  </button>
+                  {[1, 2, 3, 4, 5].map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setFilterRating(r)}
+                      className={`px-2 py-1 rounded-lg ${filterRating === r ? 'bg-yellow-500' : 'bg-slate-700/50'}`}
+                      title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
+                    >
+                      <Star className={`w-4 h-4 ${r <= (filterRating || 0) ? 'text-yellow-400' : 'text-slate-600'}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm text-slate-300 mb-2">Tags</div>
+                <div className="flex flex-wrap gap-2">
+                  {allTags.length === 0 ? (
+                    <div className="text-sm text-slate-400">No tags available</div>
+                  ) : (
+                    allTags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTagFilter(tag)}
+                        className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? 'bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                      >
+                        {tag}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredItems.map(item => (
+            {sortedItems.map(item => (
               <div
                 key={item.id}
                 onClick={() => setSelectedItem(item)}
@@ -342,6 +446,9 @@ const MediaTracker = () => {
                       )}
                       {item.director && (
                         <p className="text-sm text-slate-400 truncate">{item.director}</p>
+                      )}
+                      {item.year && (
+                        <p className="text-sm text-slate-500 truncate">{item.year}</p>
                       )}
                     </div>
                   </div>

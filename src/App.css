@@ -40,3 +40,13 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Media card image that respects dynamic height */
+.media-card-img {
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* (slider styles removed) */
+

@@ -14,9 +14,9 @@
               "type": "bases",
               "state": {
                 "file": "Movies and Books.base",
-                "viewName": "All"
+                "viewName": "Books"
               },
-              "icon": "lucide-table",
+              "icon": "lucide-layout-grid",
               "title": "Movies and Books"
             }
           }
@@ -170,6 +170,11 @@
   },
   "active": "9992ef0cf67b4c2e",
   "lastOpenFiles": [
+    "the-lord-of-the-rings-the-two-towers-1759774066096.md",
+    "the-lord-of-the-rings-the-return-of-the-king-1759774046262.md.crswap",
+    "the-lord-of-the-rings-the-return-of-the-king-1759774046262.md",
+    "the-lord-of-the-rings-the-fellowship-of-the-ring-1759774037685.md.crswap",
+    "the-lord-of-the-rings-the-fellowship-of-the-ring-1759774037685.md",
     "pulp-fiction-1759769758448.md.crswap",
     "artemis-1759769964146.md",
     "project-hail-mary-1759769947734.md",

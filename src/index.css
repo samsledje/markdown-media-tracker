@@ -1,3 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Global background and overscroll fixes to avoid white gaps when scrolling */
+html, body, #root {
+	height: 100%;
+	min-height: 100%;
+}
+
+/* Apply the same background as the app container to the page so overscroll doesn't reveal white.
+	 Put a solid background-color fallback on html for browsers that may show it during bounce. */
+html {
+	background-color: #0f172a; /* solid fallback to avoid white flash */
+	background-image: linear-gradient(135deg, #0f172a 0%, #0b1220 50%, #0f172a 100%);
+	background-attachment: fixed;
+}
+
+body {
+	background: transparent; /* background provided by html to avoid double-paint issues */
+	color: #0f172a;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Ensure the root app element expands to full height so the background is continuous */
+#root {
+	min-height: 100vh;
+}

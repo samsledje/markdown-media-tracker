@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
@@ -9,12 +9,18 @@ const MediaTracker = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [filterRating, setFilterRating] = useState(0);
   const [filterTags, setFilterTags] = useState([]);
+  const [filterRecent, setFilterRecent] = useState('any');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [omdbApiKey, setOmdbApiKey] = useState('');
+  const filtersRef = useRef(null);
+  const filterButtonRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  
+  // (No slider presets — using fixed card sizes)
 
   // Load API key on mount
   useEffect(() => {
@@ -27,6 +33,22 @@ const MediaTracker = () => {
 
   // Get all unique tags from items
   const allTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
+
+  // Filters pane is toggled only by the Filters button; removing outside-click and Escape-to-close behavior
+
+  // Compute dropdown position so it appears under the Filters button
+  useEffect(() => {
+    if (!showFilters || !filterButtonRef.current) return;
+
+    const btnRect = filterButtonRef.current.getBoundingClientRect();
+    const spaceRight = window.innerWidth - btnRect.right;
+    const width = 320; // w-80 ~ 320px
+    // Prefer aligning right edge with button's right, but fall back to left if not enough space
+    const left = Math.max(8, Math.min(btnRect.right - width + btnRect.width, btnRect.left));
+    const top = btnRect.bottom + 8; // small gap
+
+    setDropdownStyle({ position: 'fixed', top: `${top}px`, left: `${Math.max(8, btnRect.right - width)}px`, width: `${width}px` });
+  }, [showFilters]);
 
   const toggleTagFilter = (tag) => {
     if (filterTags.includes(tag)) {
@@ -41,6 +63,7 @@ const MediaTracker = () => {
     setFilterRating(0);
     setFilterType('all');
     setSearchTerm('');
+    setFilterRecent('any');
   };
 
   const parseMarkdown = (content) => {
@@ -85,7 +108,9 @@ const MediaTracker = () => {
     if (item.tags && item.tags.length > 0) yaml += `tags: [${item.tags.map(t => `"${t}"`).join(', ')}]\n`;
     if (item.coverUrl) yaml += `coverUrl: "${item.coverUrl}"\n`;
     
-    yaml += `dateAdded: "${item.dateAdded}"\n`;
+  if (item.dateRead) yaml += `dateRead: "${item.dateRead}"\n`;
+  if (item.dateWatched) yaml += `dateWatched: "${item.dateWatched}"\n`;
+  yaml += `dateAdded: "${item.dateAdded}"\n`;
     yaml += '---\n\n';
     
     return yaml + (item.review || '');
@@ -134,6 +159,8 @@ const MediaTracker = () => {
               rating: metadata.rating,
               tags: metadata.tags || [],
               coverUrl: metadata.coverUrl,
+              dateRead: metadata.dateRead,
+              dateWatched: metadata.dateWatched,
               dateAdded: metadata.dateAdded,
               review: body
             });
@@ -207,8 +234,23 @@ const MediaTracker = () => {
     const matchesRating = filterRating === 0 || (item.rating && item.rating >= filterRating);
     const matchesTags = filterTags.length === 0 || 
       (item.tags && filterTags.every(tag => item.tags.includes(tag)));
+    // Recent filter: 'any' | 'last7' | 'last30' | 'last90'
+    const consumedDateStr = item.dateRead || item.dateWatched || null;
+    const matchesRecent = (() => {
+      if (!filterRecent || filterRecent === 'any') return true;
+      if (!consumedDateStr) return false;
+      const consumed = new Date(consumedDateStr);
+      if (isNaN(consumed)) return false;
+      const now = new Date();
+      let days = 0;
+      if (filterRecent === 'last7') days = 7;
+      else if (filterRecent === 'last30') days = 30;
+      else if (filterRecent === 'last90') days = 90;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      return consumed >= cutoff;
+    })();
     
-    return matchesSearch && matchesType && matchesRating && matchesTags;
+    return matchesSearch && matchesType && matchesRating && matchesTags && matchesRecent;
   });
 
   // Sort filtered items
@@ -227,6 +269,10 @@ const MediaTracker = () => {
       case 'year':
         aVal = parseInt(a.year) || 0;
         bVal = parseInt(b.year) || 0;
+        break;
+      case 'dateConsumed':
+        aVal = new Date(a.dateRead || a.dateWatched || 0);
+        bVal = new Date(b.dateRead || b.dateWatched || 0);
         break;
       case 'rating':
         aVal = a.rating || 0;
@@ -338,6 +384,7 @@ const MediaTracker = () => {
                 className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none"
               >
                 <option value="dateAdded">Date Added</option>
+                <option value="dateConsumed">Date Read/Watched</option>
                 <option value="title">Title</option>
                 <option value="author">Author / Director</option>
                 <option value="year">Year</option>
@@ -348,21 +395,38 @@ const MediaTracker = () => {
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg ml-2"
                 title="Toggle sort order"
+                aria-label={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
               >
                 {sortOrder === 'asc' ? (
-                  <ChevronUp className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 8l-4 6h8l-4-6z" fill="currentColor" />
+                    </svg>
+                    <span>Asc</span>
+                  </div>
                 ) : (
-                  <ChevronDown className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 16l4-6H8l4 6z" fill="currentColor" />
+                    </svg>
+                    <span>Desc</span>
+                  </div>
                 )}
               </button>
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-2 relative">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition"
+                aria-expanded={showFilters}
+                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center gap-2"
               >
                 Filters
+                {showFilters ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
               </button>
               <button
                 onClick={clearFilters}
@@ -370,11 +434,83 @@ const MediaTracker = () => {
               >
                 Clear
               </button>
+
+              {false && (
+                <div ref={filtersRef} className="mb-6 p-4 bg-slate-800/40 border border-slate-700 rounded-lg">
+                    <div className="mb-3">
+                      <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setFilterRating(0)}
+                          className={`px-3 py-1 rounded-lg ${filterRating === 0 ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                        >
+                          Any
+                        </button>
+                        {[1, 2, 3, 4, 5].map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setFilterRating(r)}
+                            className={`px-2 py-1 rounded-lg ${filterRating === r ? 'bg-yellow-500' : 'bg-slate-700/50'}`}
+                            title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
+                          >
+                            <Star className={`w-4 h-4 ${r <= (filterRating || 0) ? 'text-yellow-400' : 'text-slate-600'}`} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-sm text-slate-300 mb-2">Recently read / watched</div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => setFilterRecent('any')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                        >
+                          Any
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last7')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                        >
+                          Last 7 days
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last30')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                        >
+                          Last 30 days
+                        </button>
+                        <button
+                          onClick={() => setFilterRecent('last90')}
+                          className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                        >
+                          Last 90 days
+                        </button>
+                      </div>
+                      <div className="text-sm text-slate-300 mb-2">Tags</div>
+                      <div className="flex flex-wrap gap-2">
+                        {allTags.length === 0 ? (
+                          <div className="text-sm text-slate-400">No tags available</div>
+                        ) : (
+                          allTags.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => toggleTagFilter(tag)}
+                              className={`px-3 py-1 rounded-full text-sm transition ${filterTags.includes(tag) ? 'bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                            >
+                              {tag}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+              )}
             </div>
           </div>
 
           {showFilters && (
-            <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700 rounded-lg">
+            <div ref={filtersRef} className="mb-6 p-4 bg-slate-800/40 border border-slate-700 rounded-lg">
               <div className="mb-3">
                 <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
                 <div className="flex items-center gap-2">
@@ -398,6 +534,33 @@ const MediaTracker = () => {
               </div>
 
               <div>
+                <div className="text-sm text-slate-300 mb-2">Recently read / watched</div>
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={() => setFilterRecent('any')}
+                    className={`px-3 py-1 rounded-lg ${filterRecent === 'any' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                  >
+                    Any
+                  </button>
+                  <button
+                    onClick={() => setFilterRecent('last7')}
+                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last7' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                  >
+                    Last 7 days
+                  </button>
+                  <button
+                    onClick={() => setFilterRecent('last30')}
+                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last30' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                  >
+                    Last 30 days
+                  </button>
+                  <button
+                    onClick={() => setFilterRecent('last90')}
+                    className={`px-3 py-1 rounded-lg ${filterRecent === 'last90' ? 'bg-blue-600' : 'bg-slate-700/50'}`}
+                  >
+                    Last 90 days
+                  </button>
+                </div>
                 <div className="text-sm text-slate-300 mb-2">Tags</div>
                 <div className="flex flex-wrap gap-2">
                   {allTags.length === 0 ? (
@@ -486,6 +649,7 @@ const MediaTracker = () => {
             ))}
           </div>
 
+          
           {sortedItems.length === 0 && (
             <div className="text-center py-20 text-slate-400">
               <p className="text-lg">No items found</p>
@@ -846,6 +1010,8 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     rating: 0,
     tags: [],
     coverUrl: '',
+    dateRead: '',
+    dateWatched: '',
     dateAdded: new Date().toISOString(),
     review: ''
   });
@@ -974,6 +1140,24 @@ const EditForm = ({ item, onChange }) => {
               placeholder="Enter ISBN"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Date read</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={item.dateRead || ''}
+                onChange={(e) => onChange({ ...item, dateRead: e.target.value })}
+                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+              />
+              <button
+                onClick={() => onChange({ ...item, dateRead: '' })}
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                title="Clear date"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
         </>
       )}
 
@@ -1019,6 +1203,24 @@ const EditForm = ({ item, onChange }) => {
                   </button>
                 </span>
               ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Date watched</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={item.dateWatched || ''}
+                onChange={(e) => onChange({ ...item, dateWatched: e.target.value })}
+                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+              />
+              <button
+                onClick={() => onChange({ ...item, dateWatched: '' })}
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                title="Clear date"
+              >
+                Clear
+              </button>
             </div>
           </div>
         </>
@@ -1182,6 +1384,20 @@ const ViewDetails = ({ item }) => {
         <div className="flex items-center gap-2 text-slate-300">
           <Calendar className="w-4 h-4" />
           <span className="text-sm">Year: {item.year}</span>
+        </div>
+      )}
+
+      {item.dateRead && (
+        <div className="flex items-center gap-2 text-slate-300">
+          <Calendar className="w-4 h-4" />
+          <span className="text-sm">Read on {new Date(item.dateRead).toLocaleDateString()}</span>
+        </div>
+      )}
+
+      {item.dateWatched && (
+        <div className="flex items-center gap-2 text-slate-300">
+          <Calendar className="w-4 h-4" />
+          <span className="text-sm">Watched on {new Date(item.dateWatched).toLocaleDateString()}</span>
         </div>
       )}
 

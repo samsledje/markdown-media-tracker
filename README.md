@@ -1,6 +1,8 @@
-# Media Tracker
+![Markdown Media Tracker Logo](public/logo_purple.svg)
 
->A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite and designed to use the browser File System Access API so your library lives in a directory you choose.
+# Markdown Media Tracker
+
+A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite and designed to use the browser File System Access API so your library lives in a directory you choose.
 
 ## Features
 

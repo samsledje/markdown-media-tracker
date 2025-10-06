@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
@@ -19,6 +19,9 @@ const MediaTracker = () => {
   const filtersRef = useRef(null);
   const filterButtonRef = useRef(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
+  const [cardSize, setCardSize] = useState(() => {
+    return localStorage.getItem('cardSize') || 'medium';
+  });
   
   // (No slider presets — using fixed card sizes)
 
@@ -65,6 +68,14 @@ const MediaTracker = () => {
     setSearchTerm('');
     setFilterRecent('any');
   };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cardSize', cardSize);
+    } catch (e) {
+      // ignore
+    }
+  }, [cardSize]);
 
   const parseMarkdown = (content) => {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -581,21 +592,31 @@ const MediaTracker = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 ${
+            cardSize === 'tiny' ? 'md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8' :
+            cardSize === 'small' ? 'md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+            cardSize === 'large' ? 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+            cardSize === 'xlarge' ? 'md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+            'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+          } gap-4`}>
             {sortedItems.map(item => (
               <div
                 key={item.id}
                 onClick={() => setSelectedItem(item)}
-                className="bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition cursor-pointer"
+                className={`bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition cursor-pointer ${
+                  cardSize === 'tiny' ? 'text-xs' : cardSize === 'small' ? '' : cardSize === 'large' ? 'text-base' : cardSize === 'xlarge' ? 'text-lg' : ''
+                }`}
               >
                 {item.coverUrl && (
                   <img
                     src={item.coverUrl}
                     alt={item.title}
-                    className="w-full h-64 object-cover"
+                    className={`w-full object-cover ${
+                        cardSize === 'tiny' ? 'h-32' : cardSize === 'small' ? 'h-44' : cardSize === 'large' ? 'h-72' : cardSize === 'xlarge' ? 'h-80' : 'h-64'
+                      }`}
                   />
                 )}
-                <div className="p-4">
+                <div className={`${cardSize === 'tiny' ? 'p-2' : cardSize === 'small' ? 'p-3' : cardSize === 'large' ? 'p-5' : cardSize === 'xlarge' ? 'p-6' : 'p-4'}`}>
                   <div className="flex items-start gap-3 mb-3">
                     {item.type === 'book' ? (
                       <Book className="w-5 h-5 text-blue-400 flex-shrink-0 mt-1" />
@@ -694,6 +715,34 @@ const MediaTracker = () => {
           }}
         />
       )}
+      {/* Floating card size control pinned to bottom-right */}
+      <div className="fixed z-50 bottom-6 right-6">
+        <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-full p-3 shadow-lg flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Maximize className="w-5 h-5 text-slate-300" />
+          </div>
+          {/* Slider mapping 0..4 to size presets */}
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="1"
+              value={['tiny','small','medium','large','xlarge'].indexOf(cardSize)}
+              onChange={(e) => {
+                const mapping = ['tiny','small','medium','large','xlarge'];
+                const val = parseInt(e.target.value, 10);
+                setCardSize(mapping[val] || 'medium');
+              }}
+              className="h-2 w-40 accent-blue-600"
+              aria-label="Card size"
+            />
+            <div className="px-2 py-1 rounded text-sm bg-slate-700/40 text-slate-200">
+              {cardSize === 'tiny' ? 'Tiny' : cardSize === 'small' ? 'Small' : cardSize === 'medium' ? 'Medium' : cardSize === 'large' ? 'Large' : 'XLarge'}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

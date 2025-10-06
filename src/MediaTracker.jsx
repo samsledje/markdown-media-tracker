@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize, CheckSquare, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
@@ -14,6 +14,8 @@ const MediaTracker = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [omdbApiKey, setOmdbApiKey] = useState('');
   const filtersRef = useRef(null);
@@ -213,6 +215,97 @@ const MediaTracker = () => {
     }
   };
 
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const deleteSelected = async () => {
+    if (!directoryHandle) {
+      alert('Please select a directory first');
+      return;
+    }
+
+    if (selectedIds.size === 0) return;
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedIds.size} selected item(s)? This cannot be undone.`);
+    if (!confirmDelete) return;
+
+    try {
+      const trashDir = await getOrCreateTrashDir(directoryHandle);
+      for (const id of selectedIds) {
+        const it = items.find(it => it.id === id);
+        if (!it) continue;
+        const filename = it.filename;
+        try {
+          const srcHandle = await directoryHandle.getFileHandle(filename);
+          const file = await srcHandle.getFile();
+          let trashName = filename;
+          try { await trashDir.getFileHandle(trashName); trashName = `${filename.replace(/\.md$/, '')}-${Date.now()}.md`; } catch(e){}
+          const dest = await trashDir.getFileHandle(trashName, { create: true });
+          const writable = await dest.createWritable();
+          await writable.write(await file.text());
+          await writable.close();
+          await directoryHandle.removeEntry(filename);
+          pushUndo({ from: filename, to: `.trash/${trashName}` });
+        } catch (err) {
+          console.error('Error moving', filename, 'to trash', err);
+        }
+      }
+      await loadItemsFromDirectory(directoryHandle);
+      clearSelection();
+    } catch (err) {
+      console.error('Error deleting selected items', err);
+      alert('Error deleting selected items. Check console for details.');
+    }
+  };
+
+  const [showBatchEdit, setShowBatchEdit] = useState(false);
+
+  const applyBatchEdit = async (changes) => {
+    if (!directoryHandle) {
+      alert('Please select a directory first');
+      return;
+    }
+
+    try {
+      const updated = [];
+      for (const id of selectedIds) {
+        const it = items.find(i => i.id === id);
+        if (!it) continue;
+        const newItem = { ...it };
+
+        // apply only fields present in changes (non-empty)
+        if (changes.type) newItem.type = changes.type;
+        if (changes.author) newItem.author = changes.author;
+        if (changes.director) newItem.director = changes.director;
+        if (changes.year) newItem.year = changes.year;
+        if (changes.rating !== null && changes.rating !== undefined) newItem.rating = changes.rating;
+        if (changes.addTags && changes.addTags.length) newItem.tags = Array.from(new Set([...(newItem.tags||[]), ...changes.addTags]));
+        if (changes.removeTags && changes.removeTags.length) newItem.tags = (newItem.tags||[]).filter(t => !changes.removeTags.includes(t));
+        if (changes.dateRead) newItem.dateRead = changes.dateRead;
+        if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
+
+        // write file
+        const filename = newItem.filename || `${newItem.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.md`;
+        const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(generateMarkdown(newItem));
+        await writable.close();
+
+        updated.push(newItem.id);
+      }
+
+      await loadItemsFromDirectory(directoryHandle);
+      setShowBatchEdit(false);
+      clearSelection();
+      alert(`Updated ${updated.length} items`);
+    } catch (err) {
+      console.error('Error applying batch edit', err);
+      alert('Error applying batch edit. Check console for details.');
+    }
+  };
+
   const deleteItem = async (item) => {
     if (!directoryHandle) {
       alert('Please select a directory first');
@@ -222,13 +315,105 @@ const MediaTracker = () => {
     const confirmDelete = window.confirm(`Are you sure you want to delete "${item.title}"? This cannot be undone.`);
     if (!confirmDelete) return;
 
+    // Move to .trash instead of outright deleting
     try {
+      const trashDir = await getOrCreateTrashDir(directoryHandle);
+      // copy file contents into trash with same filename (add timestamp if exists)
+      const srcHandle = await directoryHandle.getFileHandle(item.filename);
+      const file = await srcHandle.getFile();
+      let trashName = item.filename;
+      // if file exists in trash, append timestamp
+      try {
+        await trashDir.getFileHandle(trashName);
+        trashName = `${item.filename.replace(/\.md$/, '')}-${Date.now()}.md`;
+      } catch (e) {
+        // not found -> ok
+      }
+
+      const dest = await trashDir.getFileHandle(trashName, { create: true });
+      const writable = await dest.createWritable();
+      await writable.write(await file.text());
+      await writable.close();
+
+      // remove original
       await directoryHandle.removeEntry(item.filename);
+
+      // push to undo stack
+      pushUndo({ from: item.filename, to: `.trash/${trashName}` });
+
       await loadItemsFromDirectory(directoryHandle);
       setSelectedItem(null);
     } catch (err) {
-      console.error('Error deleting file:', err);
+      console.error('Error moving file to trash:', err);
       alert('Error deleting file. Please try again.');
+    }
+  };
+
+  // ---------- Trash helpers & undo ----------
+  const [undoStack, setUndoStack] = useState([]);
+
+  const pushUndo = (entry) => {
+    setUndoStack(prev => [...prev, entry]);
+  };
+
+  const popUndo = () => {
+    let last;
+    setUndoStack(prev => {
+      if (prev.length === 0) return prev;
+      last = prev[prev.length - 1];
+      return prev.slice(0, prev.length - 1);
+    });
+    return last;
+  };
+
+  const getOrCreateTrashDir = async (dirHandle) => {
+    try {
+      return await dirHandle.getDirectoryHandle('.trash', { create: true });
+    } catch (err) {
+      console.error('Error creating/reading .trash dir', err);
+      throw err;
+    }
+  };
+
+  const undoLastTrash = async () => {
+    if (!directoryHandle) {
+      alert('Please select a directory first');
+      return;
+    }
+    const last = popUndo();
+    if (!last) {
+      alert('Nothing to undo');
+      return;
+    }
+
+    try {
+      const trashDir = await getOrCreateTrashDir(directoryHandle);
+      const trashPath = last.to.replace(/^\.trash\//, '');
+      const trashFile = await trashDir.getFileHandle(trashPath);
+      const file = await trashFile.getFile();
+
+      // restore to original name; if it exists, append timestamp
+      let restoreName = last.from;
+      try {
+        await directoryHandle.getFileHandle(restoreName);
+        restoreName = `${restoreName.replace(/\.md$/, '')}-restored-${Date.now()}.md`;
+      } catch (e) {
+        // not found -> ok
+      }
+
+      const dest = await directoryHandle.getFileHandle(restoreName, { create: true });
+      const writable = await dest.createWritable();
+      await writable.write(await file.text());
+      await writable.close();
+
+      // remove from trash
+      await trashDir.removeEntry(trashPath);
+
+      await loadItemsFromDirectory(directoryHandle);
+      alert(`Restored ${restoreName}`);
+    } catch (err) {
+      console.error('Error undoing trash', err);
+      alert('Error restoring file. See console for details.');
     }
   };
 
@@ -335,6 +520,7 @@ const MediaTracker = () => {
                     <Plus className="w-4 h-4" />
                     Add Manually
                   </button>
+                    {/* select toggle moved to the sort/filter area */}
                 </>
               )}
             </div>
@@ -388,7 +574,7 @@ const MediaTracker = () => {
 
           <div className="mb-4 flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-300">Sort:</label>
+              <label className="text-sm text-slate-300 flex items-center gap-2"> <ArrowUpDown className="w-4 h-4"/> Sort:</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -425,13 +611,25 @@ const MediaTracker = () => {
                 )}
               </button>
             </div>
-
             <div className="ml-auto flex items-center gap-2 relative">
+              {/* Select toggle moved here */}
+              <button
+                onClick={() => {
+                  setSelectionMode(!selectionMode);
+                  if (!selectionMode) setSelectedIds(new Set());
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${selectionMode ? 'bg-yellow-600' : 'bg-slate-700/50 hover:bg-slate-700'}`}
+                title="Toggle selection mode"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-sm">{selectionMode ? 'Selecting' : 'Select'}</span>
+              </button>
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 aria-expanded={showFilters}
                 className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center gap-2"
               >
+                <SlidersHorizontal className="w-4 h-4" />
                 Filters
                 {showFilters ? (
                   <ChevronUp className="w-4 h-4" />
@@ -592,6 +790,40 @@ const MediaTracker = () => {
             </div>
           )}
 
+          {selectedIds.size > 0 && (
+            <div className="mb-4 p-3 bg-slate-800/40 border border-slate-700 rounded-lg flex items-center gap-3">
+              <div className="text-sm text-slate-200">{selectedIds.size} selected</div>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={() => setShowBatchEdit(true)}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                >
+                  Batch Edit
+                </button>
+                <button
+                  onClick={deleteSelected}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+                >
+                  Delete Selected
+                </button>
+                {undoStack.length > 0 && (
+                  <button
+                    onClick={undoLastTrash}
+                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition text-sm"
+                  >
+                    Undo Last
+                  </button>
+                )}
+                <button
+                  onClick={clearSelection}
+                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg transition text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className={`grid grid-cols-1 ${
             cardSize === 'tiny' ? 'md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8' :
             cardSize === 'small' ? 'md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
@@ -599,14 +831,40 @@ const MediaTracker = () => {
             cardSize === 'xlarge' ? 'md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
             'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
           } gap-4`}>
-            {sortedItems.map(item => (
+            {sortedItems.map(item => {
+              const isSelected = selectedIds.has(item.id);
+              return (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
-                className={`bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition cursor-pointer ${
+                onClick={() => {
+                  if (selectionMode) {
+                    const next = new Set(selectedIds);
+                    if (next.has(item.id)) next.delete(item.id);
+                    else next.add(item.id);
+                    setSelectedIds(next);
+                  } else {
+                    setSelectedItem(item);
+                  }
+                }}
+                className={`relative bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition ${isSelected ? 'ring-2 ring-blue-400' : ''} cursor-pointer ${
                   cardSize === 'tiny' ? 'text-xs' : cardSize === 'small' ? '' : cardSize === 'large' ? 'text-base' : cardSize === 'xlarge' ? 'text-lg' : ''
                 }`}
               >
+                {selectionMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      const next = new Set(selectedIds);
+                      if (e.target.checked) next.add(item.id);
+                      else next.delete(item.id);
+                      setSelectedIds(next);
+                    }}
+                    className="absolute top-2 left-2 w-4 h-4 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select ${item.title}`}
+                  />
+                )}
                 {item.coverUrl && (
                   <img
                     src={item.coverUrl}
@@ -667,7 +925,8 @@ const MediaTracker = () => {
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
 
           
@@ -713,6 +972,15 @@ const MediaTracker = () => {
             setOmdbApiKey(key);
             localStorage.setItem('omdbApiKey', key);
           }}
+        />
+      )}
+
+      {showBatchEdit && (
+        <BatchEditModal
+          onClose={() => setShowBatchEdit(false)}
+          onApply={applyBatchEdit}
+          sampleItem={items[0]}
+          selectedItems={items.filter(it => selectedIds.has(it.id))}
         />
       )}
       {/* Floating card size control pinned to bottom-right */}
@@ -977,6 +1245,130 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
               <p>Search for {searchType}s to get started</p>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BatchEditModal = ({ onClose, onApply, sampleItem, selectedItems = [] }) => {
+  // per-field values and apply toggles
+  const [type, setType] = useState(''); const [applyType, setApplyType] = useState(false);
+  const [author, setAuthor] = useState(''); const [applyAuthor, setApplyAuthor] = useState(false);
+  const [director, setDirector] = useState(''); const [applyDirector, setApplyDirector] = useState(false);
+  const [year, setYear] = useState(''); const [applyYear, setApplyYear] = useState(false);
+  const [rating, setRating] = useState(null); const [applyRating, setApplyRating] = useState(false);
+  const [addTagsStr, setAddTagsStr] = useState(''); const [applyAddTags, setApplyAddTags] = useState(false);
+  const [removeTagsStr, setRemoveTagsStr] = useState(''); const [applyRemoveTags, setApplyRemoveTags] = useState(false);
+  const [dateRead, setDateRead] = useState(''); const [applyDateRead, setApplyDateRead] = useState(false);
+  const [dateWatched, setDateWatched] = useState(''); const [applyDateWatched, setApplyDateWatched] = useState(false);
+
+  // compute preview
+  const preview = selectedItems.map(it => {
+    const out = { before: it, after: { ...it } };
+    if (applyType && type) out.after.type = type;
+    if (applyAuthor && author) out.after.author = author;
+    if (applyDirector && director) out.after.director = director;
+    if (applyYear && year) out.after.year = year;
+    if (applyRating && (rating !== null && rating !== undefined)) out.after.rating = rating;
+    if (applyAddTags && addTagsStr) out.after.tags = Array.from(new Set([...(out.after.tags||[]), ...addTagsStr.split(',').map(s=>s.trim()).filter(Boolean)]));
+    if (applyRemoveTags && removeTagsStr) out.after.tags = (out.after.tags||[]).filter(t => !removeTagsStr.split(',').map(s=>s.trim()).filter(Boolean).includes(t));
+    if (applyDateRead && dateRead) out.after.dateRead = dateRead;
+    if (applyDateWatched && dateWatched) out.after.dateWatched = dateWatched;
+    return out;
+  });
+
+  const handleApply = () => {
+    const changes = {};
+    if (applyType) changes.type = type;
+    if (applyAuthor) changes.author = author;
+    if (applyDirector) changes.director = director;
+    if (applyYear) changes.year = year;
+    if (applyRating) changes.rating = rating;
+    if (applyAddTags) changes.addTags = addTagsStr ? addTagsStr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    if (applyRemoveTags) changes.removeTags = removeTagsStr ? removeTagsStr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    if (applyDateRead) changes.dateRead = dateRead;
+    if (applyDateWatched) changes.dateWatched = dateWatched;
+
+    if (Object.keys(changes).length === 0) {
+      alert('No fields selected to apply');
+      return;
+    }
+
+    onApply(changes);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">Batch Edit Preview</h2>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded">Close</button>
+            <button onClick={handleApply} className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded">Apply to {selectedItems.length} items</button>
+          </div>
+        </div>
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="text-sm text-slate-300">Select fields to apply</div>
+            <div className="bg-slate-800 border border-slate-700 rounded p-3 space-y-2">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyType} onChange={(e)=>setApplyType(e.target.checked)} /> Type
+                <select value={type} onChange={(e)=>setType(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded">
+                  <option value="">(select)</option>
+                  <option value="book">book</option>
+                  <option value="movie">movie</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyAuthor} onChange={(e)=>setApplyAuthor(e.target.checked)} /> Author
+                <input value={author} onChange={(e)=>setAuthor(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" placeholder="Author" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyDirector} onChange={(e)=>setApplyDirector(e.target.checked)} /> Director
+                <input value={director} onChange={(e)=>setDirector(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" placeholder="Director" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyYear} onChange={(e)=>setApplyYear(e.target.checked)} /> Year
+                <input value={year} onChange={(e)=>setYear(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" placeholder="Year" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyRating} onChange={(e)=>setApplyRating(e.target.checked)} /> Rating
+                <select value={rating ?? ''} onChange={(e)=>setRating(e.target.value === '' ? null : parseInt(e.target.value,10))} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded">
+                  <option value="">(select)</option>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyAddTags} onChange={(e)=>setApplyAddTags(e.target.checked)} /> Add tags
+                <input value={addTagsStr} onChange={(e)=>setAddTagsStr(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" placeholder="tag1, tag2" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyRemoveTags} onChange={(e)=>setApplyRemoveTags(e.target.checked)} /> Remove tags
+                <input value={removeTagsStr} onChange={(e)=>setRemoveTagsStr(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" placeholder="tag1, tag2" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyDateRead} onChange={(e)=>setApplyDateRead(e.target.checked)} /> Date read
+                <input type="date" value={dateRead} onChange={(e)=>setDateRead(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" />
+              </label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={applyDateWatched} onChange={(e)=>setApplyDateWatched(e.target.checked)} /> Date watched
+                <input type="date" value={dateWatched} onChange={(e)=>setDateWatched(e.target.value)} className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-sm text-slate-300">Preview (before → after)</div>
+            <div className="bg-slate-800 border border-slate-700 rounded p-3 max-h-[60vh] overflow-y-auto space-y-2">
+              {preview.map((p, idx) => (
+                <div key={idx} className="p-2 border-b border-slate-700 last:border-b-0">
+                  <div className="text-sm font-medium">{p.before.title}</div>
+                  <div className="text-xs text-slate-400">Before: {p.before.author || p.before.director || '-'} • {p.before.year || '-' } • {p.before.rating ? `${p.before.rating}★` : '-'}</div>
+                  <div className="text-xs text-slate-200 mt-1">After: {p.after.author || p.after.director || '-'} • {p.after.year || '-'} • {p.after.rating ? `${p.after.rating}★` : '-'}</div>
+                  {JSON.stringify(p.before) !== JSON.stringify(p.after) && (
+                    <div className="text-xs text-yellow-300 mt-1">Will change</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

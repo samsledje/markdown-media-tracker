@@ -1,0 +1,47 @@
+views:
+  - type: table
+    name: All
+    order:
+      - title
+      - author
+      - director
+      - actors
+      - dateAdded
+      - rating
+      - year
+      - type
+      - file.tags
+    sort:
+      - property: type
+        direction: ASC
+      - property: rating
+        direction: DESC
+      - property: file.ctime
+        direction: DESC
+    columnSize:
+      note.title: 209
+      note.author: 124
+      note.director: 176
+      note.actors: 379
+  - type: cards
+    name: Books
+    filters:
+      and:
+        - type == "book"
+    order:
+      - title
+      - author
+      - year
+    image: note.coverUrl
+    imageFit: contain
+  - type: cards
+    name: Movies
+    filters:
+      and:
+        - type == "movie"
+    order:
+      - title
+      - director
+      - year
+    image: note.coverUrl
+    imageFit: contain

@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('dateAdded');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filterRating, setFilterRating] = useState(0);
+  const [filterTags, setFilterTags] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [directoryHandle, setDirectoryHandle] = useState(null);
-  const [omdbApiKey, setOmdbApiKey] = useState(localStorage.getItem('omdbApiKey') || '');
+  const [omdbApiKey, setOmdbApiKey] = useState('');
+
+  // Load API key on mount
+  useEffect(() => {
+    // Try to load from localStorage first
+    const storedKey = localStorage.getItem('omdbApiKey');
+    if (storedKey) {
+      setOmdbApiKey(storedKey);
+    }
+  }, []);
+
+  // Get all unique tags from items
+  const allTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
 
   const parseMarkdown = (content) => {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -172,8 +189,44 @@ const MediaTracker = () => {
       (item.tags && item.tags.some(t => t.toLowerCase().includes(searchTerm.toLowerCase())));
     
     const matchesType = filterType === 'all' || item.type === filterType;
+    const matchesRating = filterRating === 0 || (item.rating && item.rating >= filterRating);
+    const matchesTags = filterTags.length === 0 || 
+      (item.tags && filterTags.every(tag => item.tags.includes(tag)));
     
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesRating && matchesTags;
+  });
+
+  // Sort filtered items
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    let aVal, bVal;
+    
+    switch (sortBy) {
+      case 'title':
+        aVal = (a.title || '').toLowerCase();
+        bVal = (b.title || '').toLowerCase();
+        break;
+      case 'author':
+        aVal = (a.author || a.director || '').toLowerCase();
+        bVal = (b.author || b.director || '').toLowerCase();
+        break;
+      case 'year':
+        aVal = parseInt(a.year) || 0;
+        bVal = parseInt(b.year) || 0;
+        break;
+      case 'rating':
+        aVal = a.rating || 0;
+        bVal = b.rating || 0;
+        break;
+      case 'dateAdded':
+      default:
+        aVal = new Date(a.dateAdded || 0);
+        bVal = new Date(b.dateAdded || 0);
+        break;
+    }
+    
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
   });
 
   return (
@@ -326,10 +379,10 @@ const MediaTracker = () => {
             ))}
           </div>
 
-          {filteredItems.length === 0 && (
+          {sortedItems.length === 0 && (
             <div className="text-center py-20 text-slate-400">
               <p className="text-lg">No items found</p>
-              <p className="text-sm mt-2">Try adjusting your search or add a new item</p>
+              <p className="text-sm mt-2">Try adjusting your search or filters</p>
             </div>
           )}
         </div>

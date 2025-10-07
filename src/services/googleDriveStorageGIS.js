@@ -1,5 +1,6 @@
 import { StorageAdapter } from './storageAdapter.js';
 import { parseMarkdown, generateMarkdown } from '../utils/markdownUtils.js';
+import { getConfig } from '../config.js';
 
 /**
  * Google Drive Storage Adapter using Google Identity Services (newer, more reliable)
@@ -118,7 +119,9 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
 
   getStorageInfo() {
     if (!this.isConnected()) return null;
-    return `Google Drive - MediaTracker folder`;
+    
+    const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
+    return `Google Drive - ${folderName} folder`;
   }
 
   async selectStorage() {
@@ -146,9 +149,10 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
             localStorage.setItem('googleDriveConnected', 'true');
             localStorage.setItem('googleDriveFolderId', this.mediaTrackerFolderId);
             
+            const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
             resolve({
               folderId: this.mediaTrackerFolderId,
-              folderName: 'MediaTracker'
+              folderName: folderName
             });
           } catch (error) {
             console.error('Error after token received:', error);
@@ -187,7 +191,10 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
   // Rest of the methods remain the same as the original implementation
   async _initializeFolders() {
     try {
-      this.mediaTrackerFolderId = await this._findOrCreateFolder('MediaTracker');
+      // Get configured folder name, fallback to 'MediaTracker' for backward compatibility
+      const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
+      
+      this.mediaTrackerFolderId = await this._findOrCreateFolder(folderName);
       this.trashFolderId = await this._findOrCreateFolder('.trash', this.mediaTrackerFolderId);
     } catch (error) {
       console.error('Error initializing Google Drive folders:', error);
@@ -421,6 +428,137 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     } catch (error) {
       console.error('Error restoring item from Google Drive:', error);
       throw new Error(`Failed to restore item: ${error.message}`);
+    }
+  }
+
+  // Method to check if a folder name is available or conflicts exist
+  async checkFolderAvailability(folderName) {
+    try {
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false and parents in 'root'&fields=files(id,name,modifiedTime)`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const existingFolders = data.files || [];
+      
+      return {
+        isAvailable: existingFolders.length === 0,
+        existingFolders: existingFolders,
+        recommendation: existingFolders.length > 0 
+          ? `A folder named "${folderName}" already exists. The app will use this existing folder.`
+          : `A new folder named "${folderName}" will be created.`
+      };
+    } catch (error) {
+      console.error('Error checking folder availability:', error);
+      return {
+        isAvailable: false,
+        existingFolders: [],
+        recommendation: 'Unable to check folder availability. The app will attempt to use or create the folder.'
+      };
+    }
+  }
+
+  // Method to check if there are files in a specific folder
+  async checkFolderContents(folderId) {
+    try {
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and name contains '.md' and trashed=false&fields=files(id,name)&pageSize=10`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const files = data.files || [];
+
+      return {
+        hasFiles: files.length > 0,
+        fileCount: files.length,
+        files: files
+      };
+    } catch (error) {
+      console.error('Error checking folder contents:', error);
+      return {
+        hasFiles: false,
+        fileCount: 0,
+        files: []
+      };
+    }
+  }
+
+  // Method to get information about current vs new folder for migration warnings
+  async getMigrationInfo(newFolderName) {
+    try {
+      const currentFolderName = getConfig('googleDriveFolderName') || 'MediaTracker';
+      
+      // If the folder name isn't changing, no migration needed
+      if (currentFolderName === newFolderName) {
+        return {
+          migrationNeeded: false,
+          currentFolder: { name: currentFolderName, hasFiles: false },
+          newFolder: { name: newFolderName, exists: true }
+        };
+      }
+
+      // Check current folder contents
+      let currentFolderInfo = { name: currentFolderName, hasFiles: false, fileCount: 0 };
+      if (this.mediaTrackerFolderId) {
+        const currentContents = await this.checkFolderContents(this.mediaTrackerFolderId);
+        currentFolderInfo.hasFiles = currentContents.hasFiles;
+        currentFolderInfo.fileCount = currentContents.fileCount;
+      }
+
+      // Check if new folder exists and its contents
+      const newFolderAvailability = await this.checkFolderAvailability(newFolderName);
+      let newFolderInfo = { 
+        name: newFolderName, 
+        exists: !newFolderAvailability.isAvailable,
+        hasFiles: false,
+        fileCount: 0
+      };
+
+      if (newFolderAvailability.existingFolders.length > 0) {
+        const newFolderId = newFolderAvailability.existingFolders[0].id;
+        const newContents = await this.checkFolderContents(newFolderId);
+        newFolderInfo.hasFiles = newContents.hasFiles;
+        newFolderInfo.fileCount = newContents.fileCount;
+      }
+
+      return {
+        migrationNeeded: true,
+        currentFolder: currentFolderInfo,
+        newFolder: newFolderInfo,
+        recommendation: this._getMigrationRecommendation(currentFolderInfo, newFolderInfo)
+      };
+    } catch (error) {
+      console.error('Error getting migration info:', error);
+      return {
+        migrationNeeded: false,
+        currentFolder: { name: 'Unknown', hasFiles: false },
+        newFolder: { name: newFolderName, exists: false },
+        recommendation: 'Unable to check migration requirements.'
+      };
+    }
+  }
+
+  _getMigrationRecommendation(currentFolder, newFolder) {
+    if (!currentFolder.hasFiles && !newFolder.hasFiles) {
+      return 'No files will be affected. The app will start using the new folder.';
+    } else if (currentFolder.hasFiles && !newFolder.hasFiles) {
+      return `Your ${currentFolder.fileCount} files will remain in the "${currentFolder.name}" folder. You'll need to manually move them to "${newFolder.name}" if you want to keep them.`;
+    } else if (!currentFolder.hasFiles && newFolder.hasFiles) {
+      return `The app will start using the existing "${newFolder.name}" folder which contains ${newFolder.fileCount} files.`;
+    } else {
+      return `Both folders contain files. Your current ${currentFolder.fileCount} files will remain in "${currentFolder.name}". The app will switch to "${newFolder.name}" which contains ${newFolder.fileCount} files.`;
     }
   }
 }

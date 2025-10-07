@@ -1,6 +1,7 @@
 // Default configuration - will be overridden by user settings in localStorage
 const defaultConfig = {
-  omdbApiKey: '' // Empty by default, will be set by user
+  omdbApiKey: '', // Empty by default, will be set by user
+  googleDriveFolderName: 'MarkdownMediaTracker' // Default Google Drive folder name
 };
 
 // Get config from localStorage or use defaults

@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FolderOpen, Cloud, Loader2 } from 'lucide-react';
+import GoogleDriveConfigModal from './modals/GoogleDriveConfigModal.jsx';
 
 /**
  * Storage Selector Component
  * Allows users to choose between local files and Google Drive storage
  */
 const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoading }) => {
+  const [showGoogleDriveModal, setShowGoogleDriveModal] = useState(false);
+
   const getIcon = (type) => {
     switch (type) {
       case 'googledrive':
@@ -50,32 +53,40 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
 
       <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
         {availableOptions.map((option) => (
-          <button
-            key={option.type}
-            onClick={() => !isLoading && onStorageSelect(option.type)}
-            disabled={!option.supported || isLoading}
-            className={`
-              p-8 rounded-xl border-2 transition-all duration-200 text-left
-              ${option.supported 
-                ? 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50 cursor-pointer' 
-                : 'border-slate-700 bg-slate-800/30 cursor-not-allowed opacity-50'
-              }
-              ${isLoading ? 'pointer-events-none opacity-50' : ''}
-            `}
-          >
-            <div className="flex items-center gap-4 mb-4">
-              {getIcon(option.type)}
-              <div>
-                <h3 className="text-xl font-semibold text-white">{option.name}</h3>
-                {!option.supported && (
-                  <span className="text-sm text-red-400">Not supported on this device</span>
-                )}
+          <div key={option.type}>
+            <button
+              onClick={() => {
+                if (!isLoading) {
+                  if (option.type === 'googledrive') {
+                    setShowGoogleDriveModal(true);
+                  } else {
+                    onStorageSelect(option.type);
+                  }
+                }
+              }}
+              disabled={!option.supported || isLoading}
+              className={`
+                w-full p-8 rounded-xl border-2 transition-all duration-200 text-left
+                ${option.supported 
+                  ? 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50 cursor-pointer' 
+                  : 'border-slate-700 bg-slate-800/30 cursor-not-allowed opacity-50'
+                }
+                ${isLoading ? 'pointer-events-none opacity-50' : ''}
+              `}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                {getIcon(option.type)}
+                <div>
+                  <h3 className="text-xl font-semibold text-white">{option.name}</h3>
+                  {!option.supported && (
+                    <span className="text-sm text-red-400">Not supported on this device</span>
+                  )}
+                </div>
               </div>
-            </div>
-            
-            <p className="text-slate-300 text-sm leading-relaxed">
-              {option.description}
-            </p>
+              
+              <p className="text-slate-300 text-sm leading-relaxed">
+                {option.description}
+              </p>
 
             <div className="mt-6 space-y-2 text-xs text-slate-400">
               {option.type === 'filesystem' && (
@@ -104,7 +115,8 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
                 <span className="ml-2 text-sm">Connecting...</span>
               </div>
             )}
-          </button>
+            </button>
+          </div>
         ))}
       </div>
 
@@ -137,6 +149,17 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
           </div>
         </div>
       </div>
+
+      {/* Google Drive Configuration Modal */}
+      {showGoogleDriveModal && (
+        <GoogleDriveConfigModal
+          onClose={() => setShowGoogleDriveModal(false)}
+          onConnect={() => {
+            setShowGoogleDriveModal(false);
+            onStorageSelect('googledrive');
+          }}
+        />
+      )}
     </div>
   );
 };

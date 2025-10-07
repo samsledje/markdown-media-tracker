@@ -253,6 +253,222 @@ const MediaTracker = () => {
     }
   };
 
+  // ----- CSV export / import helpers -----
+  const exportCSV = (itemsToExport = []) => {
+    try {
+      const headers = [
+        'id','title','type','author','director','actors','isbn','year','rating','dateRead','dateWatched','dateAdded','tags','coverUrl','review','filename'
+      ];
+
+      const escape = (s) => {
+        if (s === null || s === undefined) return '""';
+        const str = String(Array.isArray(s) ? s.join(';') : s);
+        return '"' + str.replace(/"/g, '""') + '"';
+      };
+
+      const rows = itemsToExport.map(it => headers.map(h => {
+        switch (h) {
+          case 'actors': return escape(it.actors || []);
+          case 'tags': return escape(it.tags || []);
+          case 'filename': return escape(it.filename || '');
+          case 'dateRead': return escape(it.dateRead || '');
+          case 'dateWatched': return escape(it.dateWatched || '');
+          default: return escape(it[h] ?? '');
+        }
+      }).join(',')).join('\n');
+
+      const csv = headers.join(',') + '\n' + rows;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `media-tracker-export-${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting CSV', err);
+      alert('Error exporting CSV. See console for details.');
+    }
+  };
+
+  const parseCSV = (text) => {
+    // Basic RFC4180-compatible CSV parser (handles quoted fields)
+    const rows = [];
+    let cur = '';
+    let row = [];
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const nxt = text[i+1];
+
+      if (ch === '"') {
+        if (inQuotes && nxt === '"') { // escaped quote
+          cur += '"';
+          i++; // skip next
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        row.push(cur);
+        cur = '';
+      } else if ((ch === '\n' || (ch === '\r' && nxt === '\n')) && !inQuotes) {
+        // handle CRLF or LF
+        if (ch === '\r' && nxt === '\n') i++;
+        row.push(cur);
+        rows.push(row);
+        row = [];
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    // push last
+    if (cur !== '' || row.length > 0) {
+      row.push(cur);
+      rows.push(row);
+    }
+
+    if (rows.length === 0) return { headers: [], rows: [] };
+
+    const headers = rows[0].map(h => h.trim());
+    const dataRows = rows.slice(1).map(r => {
+      const obj = {};
+      for (let i = 0; i < headers.length; i++) {
+        obj[headers[i]] = r[i] !== undefined ? r[i].trim() : '';
+      }
+      return obj;
+    }).filter(r => Object.values(r).some(v => v !== ''));
+
+    return { headers, rows: dataRows };
+  };
+
+  const detectCSVFormat = (headers = []) => {
+    const h = headers.map(x => String(x).toLowerCase()).join('|');
+    if (h.includes('my rating') || h.includes('isbn') && h.includes('author')) return 'goodreads';
+    if (h.includes('your rating') || h.includes('watched') || h.includes('name') && h.includes('year')) return 'letterboxd';
+    return 'generic';
+  };
+
+  const mapGoodreadsRow = (r) => {
+    const tags = (r['My Tags'] || r['Tags'] || r['Bookshelves'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    const rating = r['My Rating'] ? parseInt(r['My Rating'], 10) : (r['Rating'] ? parseInt(r['Rating'], 10) : 0);
+    return {
+      title: r['Title'] || r['title'] || r['Name'] || '',
+      author: r['Author'] || r['author'] || '',
+      isbn: r['ISBN13'] || r['ISBN'] || '',
+      year: r['Year Published'] || r['Original Publication Year'] || r['Year'] || '',
+      rating: isNaN(rating) ? 0 : rating,
+      dateRead: r['Date Read'] || r['Date read'] || r['Date read (YYYY/MM/DD)'] || '',
+      tags,
+      review: r['My Review'] || r['Review'] || '',
+      type: 'book',
+      dateAdded: new Date().toISOString()
+    };
+  };
+
+  const mapLetterboxdRow = (r) => {
+    const tags = (r['Tags'] || r['tags'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    const rawRating = r['Your Rating'] || r['Rating'] || r['star_rating'] || '';
+    const rating = rawRating ? Math.round(parseFloat(rawRating)) : 0;
+    return {
+      title: r['Name'] || r['Title'] || r['name'] || '',
+      year: r['Year'] || r['year'] || '',
+      rating: isNaN(rating) ? 0 : rating,
+      dateWatched: r['Date Watched'] || r['Watched Date'] || r['Date'] || '',
+      tags,
+      review: r['Review'] || r['Notes'] || '',
+      type: 'movie',
+      dateAdded: new Date().toISOString()
+    };
+  };
+
+  const mapGenericRow = (r) => {
+    // best-effort mapping from common column names
+    const title = r['title'] || r['Title'] || r['name'] || r['Name'] || '';
+    const type = (r['type'] || '').toLowerCase().includes('movie') ? 'movie' : 'book';
+    const tags = (r['tags'] || r['Tags'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    const actors = (r['actors'] || r['Actors'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    const rating = r['rating'] ? Math.round(parseFloat(r['rating'])) : 0;
+    return {
+      title,
+      type,
+      author: r['author'] || r['Author'] || '',
+      director: r['director'] || r['Director'] || '',
+      actors,
+      isbn: r['isbn'] || r['ISBN'] || '',
+      year: r['year'] || r['Year'] || '',
+      rating: isNaN(rating) ? 0 : rating,
+      dateRead: r['dateRead'] || r['Date Read'] || r['date_read'] || '',
+      dateWatched: r['dateWatched'] || r['Date Watched'] || r['date_watched'] || '',
+      tags,
+      review: r['review'] || r['Review'] || '',
+      dateAdded: new Date().toISOString()
+    };
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!directoryHandle) {
+      alert('Please select a directory first');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const { headers, rows } = parseCSV(text);
+      const format = detectCSVFormat(headers);
+      let mapped = [];
+
+      if (format === 'goodreads') mapped = rows.map(mapGoodreadsRow);
+      else if (format === 'letterboxd') mapped = rows.map(mapLetterboxdRow);
+      else mapped = rows.map(mapGenericRow);
+
+      let added = 0;
+      for (const m of mapped) {
+        try {
+          // basic de-dup: skip if same title+author exists
+          const exists = items.some(it => (it.title || '').toLowerCase() === (m.title || '').toLowerCase() && ((it.author||'').toLowerCase() === (m.author||'').toLowerCase()));
+          if (exists) continue;
+
+          const itemToSave = {
+            title: m.title || 'Untitled',
+            type: m.type || 'book',
+            author: m.author || '',
+            director: m.director || '',
+            actors: m.actors || [],
+            isbn: m.isbn || '',
+            year: m.year || '',
+            rating: m.rating || 0,
+            tags: m.tags || [],
+            coverUrl: m.coverUrl || '',
+            dateRead: m.dateRead || '',
+            dateWatched: m.dateWatched || '',
+            dateAdded: m.dateAdded || new Date().toISOString(),
+            review: m.review || ''
+          };
+
+          // saveItem will write file and reload items
+          await saveItem(itemToSave);
+          added++;
+        } catch (err) {
+          console.error('Error saving imported item', m, err);
+        }
+      }
+
+      alert(`Imported ${added} items (detected format: ${format})`);
+    } catch (err) {
+      console.error('Error importing CSV', err);
+      alert('Error importing CSV. See console for details.');
+    }
+
+    // reset input so same file can be reselected later
+    e.target.value = '';
+  };
+
   const clearSelection = () => {
     setSelectedIds(new Set());
     setSelectionMode(false);
@@ -572,6 +788,18 @@ const MediaTracker = () => {
                     <Plus className="w-4 h-4" />
                     Add Manually
                   </button>
+                  <button
+                    onClick={() => exportCSV(items)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
+                    title="Export CSV"
+                  >
+                    Export CSV
+                  </button>
+                  <label className="flex items-center gap-2 px-4 py-2 rounded-lg transition cursor-pointer" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }} title="Import CSV">
+                    <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => handleImportFile(e)} className="hidden" />
+                    Import CSV
+                  </label>
                     {/* select toggle moved to the sort/filter area */}
                 </>
               )}
@@ -984,14 +1212,15 @@ const MediaTracker = () => {
                       {item.tags.slice(0, 3).map((tag, i) => (
                             <span
                               key={i}
-                              className="text-xs px-2 py-1 rounded"
+                              className="text-xs px-2 py-1 rounded cursor-pointer"
                               style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
                             >
                               {tag}
                             </span>
                           ))}
                       {item.tags.length > 3 && (
-                        <span className="text-xs px-2 py-1 bg-slate-600/50 rounded">
+                        <span className="text-xs px-2 py-1 bg-slate-600/50 rounded cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}>
                           +{item.tags.length - 3}
                         </span>
                       )}
@@ -1019,6 +1248,8 @@ const MediaTracker = () => {
           onClose={() => setSelectedItem(null)}
           onSave={saveItem}
           onDelete={deleteItem}
+          hexToRgba={hexToRgba}
+          highlightColor={highlightColor}
         />
       )}
 
@@ -1508,7 +1739,7 @@ const BatchEditModal = ({ onClose, onApply, sampleItem, selectedItems = [] }) =>
   );
 };
 
-const ItemDetailModal = ({ item, onClose, onSave, onDelete }) => {
+const ItemDetailModal = ({ item, onClose, onSave, onDelete, hexToRgba, highlightColor }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedItem, setEditedItem] = useState({ ...item });
 
@@ -1567,7 +1798,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete }) => {
           {isEditing ? (
             <EditForm item={editedItem} onChange={setEditedItem} />
           ) : (
-            <ViewDetails item={item} />
+            <ViewDetails item={item} hexToRgba={hexToRgba} highlightColor={highlightColor} />
           )}
         </div>
       </div>
@@ -1900,7 +2131,7 @@ const EditForm = ({ item, onChange }) => {
   );
 };
 
-const ViewDetails = ({ item }) => {
+const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
   return (
     <div className="space-y-4">
       {item.coverUrl && (

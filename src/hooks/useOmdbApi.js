@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadOmdbApiKey, saveOmdbApiKey } from '../services/configService.js';
-import { config } from '../config.js';
+import { getConfig, saveConfig, hasApiKey } from '../config.js';
 
 /**
  * Custom hook for managing OMDb API key
@@ -11,13 +10,8 @@ export const useOmdbApi = () => {
 
   // Load API key on mount
   useEffect(() => {
-    const storedKey = loadOmdbApiKey();
-    if (storedKey) {
-      setOmdbApiKey(storedKey);
-    } else if (config.omdbApiKey) {
-      // Fall back to config.js if no stored key
-      setOmdbApiKey(config.omdbApiKey);
-    }
+    const currentKey = getConfig('omdbApiKey');
+    setOmdbApiKey(currentKey || '');
   }, []);
 
   /**
@@ -25,11 +19,12 @@ export const useOmdbApi = () => {
    */
   const updateApiKey = (key) => {
     setOmdbApiKey(key);
-    saveOmdbApiKey(key);
+    saveConfig({ omdbApiKey: key });
   };
 
   return {
     omdbApiKey,
-    updateApiKey
+    updateApiKey,
+    hasApiKey: hasApiKey()
   };
 };

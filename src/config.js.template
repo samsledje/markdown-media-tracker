@@ -1,0 +1,7 @@
+// Configuration template for Media Tracker
+// Copy this file to config.js and add your API keys
+
+export const config = {
+  // Get your free OMDb API key from: http://www.omdbapi.com/apikey.aspx
+  omdbApiKey: 'your-omdb-api-key-here'
+};

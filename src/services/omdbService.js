@@ -1,21 +1,30 @@
 // OMDb API service for movie searches
+import { getConfig, hasApiKey } from '../config.js';
 
 const OMDB_BASE_URL = 'https://www.omdbapi.com';
 
 /**
+ * Get the current API key from config
+ * @returns {string|null} API key or null if not configured
+ */
+const getApiKey = () => {
+  return hasApiKey() ? getConfig('omdbApiKey') : null;
+};
+
+/**
  * Search for movies using OMDb API
  * @param {string} query - Search query
- * @param {string} apiKey - OMDb API key
  * @param {number} limit - Maximum number of results (default: 12)
  * @returns {Promise<object[]>} Array of movie objects
  */
-export const searchMovies = async (query, apiKey, limit = 12) => {
+export const searchMovies = async (query, limit = 12) => {
   if (!query.trim()) {
     throw new Error('Query cannot be empty');
   }
 
+  const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('API key is required for movie searches');
+    throw new Error('API_KEY_MISSING');
   }
 
   try {
@@ -78,17 +87,26 @@ export const searchMovies = async (query, apiKey, limit = 12) => {
 
 /**
  * Validate OMDb API key
- * @param {string} apiKey - API key to validate
+ * @param {string} apiKey - API key to validate (optional, uses config if not provided)
  * @returns {Promise<boolean>} True if valid
  */
-export const validateApiKey = async (apiKey) => {
-  if (!apiKey) return false;
+export const validateApiKey = async (apiKey = null) => {
+  const keyToTest = apiKey || getApiKey();
+  if (!keyToTest) return false;
   
   try {
-    const response = await fetch(`${OMDB_BASE_URL}/?t=test&apikey=${apiKey}`);
+    const response = await fetch(`${OMDB_BASE_URL}/?t=test&apikey=${keyToTest}`);
     const data = await response.json();
     return data.Response !== 'False' || data.Error !== 'Invalid API key!';
   } catch (error) {
     return false;
   }
+};
+
+/**
+ * Check if OMDb service is available (has valid API key)
+ * @returns {boolean} True if service is available
+ */
+export const isServiceAvailable = () => {
+  return hasApiKey();
 };

@@ -40,15 +40,13 @@ When you first open the app you'll be prompted to "Select Directory". Choose or 
 
 ## Configure the OMDb API key
 
-The app uses OMDb (for movie lookups) and Open Library (for books). To configure an OMDb API key, edit the `src/config.js` file and set your key:
+The app uses OMDb (for movie lookups) and Open Library (for books). For movie searches, you'll need a free OMDb API key:
 
-```js
-// src/config.js
-export const config = {
-	// Replace the value below with your own OMDb API key
-	omdbApiKey: 'YOUR_OMDB_API_KEY_HERE'
-};
-```
+1. **Get a free API key**: Visit [omdbapi.com](http://www.omdbapi.com/apikey.aspx) and enter your email to get a free API key.
+2. **Configure in the app**: When you first use the app, you'll see an API key management panel. Enter your key there and click Save.
+3. **Storage**: Your API key is stored securely in your browser's localStorage and never sent to any third-party servers except OMDb.
+
+The app will work without an API key, but movie search functionality will be disabled until you configure one.
 
 If you don't provide an OMDb API key the movie search functionality will be limited or fail — the app will still work for manual entry and browsing local markdown files.
 

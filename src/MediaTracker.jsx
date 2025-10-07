@@ -16,6 +16,7 @@ import HelpModal from './components/modals/HelpModal.jsx';
 import BatchEditModal from './components/modals/BatchEditModal.jsx';
 import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
+import ApiKeyManager from './components/ApiKeyManager.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
@@ -364,6 +365,12 @@ const MediaTracker = () => {
         </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 py-6">
+          {/* API Key Manager */}
+          <ApiKeyManager onApiKeyChange={() => {
+            // Refresh the component to update any API-dependent functionality
+            // This could trigger a re-render or update state as needed
+          }} />
+
           {/* Search and Type Filters */}
           <div className="mb-6 flex gap-4 flex-wrap">
             <div className="flex-1 min-w-[300px] relative">
@@ -835,8 +842,6 @@ const MediaTracker = () => {
             setIsSearching(false);
             saveItem(result);
           }}
-          omdbApiKey={omdbApiKey}
-          setOmdbApiKey={updateApiKey}
         />
       )}
 

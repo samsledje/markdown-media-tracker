@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Book, Film } from 'lucide-react';
 import { searchBooks } from '../../services/openLibraryService.js';
-import { searchMovies } from '../../services/omdbService.js';
+import { searchMovies, isServiceAvailable } from '../../services/omdbService.js';
 
 /**
  * Modal for searching books and movies online
  */
-const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
+const SearchModal = ({ onClose, onSelect }) => {
   const [searchType, setSearchType] = useState('book');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
 
   const handleSearchBooks = async (searchQuery) => {
     setLoading(true);
@@ -26,21 +26,22 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
   };
 
   const handleSearchMovies = async (searchQuery) => {
-    if (!omdbApiKey) {
-      setShowApiKeyInput(true);
+    if (!isServiceAvailable()) {
+      setShowApiKeyWarning(true);
       return;
     }
 
     setLoading(true);
     try {
-      const movies = await searchMovies(searchQuery, omdbApiKey);
+      const movies = await searchMovies(searchQuery);
       setResults(movies);
+      setShowApiKeyWarning(false);
     } catch (error) {
       console.error('Error searching movies:', error);
-      if (error.message.includes('Invalid OMDb API key')) {
-        setShowApiKeyInput(true);
+      if (error.message === 'API_KEY_MISSING' || error.message.includes('Invalid OMDb API key')) {
+        setShowApiKeyWarning(true);
       }
-      alert(error.message);
+      alert(error.message === 'API_KEY_MISSING' ? 'Please configure your OMDb API key first.' : error.message);
     }
     setLoading(false);
   };
@@ -68,7 +69,7 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [query, searchType, omdbApiKey]);
+  }, [query, searchType]);
 
   const handleSelect = (result) => {
     onSelect({
@@ -77,13 +78,6 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
       dateAdded: new Date().toISOString(),
       review: ''
     });
-  };
-
-  const handleSaveApiKey = () => {
-    if (setOmdbApiKey) {
-      setOmdbApiKey(omdbApiKey);
-    }
-    setShowApiKeyInput(false);
   };
 
   return (
@@ -100,35 +94,11 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
             </button>
           </div>
 
-          {searchType === 'movie' && showApiKeyInput && (
-            <div className="mb-4 p-4 bg-blue-900/30 border border-blue-500/50 rounded-lg">
-              <p className="text-sm mb-2">
-                To search for movies, you need a free OMDb API key. Get one at:{' '}
-                <a 
-                  href="http://www.omdbapi.com/apikey.aspx" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-400 underline"
-                >
-                  omdbapi.com
-                </a>
+          {searchType === 'movie' && showApiKeyWarning && (
+            <div className="mb-4 p-4 bg-yellow-900/30 border border-yellow-500/50 rounded-lg">
+              <p className="text-sm text-yellow-200">
+                ⚠️ OMDb API key required for movie searches. Please configure your API key in the main interface first.
               </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={omdbApiKey}
-                  onChange={(e) => setOmdbApiKey && setOmdbApiKey(e.target.value)}
-                  placeholder="Enter your OMDb API key"
-                  className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  onClick={handleSaveApiKey}
-                  className="px-4 py-2 rounded-lg transition"
-                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                >
-                  Save
-                </button>
-              </div>
             </div>
           )}
 

@@ -44,7 +44,7 @@ const ApiKeyModal = ({ onClose }) => {
         <div className="p-4 border-b border-slate-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Key className="w-5 h-5 text-blue-400" />
+              <Key className="w-5 h-5" style={{ color: 'var(--mt-highlight)' }} />
               <h2 className="text-lg font-semibold">API Key Management</h2>
             </div>
             <button
@@ -123,7 +123,8 @@ const ApiKeyModal = ({ onClose }) => {
             <button
               onClick={handleSave}
               disabled={!apiKey.trim()}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              style={{ backgroundColor: apiKey.trim() ? 'var(--mt-highlight)' : undefined }}
             >
               <Save className="w-4 h-4" />
               Save

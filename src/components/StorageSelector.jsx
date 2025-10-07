@@ -21,27 +21,28 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-      <img src="./logo_white.svg" alt="Media Tracker logo" className="w-40 h-40 mx-auto mb-6 object-contain" />
-      <h2 className="text-3xl font-bold mb-4">Welcome to Markdown Media Tracker</h2>
-      <p className="text-slate-400 mb-12 max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 py-12 sm:py-20 text-center">
+      <img src="./logo_white.svg" alt="Media Tracker logo" className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 object-contain" />
+      <h2 className="text-2xl sm:text-3xl font-bold mb-4 leading-mobile">Welcome to Markdown Media Tracker</h2>
+      <p className="text-slate-400 mb-8 sm:mb-12 max-w-2xl mx-auto text-base leading-mobile">
         Choose where to store your book and movie markdown files. Each item will be saved as a separate .md file with YAML frontmatter.
       </p>
 
       {error && (
-        <div className="mb-8 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
+        <div className="mb-6 sm:mb-8 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
           <p className="font-medium">Connection Error</p>
-          <p className="text-sm">{error}</p>
+          <p className="text-sm leading-mobile">{error}</p>
           {error.includes('popup') && (
-            <div className="mt-3 text-xs space-y-1">
+            <div className="mt-3 text-xs space-y-1 leading-mobile">
               <p className="font-medium">Troubleshooting tips:</p>
               <p>• Disable popup blockers for this site</p>
+              <p>• On mobile: Allow popups in browser settings (Safari → Settings → Pop-ups)</p>
               <p>• Try using an incognito/private window</p>
               <p>• Clear browser cache and cookies</p>
             </div>
           )}
           {error.includes('authorized origins') && (
-            <div className="mt-3 text-xs space-y-1">
+            <div className="mt-3 text-xs space-y-1 leading-mobile">
               <p className="font-medium">To fix this:</p>
               <p>• Go to Google Cloud Console → Credentials</p>
               <p>• Add http://localhost:5173 to authorized origins</p>
@@ -51,9 +52,9 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
         {availableOptions.map((option) => (
-          <div key={option.type}>
+          <div key={option.type} className="flex">
             <button
               onClick={() => {
                 if (!isLoading) {
@@ -66,7 +67,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
               }}
               disabled={!option.supported || isLoading}
               className={`
-                w-full p-8 rounded-xl border-2 transition-all duration-200 text-left
+                w-full p-6 sm:p-8 rounded-xl border-2 transition-all duration-200 text-left flex flex-col min-h-[120px] sm:min-h-auto
                 ${option.supported 
                   ? 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50 cursor-pointer' 
                   : 'border-slate-700 bg-slate-800/30 cursor-not-allowed opacity-50'
@@ -77,18 +78,18 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
               <div className="flex items-center gap-4 mb-4">
                 {getIcon(option.type)}
                 <div>
-                  <h3 className="text-xl font-semibold text-white">{option.name}</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white">{option.name}</h3>
                   {!option.supported && (
                     <span className="text-sm text-red-400">Not supported on this device</span>
                   )}
                 </div>
               </div>
               
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-slate-300 text-sm sm:text-base leading-mobile mb-4 sm:mb-6">
                 {option.description}
               </p>
 
-            <div className="mt-6 space-y-2 text-xs text-slate-400">
+            <div className="mt-auto space-y-2 text-xs sm:text-sm text-slate-400">
               {option.type === 'filesystem' && (
                 <div className="space-y-1">
                   <p>✓ Files stored locally on your device</p>
@@ -104,7 +105,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
                   <p>✓ Automatic cloud backup</p>
                   <p>✓ Works on mobile devices</p>
                   <p className="text-blue-400">ℹ Requires Google account</p>
-                  <p className="text-amber-400">⚠ Allow popups when prompted</p>
+                  <p className="text-amber-400">⚠ Allow popups when prompted (check mobile browser settings)</p>
                 </div>
               )}
             </div>

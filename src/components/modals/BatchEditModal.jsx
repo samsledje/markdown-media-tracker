@@ -82,43 +82,46 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
   }, [type, author, director, year, rating, addTagsStr, removeTagsStr, dateRead, dateWatched, applyType, applyAuthor, applyDirector, applyYear, applyRating, applyAddTags, applyRemoveTags, applyDateRead, applyDateWatched]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-2 sm:p-4 z-50">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-4xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto">
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">Batch Edit Preview</h2>
+          <h2 className="text-lg sm:text-xl font-bold">Batch Edit Preview</h2>
           <div className="flex items-center gap-2">
             <button 
               onClick={onClose} 
-              className="px-3 py-1 rounded" 
+              className="px-3 py-2 sm:py-1 rounded min-h-[44px] sm:min-h-auto" 
               style={{ backgroundColor: 'rgba(255,255,255,0.04)', color: 'white' }}
             >
-              Close
+              <span className="hidden sm:inline">Close</span>
+              <X className="w-4 h-4 sm:hidden" />
             </button>
             <button 
               onClick={handleApply} 
-              className="px-3 py-1 rounded" 
+              className="px-3 py-2 sm:py-1 rounded text-sm min-h-[44px] sm:min-h-auto" 
               style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
             >
-              Apply to {selectedItems.length} items
+              <span className="hidden sm:inline">Apply to {selectedItems.length} items</span>
+              <span className="sm:hidden">Apply ({selectedItems.length})</span>
             </button>
           </div>
         </div>
         
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="p-4 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           <div className="space-y-3">
             <div className="text-sm text-slate-300">Select fields to apply</div>
-            <div className="bg-slate-800 border border-slate-700 rounded p-3 space-y-2">
+            <div className="bg-slate-800 border border-slate-700 rounded p-3 space-y-3 sm:space-y-2">
               <label className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
                   checked={applyType} 
-                  onChange={(e) => setApplyType(e.target.checked)} 
+                  onChange={(e) => setApplyType(e.target.checked)}
+                  className="min-w-[16px] min-h-[16px]"
                 />
-                Type
+                <span className="flex-shrink-0">Type</span>
                 <select 
                   value={type} 
                   onChange={(e) => setType(e.target.value)} 
-                  className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded"
+                  className="flex-1 px-3 py-2 sm:px-2 sm:py-1 bg-slate-700 border border-slate-600 rounded text-base min-h-[44px] sm:min-h-auto"
                 >
                   <option value="">(select)</option>
                   <option value="book">book</option>
@@ -130,13 +133,14 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
                 <input 
                   type="checkbox" 
                   checked={applyAuthor} 
-                  onChange={(e) => setApplyAuthor(e.target.checked)} 
+                  onChange={(e) => setApplyAuthor(e.target.checked)}
+                  className="min-w-[16px] min-h-[16px]"
                 />
-                Author
+                <span className="flex-shrink-0">Author</span>
                 <input 
                   value={author} 
                   onChange={(e) => setAuthor(e.target.value)} 
-                  className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" 
+                  className="flex-1 px-3 py-2 sm:px-2 sm:py-1 bg-slate-700 border border-slate-600 rounded text-base min-h-[44px] sm:min-h-auto" 
                   placeholder="Author" 
                 />
               </label>
@@ -145,13 +149,14 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
                 <input 
                   type="checkbox" 
                   checked={applyDirector} 
-                  onChange={(e) => setApplyDirector(e.target.checked)} 
+                  onChange={(e) => setApplyDirector(e.target.checked)}
+                  className="min-w-[16px] min-h-[16px]"
                 />
-                Director
+                <span className="flex-shrink-0">Director</span>
                 <input 
                   value={director} 
                   onChange={(e) => setDirector(e.target.value)} 
-                  className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded" 
+                  className="flex-1 px-3 py-2 sm:px-2 sm:py-1 bg-slate-700 border border-slate-600 rounded text-base min-h-[44px] sm:min-h-auto" 
                   placeholder="Director" 
                 />
               </label>

@@ -331,30 +331,31 @@ const MediaTracker = () => {
   return (
     <div className="min-h-screen text-white flex flex-col" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
       <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <img src="./logo_white.svg" alt="logo" className="w-7 h-7 object-contain" />
-              Markdown Media Tracker
+            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+              <img src="./logo_white.svg" alt="logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
+              <span className="hidden xs:inline">Markdown Media Tracker</span>
+              <span className="xs:hidden">Media Tracker</span>
             </h1>
             <div className="flex gap-2">
               {!storageAdapter || !storageAdapter.isConnected() ? null : (
                 <>
                   <button
                     onClick={() => setIsSearching(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition min-h-[44px]"
                     style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                     title="Search"
                   >
                     <Search className="w-4 h-4" />
-                    Search
+                    <span className="hidden sm:inline">Search</span>
                   </button>
 
                   <div className="relative" ref={menuRef}>
                     <button
                       onClick={() => setMenuOpen(!menuOpen)}
                       aria-expanded={menuOpen}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700 min-h-[44px]"
                       title="More actions"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -438,26 +439,26 @@ const MediaTracker = () => {
           />
         </div>
       ) : (
-        <div className="flex-1 max-w-7xl mx-auto px-4 py-6">
+        <div className="flex-1 max-w-7xl mx-auto px-4 py-4 sm:py-6">
           {/* Search and Type Filters */}
-          <div className="mb-6 flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-[300px] relative">
+          <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:gap-4">
+            <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by title, author, director, actors, ISBN, tags..."
+                placeholder="Search by title, author, director..."
                 ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-3 sm:py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-center sm:justify-start">
               {['all', 'book', 'movie'].map(type => (
                 <button
                   key={type}
                   onClick={() => setFilterType(type)}
-                  className={`px-4 py-2 rounded-lg transition capitalize ${
+                  className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
                     filterType === type
                       ? ''
                       : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
@@ -471,16 +472,17 @@ const MediaTracker = () => {
           </div>
 
           {/* Sort, Selection, and Filter Controls */}
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-300 flex items-center gap-2">
+          <div className="mb-4 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
+            {/* Mobile: First row - Sort controls */}
+            <div className="flex items-center gap-2 sm:gap-4">
+              <label className="text-sm text-slate-300 flex items-center gap-2 flex-shrink-0">
                 <ArrowUpDown className="w-4 h-4"/>
-                Sort:
+                <span className="hidden sm:inline">Sort:</span>
               </label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none"
+                className="flex-1 sm:flex-none px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none text-sm min-h-[44px]"
               >
                 <option value="dateAdded">Date Added</option>
                 <option value="dateConsumed">Date Read/Watched</option>
@@ -492,45 +494,47 @@ const MediaTracker = () => {
 
               <button
                 onClick={toggleSortOrder}
-                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg ml-2"
+                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg transition min-h-[44px]"
                 title="Toggle sort order"
               >
                 {sortOrder === 'asc' ? (
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-1 text-sm">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                       <path d="M12 8l-4 6h8l-4-6z" fill="currentColor" />
                     </svg>
-                    <span>Asc</span>
+                    <span className="hidden sm:inline">Asc</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-1 text-sm">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                       <path d="M12 16l4-6H8l4 6z" fill="currentColor" />
                     </svg>
-                    <span>Desc</span>
+                    <span className="hidden sm:inline">Desc</span>
                   </div>
                 )}
               </button>
             </div>
             
-            <div className="ml-auto flex items-center gap-2">
+            {/* Mobile: Second row - Action controls */}
+            <div className="flex items-center gap-2 sm:ml-auto">
               {selectionMode && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400">
+                <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                  <span className="text-sm text-slate-400 flex-shrink-0">
                     {selectedCount} selected
                   </span>
                   {selectedCount > 0 && (
                     <>
                       <button
                         onClick={() => setShowBatchEdit(true)}
-                        className="px-3 py-1 rounded text-sm"
+                        className="px-3 py-2 rounded text-sm min-h-[44px]"
                         style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                       >
-                        Batch Edit
+                        <span className="hidden sm:inline">Batch Edit</span>
+                        <span className="sm:hidden">Edit</span>
                       </button>
                       <button
                         onClick={handleDeleteSelected}
-                        className="px-3 py-1 rounded text-sm"
+                        className="px-3 py-2 rounded text-sm min-h-[44px]"
                         style={{ backgroundColor: 'rgba(255,0,0,0.16)', color: 'white' }}
                       >
                         Delete
@@ -542,31 +546,32 @@ const MediaTracker = () => {
               
               <button
                 onClick={toggleSelectionMode}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition min-h-[44px] ${
                   selectionMode ? '' : 'bg-slate-700/50 hover:bg-slate-700'
                 }`}
                 style={selectionMode ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                 title="Toggle selection mode"
               >
                 <CheckSquare className="w-4 h-4" />
-                <span className="text-sm">{selectionMode ? 'Selecting' : 'Select'}</span>
+                <span className="text-sm hidden sm:inline">{selectionMode ? 'Selecting' : 'Select'}</span>
               </button>
               
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center gap-2 min-h-[44px]"
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                Filters
+                <span className="hidden sm:inline">Filters</span>
                 {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 rounded-lg transition text-sm"
+                className="px-3 sm:px-4 py-2 rounded-lg transition text-sm min-h-[44px]"
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
               >
-                Clear
+                <span className="hidden sm:inline">Clear</span>
+                <X className="w-4 h-4 sm:hidden" />
               </button>
             </div>
           </div>
@@ -682,12 +687,12 @@ const MediaTracker = () => {
                 )}
               </div>
             ) : (
-              <div className={`grid gap-4 ${
-                cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8' :
-                cardSize === 'small' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' :
-                cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
-                cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2' :
-                'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+              <div className={`grid gap-3 sm:gap-4 ${
+                cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
+                cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+                'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
               }`}>
                 {filteredAndSortedItems.map((item, index) => (
                   <div

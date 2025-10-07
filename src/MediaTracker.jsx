@@ -1007,6 +1007,18 @@ const MediaTracker = () => {
             </a>
             <span className="text-slate-500">|</span>
             <a
+              href="https://github.com/samsledje/markdown-media-tracker/blob/main/PRIVACY_POLICY.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-white transition-colors"
+              title="Privacy Policy"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16V13C8,12.4 8.6,11.5 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z"/>
+              </svg>
+            </a>
+            <span className="text-slate-500">|</span>
+            <a
               href="https://samsl.io"
               target="_blank"
               rel="noopener noreferrer"

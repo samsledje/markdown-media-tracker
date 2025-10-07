@@ -37,6 +37,7 @@ const MediaTracker = () => {
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchResultItem, setSearchResultItem] = useState(null);
 
   // Refs
   const searchInputRef = useRef(null);
@@ -854,9 +855,9 @@ const MediaTracker = () => {
         <SearchModal
           onClose={() => setIsSearching(false)}
           onSelect={(result) => {
-            setIsAdding(false);
+            setSearchResultItem(result);
             setIsSearching(false);
-            saveItem(result);
+            setIsAdding(true);
           }}
         />
       )}
@@ -916,11 +917,16 @@ const MediaTracker = () => {
 
       {isAdding && (
         <AddEditModal
-          onClose={() => setIsAdding(false)}
+          onClose={() => {
+            setIsAdding(false);
+            setSearchResultItem(null);
+          }}
           onSave={(item) => {
             saveItem(item);
             setIsAdding(false);
+            setSearchResultItem(null);
           }}
+          initialItem={searchResultItem}
         />
       )}
     </div>

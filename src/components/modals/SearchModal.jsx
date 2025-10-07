@@ -72,9 +72,18 @@ const SearchModal = ({ onClose, onSelect }) => {
   }, [query, searchType]);
 
   const handleSelect = (result) => {
+    // Get today's date in YYYY-MM-DD format
+    const getTodayDate = () => {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    };
+
     onSelect({
       ...result,
+      rating: 0,
       tags: [],
+      dateRead: getTodayDate(),
+      dateWatched: getTodayDate(),
       dateAdded: new Date().toISOString(),
       review: ''
     });

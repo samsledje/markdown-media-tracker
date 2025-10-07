@@ -6,6 +6,12 @@ import EditForm from '../forms/EditForm.jsx';
  * Modal for adding new items
  */
 const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
   const [item, setItem] = useState(initialItem || {
     title: '',
     type: 'book',
@@ -17,11 +23,18 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     rating: 0,
     tags: [],
     coverUrl: '',
-    dateRead: '',
-    dateWatched: '',
+    dateRead: getTodayDate(),
+    dateWatched: getTodayDate(),
     dateAdded: new Date().toISOString(),
     review: ''
   });
+
+  // Update item when initialItem changes
+  useEffect(() => {
+    if (initialItem) {
+      setItem(initialItem);
+    }
+  }, [initialItem]);
 
   const handleSave = () => {
     if (!item.title) {

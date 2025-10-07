@@ -191,7 +191,16 @@ const EditForm = ({ item, onChange }) => {
           {[1, 2, 3, 4, 5].map(rating => (
             <button
               key={rating}
-              onClick={() => onChange({ ...item, rating })}
+              onClick={() => {
+                // If clicking on the same star that's currently the rating, toggle to unrated (0)
+                if (item.rating === rating) {
+                  onChange({ ...item, rating: 0 });
+                } 
+                // Otherwise, set to the clicked rating
+                else {
+                  onChange({ ...item, rating });
+                }
+              }}
               className="transition"
             >
               <Star

@@ -31,7 +31,7 @@ const EditForm = ({ item, onChange }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <label className="block text-sm font-medium mb-2">Type</label>
         <div className="flex gap-2">
@@ -39,7 +39,7 @@ const EditForm = ({ item, onChange }) => {
             <button
               key={type}
               onClick={() => onChange({ ...item, type })}
-              className={`px-4 py-2 rounded-lg transition capitalize ${
+              className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
                 item.type === type
                   ? ''
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -58,7 +58,7 @@ const EditForm = ({ item, onChange }) => {
           type="text"
           value={item.title}
           onChange={(e) => onChange({ ...item, title: e.target.value })}
-          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+          className="w-full px-3 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
           placeholder="Enter title"
         />
       </div>
@@ -71,7 +71,7 @@ const EditForm = ({ item, onChange }) => {
               type="text"
               value={item.author || ''}
               onChange={(e) => onChange({ ...item, author: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               placeholder="Enter author name"
             />
           </div>
@@ -81,7 +81,7 @@ const EditForm = ({ item, onChange }) => {
               type="text"
               value={item.isbn || ''}
               onChange={(e) => onChange({ ...item, isbn: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               placeholder="Enter ISBN"
             />
           </div>
@@ -92,11 +92,11 @@ const EditForm = ({ item, onChange }) => {
                 type="date"
                 value={item.dateRead || ''}
                 onChange={(e) => onChange({ ...item, dateRead: e.target.value })}
-                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+                className="flex-1 px-3 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
               <button
                 onClick={() => onChange({ ...item, dateRead: '' })}
-                className="px-3 py-2 rounded-lg transition text-sm"
+                className="px-3 py-3 sm:py-2 rounded-lg transition text-sm min-h-[44px]"
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
                 title="Clear date"
               >

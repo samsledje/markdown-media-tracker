@@ -27,6 +27,12 @@ export const applyThemeColors = (primaryColor, highlightColor) => {
   try {
     document.documentElement.style.setProperty('--mt-primary', primaryColor);
     document.documentElement.style.setProperty('--mt-highlight', highlightColor);
+    
+    // Extract RGB values from highlight color for rgba() usage
+    const highlightRgb = hexToRgba(highlightColor, 1).match(/\d+/g);
+    if (highlightRgb && highlightRgb.length >= 3) {
+      document.documentElement.style.setProperty('--mt-highlight-rgb', `${highlightRgb[0]}, ${highlightRgb[1]}, ${highlightRgb[2]}`);
+    }
   } catch (e) {
     // ignore (server-side or non-browser)
   }

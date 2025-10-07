@@ -22,11 +22,47 @@ body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	-webkit-overflow-scrolling: touch;
+	/* Ensure minimum 16px font size on mobile */
+	font-size: 16px;
+	line-height: 1.6;
 }
 
 /* Ensure the root app element expands to full height so the background is continuous */
 #root {
 	min-height: 100vh;
+}
+
+/* Mobile responsive typography */
+@media (max-width: 640px) {
+	body {
+		font-size: 16px; /* Prevent zoom on iOS */
+		line-height: 1.6;
+	}
+	
+	/* Prevent horizontal scroll on small screens */
+	html, body {
+		overflow-x: hidden;
+	}
+}
+
+/* Touch-friendly targets - ensure minimum 44x44px */
+@media (max-width: 768px) {
+	button, input, select, textarea, [role="button"] {
+		min-height: 44px;
+	}
+	
+	/* Remove hover effects on touch devices */
+	@media (hover: none) {
+		button:hover, 
+		[role="button"]:hover,
+		.hover\:bg-slate-700:hover,
+		.hover\:bg-slate-600:hover,
+		.hover\:border-slate-600:hover,
+		.hover\:border-purple-500:hover {
+			background-color: inherit;
+			border-color: inherit;
+		}
+	}
 }
 
 /* Custom slider styling to match theme colors */

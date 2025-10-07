@@ -90,14 +90,14 @@ const SearchModal = ({ onClose, onSelect }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-4xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto">
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Search Books & Movies</h2>
+            <h2 className="text-lg sm:text-xl font-bold">Search Books & Movies</h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-slate-700 rounded transition"
+              className="p-2 hover:bg-slate-700 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
@@ -105,7 +105,7 @@ const SearchModal = ({ onClose, onSelect }) => {
 
           {searchType === 'movie' && showApiKeyWarning && (
             <div className="mb-4 p-4 bg-yellow-900/30 border border-yellow-500/50 rounded-lg">
-              <p className="text-sm text-yellow-200">
+              <p className="text-sm text-yellow-200 leading-mobile">
                 ⚠️ OMDb API key required for movie searches. Please configure your API key in the main interface first.
               </p>
             </div>
@@ -116,7 +116,7 @@ const SearchModal = ({ onClose, onSelect }) => {
               <button
                 key={type}
                 onClick={() => setSearchType(type)}
-                className={`px-4 py-2 rounded-lg transition capitalize flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize flex items-center justify-center gap-2 min-h-[44px] ${
                   searchType === type
                     ? ''
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -129,18 +129,18 @@ const SearchModal = ({ onClose, onSelect }) => {
             ))}
           </div>
 
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearch} className="space-y-3 sm:space-y-0 sm:flex sm:gap-2">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search for ${searchType}s...`}
-              className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
             />
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 sm:py-2 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
               style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
             >
               <Search className="w-4 h-4" />
@@ -149,28 +149,28 @@ const SearchModal = ({ onClose, onSelect }) => {
           </form>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 pb-6">
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
               <p className="mt-4 text-slate-400">Searching...</p>
             </div>
           ) : results.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {results.map((result, index) => (
                 <div
                   key={index}
                   onClick={() => handleSelect(result)}
-                  className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 hover:border-blue-500 transition cursor-pointer"
+                  className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 hover:border-blue-500 transition cursor-pointer touch-manipulation"
                 >
                   {result.coverUrl && (
                     <img
                       src={result.coverUrl}
                       alt={result.title}
-                      className="w-full h-48 object-cover rounded mb-3"
+                      className="w-full h-40 sm:h-48 object-cover rounded mb-3"
                     />
                   )}
-                  <h3 className="font-semibold text-sm mb-1 line-clamp-2">{result.title}</h3>
+                  <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-2 leading-mobile">{result.title}</h3>
                   {result.author && (
                     <p className="text-xs text-slate-400 truncate">{result.author}</p>
                   )}

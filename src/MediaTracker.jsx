@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
@@ -21,6 +21,12 @@ const MediaTracker = () => {
   const [omdbApiKey, setOmdbApiKey] = useState('');
   const filtersRef = useRef(null);
   const filterButtonRef = useRef(null);
+  // Keyboard & navigation refs/state
+  const searchInputRef = useRef(null);
+  const cardRefs = useRef({}); // id -> element
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [focusedId, setFocusedId] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState({});
   const [cardSize, setCardSize] = useState(() => {
     return localStorage.getItem('cardSize') || 'medium';
@@ -121,6 +127,18 @@ const MediaTracker = () => {
       // ignore (server-side or non-browser)
     }
   }, [primaryColor, highlightColor]);
+
+  // Helper to determine if user is typing in an input/textarea/contenteditable
+  const _isTyping = () => {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName && el.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || el.isContentEditable) return true;
+    if (el.getAttribute && el.getAttribute('role') === 'textbox') return true;
+    return false;
+  };
+
+  
 
   // small helper to convert hex to rgba for inline styles
   const hexToRgba = (hex, alpha = 1) => {
@@ -756,6 +774,153 @@ const MediaTracker = () => {
     return 0;
   });
 
+  // Global keyboard shortcuts and navigation (moved here so sortedItems is defined)
+  useEffect(() => {
+    const onKey = (e) => {
+      // Escape: close modals, clear search/selection
+      if (e.key === 'Escape') {
+        if (menuOpen) setMenuOpen(false);
+        if (customizeOpen) setCustomizeOpen(false);
+        if (showHelp) setShowHelp(false);
+        if (isAdding) setIsAdding(false);
+        if (isSearching) setIsSearching(false);
+        if (selectedItem) setSelectedItem(null);
+        if (showBatchEdit) setShowBatchEdit(false);
+        if (searchTerm) setSearchTerm('');
+        if (selectionMode) clearSelection();
+        return;
+      }
+
+      // Don't run shortcuts while typing in inputs/textareas
+      if (_isTyping()) return;
+
+      const key = e.key;
+
+      // Show help: ?
+      if (key === '?') {
+        e.preventDefault();
+        setShowHelp(s => !s);
+        return;
+      }
+
+      // Focus search: / or Ctrl/Cmd+K
+      if ((key === '/' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          const val = searchInputRef.current.value || '';
+          searchInputRef.current.setSelectionRange(val.length, val.length);
+        }
+        return;
+      }
+
+      // Directory-only shortcuts
+      if (directoryHandle) {
+        if (key.toLowerCase() === 'a' || key.toLowerCase() === 'n') {
+          e.preventDefault();
+          setIsAdding(true);
+          return;
+        }
+        if (key.toLowerCase() === 's') {
+          e.preventDefault();
+          setIsSearching(true);
+          return;
+        }
+      }
+
+      // Toggle filters: F
+      if (key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setShowFilters(s => !s);
+        return;
+      }
+
+      // Toggle customize: C
+      if (key.toLowerCase() === 'c') {
+        e.preventDefault();
+        setCustomizeOpen(s => !s);
+        return;
+      }
+
+      // Cycle filter type: T
+      if (key.toLowerCase() === 't') {
+        e.preventDefault();
+        const types = ['all','book','movie'];
+        const idx = types.indexOf(filterType);
+        setFilterType(types[(idx + 1) % types.length]);
+        return;
+      }
+
+      // Toggle selection mode: V or Shift+Click elsewhere handled on click
+      if (key.toLowerCase() === 'v') {
+        e.preventDefault();
+        setSelectionMode(s => !s);
+        if (!selectionMode) setSelectedIds(new Set());
+        return;
+      }
+
+      // Select all visible: Ctrl/Cmd+A
+      if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'a') {
+        if (selectionMode) {
+          e.preventDefault();
+          setSelectedIds(new Set(sortedItems.map(it => it.id)));
+        }
+        return;
+      }
+
+      // Delete selected: Delete / Backspace
+      if ((key === 'Delete' || key === 'Backspace') && selectionMode && selectedIds.size > 0) {
+        e.preventDefault();
+        deleteSelected();
+        return;
+      }
+
+      // Item navigation and activation
+      if (sortedItems.length > 0 && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(key)) {
+        e.preventDefault();
+        let idx = focusedIndex;
+        if (idx < 0) idx = 0;
+        const cols = cardSize === 'tiny' ? 8 : cardSize === 'small' ? 5 : cardSize === 'large' ? 3 : cardSize === 'xlarge' ? 2 : 3;
+
+        if (key === 'ArrowLeft') idx = Math.max(0, idx - 1);
+        else if (key === 'ArrowRight') idx = Math.min(sortedItems.length - 1, idx + 1);
+        else if (key === 'ArrowUp') idx = Math.max(0, idx - cols);
+        else if (key === 'ArrowDown') idx = Math.min(sortedItems.length - 1, idx + cols);
+        else if (key === 'Enter' || key === ' ') {
+          const it = sortedItems[focusedIndex >= 0 ? focusedIndex : 0];
+          if (it) setSelectedItem(it);
+          return;
+        }
+
+        setFocusedIndex(idx);
+        const id = sortedItems[idx] && sortedItems[idx].id;
+        setFocusedId(id || null);
+        requestAnimationFrame(() => {
+          const node = id && cardRefs.current[id];
+          if (node && node.scrollIntoView) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      }
+    };
+
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [
+    directoryHandle,
+    isAdding,
+    isSearching,
+    menuOpen,
+    customizeOpen,
+    showHelp,
+    searchTerm,
+    selectionMode,
+    selectedIds,
+    sortedItems,
+    focusedIndex,
+    cardSize,
+    showBatchEdit,
+    filterType
+  ]);
+
   return (
     <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
       <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
@@ -766,25 +931,16 @@ const MediaTracker = () => {
               Markdown Media Tracker
             </h1>
             <div className="flex gap-2">
-              {!directoryHandle ? (
-                <button
-                  onClick={selectDirectory}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  Select Directory
-                </button>
-              ) : (
+              {!directoryHandle ? null : (
                 <>
                   <button
                     onClick={() => setIsSearching(true)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
                     style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                    title="Add"
+                    title="Search"
                   >
                     <Search className="w-4 h-4" />
-                    Add
+                    Search
                   </button>
 
                   <div className="relative" ref={menuRef}>
@@ -858,7 +1014,10 @@ const MediaTracker = () => {
             className="px-6 py-3 rounded-lg transition text-lg"
             style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
           >
-            Select Directory
+            <span className="flex items-center gap-3">
+              <FolderOpen className="w-5 h-5" />
+              Select Directory
+            </span>
           </button>
         </div>
       ) : (
@@ -869,6 +1028,7 @@ const MediaTracker = () => {
               <input
                 type="text"
                 placeholder="Search by title, author, director, actors, ISBN, tags..."
+                ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
@@ -1170,12 +1330,25 @@ const MediaTracker = () => {
             cardSize === 'xlarge' ? 'md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
             'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
           } gap-4`}>
-            {sortedItems.map(item => {
+            {sortedItems.map((item, idx) => {
               const isSelected = selectedIds.has(item.id);
               return (
               <div
                 key={item.id}
-                onClick={() => {
+                ref={(el) => { if (el) cardRefs.current[item.id] = el; }}
+                tabIndex={0}
+                onClick={(e) => {
+                  // Shift+click toggles selection
+                  if (e.shiftKey || e.nativeEvent && e.nativeEvent.shiftKey) {
+                    e.preventDefault();
+                    const next = new Set(selectedIds);
+                    if (next.has(item.id)) next.delete(item.id);
+                    else next.add(item.id);
+                    setSelectionMode(true);
+                    setSelectedIds(next);
+                    return;
+                  }
+
                   if (selectionMode) {
                     const next = new Set(selectedIds);
                     if (next.has(item.id)) next.delete(item.id);
@@ -1185,7 +1358,20 @@ const MediaTracker = () => {
                     setSelectedItem(item);
                   }
                 }}
-                className={`relative bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition ${isSelected ? 'ring-2 ring-blue-400' : ''} cursor-pointer ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (selectionMode) {
+                      const next = new Set(selectedIds);
+                      if (next.has(item.id)) next.delete(item.id);
+                      else next.add(item.id);
+                      setSelectedIds(next);
+                    } else {
+                      setSelectedItem(item);
+                    }
+                  }
+                }}
+                className={`relative bg-slate-700/30 border border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 transition ${isSelected ? 'ring-2 ring-blue-400' : ''} cursor-pointer ${focusedId === item.id ? 'ring-4 ring-offset-2 ring-white/20' : ''} ${
                   cardSize === 'tiny' ? 'text-xs' : cardSize === 'small' ? '' : cardSize === 'large' ? 'text-base' : cardSize === 'xlarge' ? 'text-lg' : ''
                 }`}
               >
@@ -1318,6 +1504,10 @@ const MediaTracker = () => {
         />
       )}
 
+      {showHelp && (
+        <HelpModal onClose={() => setShowHelp(false)} />
+      )}
+
       {showBatchEdit && (
         <BatchEditModal
           onClose={() => setShowBatchEdit(false)}
@@ -1326,24 +1516,21 @@ const MediaTracker = () => {
           selectedItems={items.filter(it => selectedIds.has(it.id))}
         />
       )}
-      {/* Floating Customize Style panel pinned to bottom-right */}
+      {/* Floating Customize Style control pinned to bottom-right */}
       <div className="fixed z-50 bottom-6 right-6">
-        <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-lg p-3 shadow-lg flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCustomizeOpen(!customizeOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-full transition"
-              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-              aria-expanded={customizeOpen}
-              title="Customize style"
-            >
-              <Maximize className="w-5 h-5" />
-              <span className="hidden sm:inline">Customize Style</span>
-            </button>
-          </div>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setCustomizeOpen(!customizeOpen)}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg transition"
+            style={{ background: 'var(--mt-highlight)', color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.4)' }}
+            aria-expanded={customizeOpen}
+            title="Customize style"
+          >
+            <Palette className="w-5 h-5" />
+          </button>
 
           {customizeOpen && (
-            <div className="mt-2 w-72 p-3 bg-slate-800/80 border border-slate-700 rounded-lg">
+            <div className="absolute bottom-16 right-0 mt-2 w-72 p-3 bg-slate-800/80 border border-slate-700 rounded-lg shadow-lg">
               <div className="mb-2 text-sm text-slate-300">Card size</div>
               <div className="flex items-center gap-3 mb-3">
                 <input
@@ -1409,6 +1596,18 @@ const MediaTracker = () => {
             </div>
           )}
         </div>
+      </div>
+      {/* Floating help bubble pinned to bottom-left */}
+      <div className="fixed z-50 bottom-6 left-6">
+        <button
+          onClick={() => setShowHelp(true)}
+          title="Keyboard shortcuts"
+          className="w-12 h-12 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg"
+          style={{ background: 'var(--mt-highlight)', color: 'white', boxShadow: '0 6px 18px rgba(0,0,0,0.4)' }}
+          aria-label="Help"
+        >
+          ?
+        </button>
       </div>
     </div>
   );
@@ -1509,6 +1708,20 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
       searchMovies(query);
     }
   };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (query.trim()) handleSearch({ preventDefault: () => {} });
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [query, searchType, omdbApiKey]);
 
   const handleSelect = (result) => {
     onSelect({
@@ -1653,6 +1866,53 @@ const SearchModal = ({ onClose, onSelect, omdbApiKey, setOmdbApiKey }) => {
   );
 };
 
+// Help modal listing keyboard shortcuts
+const HelpModal = ({ onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg max-w-3xl w-full p-6">
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-xl font-bold">Keyboard shortcuts</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-semibold mb-2">Global</h3>
+            <ul className="text-sm text-slate-300 space-y-1">
+              <li><strong>?</strong> — Show this help</li>
+              <li><strong>/</strong> or <strong>Ctrl/Cmd+K</strong> — Focus search</li>
+              <li><strong>Esc</strong> — Close modals / clear search / exit selection</li>
+              <li><strong>A</strong> or <strong>N</strong> — Add manually (when directory selected)</li>
+              <li><strong>S</strong> — Search online (when directory selected)</li>
+              <li><strong>F</strong> — Toggle filters</li>
+              <li><strong>C</strong> — Toggle customize style panel</li>
+              <li><strong>T</strong> — Cycle filter type (all → book → movie)</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-2">When items are visible</h3>
+            <ul className="text-sm text-slate-300 space-y-1">
+              <li><strong>Arrow keys</strong> — Navigate between item cards</li>
+              <li><strong>Enter / Space</strong> — Open selected item</li>
+              <li><strong>Shift+Click</strong> or <strong>V</strong> — Toggle selection mode / select</li>
+              <li><strong>Ctrl/Cmd+A</strong> — Select all visible (in selection mode)</li>
+              <li><strong>Delete / Backspace</strong> — Delete selected (in selection mode)</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-2">In modals</h3>
+            <ul className="text-sm text-slate-300 space-y-1">
+              <li><strong>Esc</strong> — Close modal</li>
+              <li><strong>Ctrl/Cmd+Enter</strong> — Save / Submit</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const BatchEditModal = ({ onClose, onApply, sampleItem, selectedItems = [] }) => {
   // per-field values and apply toggles
   const [type, setType] = useState(''); const [applyType, setApplyType] = useState(false);
@@ -1699,6 +1959,18 @@ const BatchEditModal = ({ onClose, onApply, sampleItem, selectedItems = [] }) =>
 
     onApply(changes);
   };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleApply();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [type, author, director, year, rating, addTagsStr, removeTagsStr, dateRead, dateWatched, applyType, applyAuthor, applyDirector, applyYear, applyRating, applyAddTags, applyRemoveTags, applyDateRead, applyDateWatched]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50">
@@ -1790,6 +2062,22 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, hexToRgba, highlight
     onDelete(item);
   };
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (isEditing) {
+          e.preventDefault();
+          handleSave();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isEditing, editedItem]);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-slate-800 border border-slate-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1869,6 +2157,20 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     }
     onSave(item);
   };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [item]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">

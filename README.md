@@ -124,17 +124,9 @@ The importer uses simple heuristics and may not perfectly map every custom CSV. 
 
 - OMDb rate limits / API key: If movie searches fail, confirm your OMDb key is set in `src/config.js` and valid. OMDb requires a (free) API key you can get at http://www.omdbapi.com/apikey.aspx.
 
-
-## Project structure (important files)
-
-- `src/MediaTracker.jsx` — main app UI and logic
-- `src/config.js` — place your OMDb API key here
-- `data/` — sample markdown items provided for demo/testing
-- `public/` — static assets
-
 ## Contributing
 
-Contributions are welcome. Open an issue or send a pull request with bug fixes or small improvements. For larger changes, please open an issue first to discuss the design.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed information about the project structure, development guidelines, and how to contribute.
 
 ## License
 

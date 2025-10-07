@@ -28,3 +28,47 @@ body {
 #root {
 	min-height: 100vh;
 }
+
+/* Custom slider styling to match theme colors */
+input[type="range"].slider {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+input[type="range"].slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 20px;
+	width: 20px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--mt-highlight) 85%, #000000 15%);
+	border: 2px solid var(--mt-highlight);
+	cursor: pointer;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	transition: all 0.2s ease;
+}
+
+input[type="range"].slider::-webkit-slider-thumb:hover {
+	transform: scale(1.1);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox */
+input[type="range"].slider::-moz-range-thumb {
+	height: 20px;
+	width: 20px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--mt-highlight) 85%, #000000 15%);
+	border: 2px solid var(--mt-highlight);
+	cursor: pointer;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	transition: all 0.2s ease;
+}
+
+input[type="range"].slider::-moz-range-thumb:hover {
+	transform: scale(1.1);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}

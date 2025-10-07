@@ -169,6 +169,7 @@ The importer uses simple heuristics and may not perfectly map every custom CSV. 
 
 - **Google Drive connection issues**: If Google Drive authentication fails:
   - Ensure popups are allowed for the app's domain
+  - **On mobile**: Allow popups in browser settings (iOS Safari: Settings → Safari → Pop-ups)
   - Try using an incognito/private browsing window
   - Check that your Google account has Drive access enabled
   - Verify your internet connection

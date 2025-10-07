@@ -36,6 +36,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
             <div className="mt-3 text-xs space-y-1">
               <p className="font-medium">Troubleshooting tips:</p>
               <p>• Disable popup blockers for this site</p>
+              <p>• On mobile: Allow popups in browser settings (Safari → Settings → Pop-ups)</p>
               <p>• Try using an incognito/private window</p>
               <p>• Clear browser cache and cookies</p>
             </div>
@@ -51,9 +52,9 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {availableOptions.map((option) => (
-          <div key={option.type}>
+          <div key={option.type} className="flex">
             <button
               onClick={() => {
                 if (!isLoading) {
@@ -66,7 +67,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
               }}
               disabled={!option.supported || isLoading}
               className={`
-                w-full p-8 rounded-xl border-2 transition-all duration-200 text-left
+                w-full p-8 rounded-xl border-2 transition-all duration-200 text-left flex flex-col
                 ${option.supported 
                   ? 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50 cursor-pointer' 
                   : 'border-slate-700 bg-slate-800/30 cursor-not-allowed opacity-50'
@@ -84,11 +85,11 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
                 </div>
               </div>
               
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-slate-300 text-sm leading-relaxed mb-6">
                 {option.description}
               </p>
 
-            <div className="mt-6 space-y-2 text-xs text-slate-400">
+            <div className="mt-auto space-y-2 text-xs text-slate-400">
               {option.type === 'filesystem' && (
                 <div className="space-y-1">
                   <p>✓ Files stored locally on your device</p>
@@ -104,7 +105,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
                   <p>✓ Automatic cloud backup</p>
                   <p>✓ Works on mobile devices</p>
                   <p className="text-blue-400">ℹ Requires Google account</p>
-                  <p className="text-amber-400">⚠ Allow popups when prompted</p>
+                  <p className="text-amber-400">⚠ Allow popups when prompted (check mobile browser settings)</p>
                 </div>
               )}
             </div>

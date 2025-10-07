@@ -258,7 +258,7 @@ const MediaTracker = () => {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <img src="/logo_white.svg" alt="logo" className="w-7 h-7 object-contain" />
+              <img src="./logo_white.svg" alt="logo" className="w-7 h-7 object-contain" />
               Markdown Media Tracker
             </h1>
             <div className="flex gap-2">
@@ -346,7 +346,7 @@ const MediaTracker = () => {
 
       {!directoryHandle ? (
         <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <img src="/logo_white.svg" alt="Media Tracker logo" className="w-40 h-40 mx-auto mb-6 object-contain" />
+          <img src="./logo_white.svg" alt="Media Tracker logo" className="w-40 h-40 mx-auto mb-6 object-contain" />
           <h2 className="text-2xl font-bold mb-4">Welcome to Markdown Media Tracker</h2>
           <p className="text-slate-400 mb-8">
             Select a directory to store your book and movie markdown files. Each item will be saved as a separate .md file with YAML frontmatter.

@@ -10,7 +10,7 @@ import { KEYBOARD_SHORTCUTS, GRID_COLUMNS_BY_SIZE } from '../constants/index.js'
 export const useKeyboardNavigation = ({
   items = [],
   cardSize = 'medium',
-  directoryHandle = null,
+  storageAdapter = null,
   onOpenHelp = () => {},
   onFocusSearch = () => {},
   onAddItem = () => {},
@@ -61,8 +61,8 @@ export const useKeyboardNavigation = ({
         return;
       }
 
-      // Directory-only shortcuts
-      if (directoryHandle) {
+      // Storage-dependent shortcuts
+      if (storageAdapter && storageAdapter.isConnected()) {
         if (key.toLowerCase() === KEYBOARD_SHORTCUTS.ADD || key.toLowerCase() === KEYBOARD_SHORTCUTS.ADD_ALT) {
           e.preventDefault();
           onAddItem();
@@ -169,7 +169,7 @@ export const useKeyboardNavigation = ({
   }, [
     items,
     cardSize,
-    directoryHandle,
+    storageAdapter,
     focusedIndex,
     selectionMode,
     selectedCount,

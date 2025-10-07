@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -17,6 +17,8 @@ import BatchEditModal from './components/modals/BatchEditModal.jsx';
 import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
 import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
+import StorageSelector from './components/StorageSelector.jsx';
+import StorageIndicator from './components/StorageIndicator.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
@@ -38,6 +40,9 @@ const MediaTracker = () => {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchResultItem, setSearchResultItem] = useState(null);
+  const [storageError, setStorageError] = useState(null);
+  const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
+  const [showStorageSelector, setShowStorageSelector] = useState(true);
 
   // Refs
   const searchInputRef = useRef(null);
@@ -52,14 +57,19 @@ const MediaTracker = () => {
   // Custom hooks
   const {
     items,
-    directoryHandle,
+    storageAdapter,
+    storageInfo,
+    isLoading,
     undoStack,
+    initializeStorage,
     loadItems,
     saveItem,
     deleteItem,
     deleteItems,
     undoLastDelete,
-    selectNewDirectory,
+    selectStorage,
+    disconnectStorage,
+    getAvailableStorageOptions,
     applyBatchEdit
   } = useItems();
 
@@ -152,8 +162,8 @@ const MediaTracker = () => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     
-    if (!directoryHandle) {
-      alert('Please select a directory first');
+    if (!storageAdapter || !storageAdapter.isConnected()) {
+      alert('Please connect to a storage location first');
       e.target.value = '';
       return;
     }
@@ -199,7 +209,7 @@ const MediaTracker = () => {
   const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
     items: filteredAndSortedItems,
     cardSize,
-    directoryHandle,
+    storageAdapter,
     onOpenHelp: () => setShowHelp(true),
     onFocusSearch: focusSearch,
     onAddItem: () => setIsAdding(true),
@@ -216,7 +226,57 @@ const MediaTracker = () => {
     selectedCount
   });
 
-  // Close the hamburger menu on outside click or Escape
+  // Initialize storage options on component mount
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        const options = await getAvailableStorageOptions();
+        setAvailableStorageOptions(options);
+        
+        // Check if user was previously connected to Google Drive
+        const wasConnected = localStorage.getItem('googleDriveConnected');
+        if (wasConnected === 'true') {
+          try {
+            await initializeStorage('googledrive');
+            setShowStorageSelector(false);
+          } catch (error) {
+            console.error('Failed to reconnect to Google Drive:', error);
+            localStorage.removeItem('googleDriveConnected');
+            localStorage.removeItem('googleDriveFolderId');
+          }
+        } else if (options.find(opt => opt.type === 'filesystem' && opt.supported)) {
+          // If filesystem is supported but no previous connection, still show selector
+          setShowStorageSelector(true);
+        }
+      } catch (error) {
+        setStorageError(error.message);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  // Handle storage selection
+  const handleStorageSelect = async (storageType) => {
+    try {
+      setStorageError(null);
+      await selectStorage(storageType);
+      setShowStorageSelector(false);
+    } catch (error) {
+      setStorageError(error.message);
+    }
+  };
+
+  // Handle storage disconnection
+  const handleDisconnectStorage = async () => {
+    try {
+      await disconnectStorage();
+      setShowStorageSelector(true);
+      closeModals();
+    } catch (error) {
+      setStorageError(error.message);
+    }
+  };
   useEffect(() => {
     const onDocClick = (e) => {
       if (!menuOpen) return;
@@ -257,16 +317,16 @@ const MediaTracker = () => {
     setMenuPos({ left, top, width });
   }, [menuOpen]);
 
-  // Auto-show API key modal when directory is selected and no API key is configured
+  // Auto-show API key modal when storage is connected and no API key is configured
   useEffect(() => {
-    if (directoryHandle && !hasApiKey()) {
-      // Small delay to ensure the directory selection UI has settled
+    if (storageAdapter && storageAdapter.isConnected() && !hasApiKey()) {
+      // Small delay to ensure the storage connection UI has settled
       const timer = setTimeout(() => {
         setShowApiKeyManager(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [directoryHandle]);
+  }, [storageAdapter, storageInfo]);
 
   return (
     <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
@@ -278,7 +338,7 @@ const MediaTracker = () => {
               Markdown Media Tracker
             </h1>
             <div className="flex gap-2">
-              {!directoryHandle ? null : (
+              {!storageAdapter || !storageAdapter.isConnected() ? null : (
                 <>
                   <button
                     onClick={() => setIsSearching(true)}
@@ -336,11 +396,15 @@ const MediaTracker = () => {
             </button>
 
             <button
-              onClick={() => { selectNewDirectory(); setMenuOpen(false); }}
+              onClick={() => { handleDisconnectStorage(); setMenuOpen(false); }}
               className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
             >
-              <FolderOpen className="w-4 h-4" />
-              Switch Directory
+              {storageAdapter?.getStorageType() === 'googledrive' ? (
+                <Cloud className="w-4 h-4" />
+              ) : (
+                <FolderOpen className="w-4 h-4" />
+              )}
+              Switch Storage
             </button>
 
             <button
@@ -368,24 +432,13 @@ const MediaTracker = () => {
         document.body
       )}
 
-      {!directoryHandle ? (
-        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <img src="./logo_white.svg" alt="Media Tracker logo" className="w-40 h-40 mx-auto mb-6 object-contain" />
-          <h2 className="text-2xl font-bold mb-4">Welcome to Markdown Media Tracker</h2>
-          <p className="text-slate-400 mb-8">
-            Select a directory to store your book and movie markdown files. Each item will be saved as a separate .md file with YAML frontmatter.
-          </p>
-          <button
-            onClick={selectNewDirectory}
-            className="px-6 py-3 rounded-lg transition text-lg"
-            style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-          >
-            <span className="flex items-center gap-3">
-              <FolderOpen className="w-5 h-5" />
-              Select Directory
-            </span>
-          </button>
-        </div>
+      {showStorageSelector ? (
+        <StorageSelector
+          onStorageSelect={handleStorageSelect}
+          availableOptions={availableStorageOptions}
+          error={storageError}
+          isLoading={isLoading}
+        />
       ) : (
         <div className="max-w-7xl mx-auto px-4 py-6">
           {/* Search and Type Filters */}
@@ -893,6 +946,15 @@ const MediaTracker = () => {
 
       {/* Floating Action Buttons */}
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
+        {/* Storage Indicator */}
+        {!showStorageSelector && (
+          <StorageIndicator
+            storageAdapter={storageAdapter}
+            storageInfo={storageInfo}
+            onSwitchStorage={handleDisconnectStorage}
+          />
+        )}
+        
         {/* Customize Button */}
         <button
           onClick={() => setCustomizeOpen(true)}

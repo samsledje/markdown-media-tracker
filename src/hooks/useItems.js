@@ -1,27 +1,51 @@
 import { useState, useEffect } from 'react';
-import { loadItemsFromDirectory, saveItemToFile, moveItemToTrash, restoreItemFromTrash, selectDirectory } from '../utils/fileUtils.js';
+import { StorageFactory } from '../services/storageAdapter.js';
 
 /**
- * Custom hook for managing items (books/movies)
+ * Custom hook for managing items (books/movies) with storage adapter pattern
  * @returns {object} Items state and actions
  */
 export const useItems = () => {
   const [items, setItems] = useState([]);
-  const [directoryHandle, setDirectoryHandle] = useState(null);
+  const [storageAdapter, setStorageAdapter] = useState(null);
+  const [storageInfo, setStorageInfo] = useState(null);
   const [undoStack, setUndoStack] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   /**
-   * Load items from directory
+   * Initialize storage adapter
    */
-  const loadItems = async (handle = directoryHandle) => {
-    if (!handle) return;
+  const initializeStorage = async (preferredType = null) => {
+    try {
+      setIsLoading(true);
+      const adapter = await StorageFactory.createAdapter(preferredType);
+      await adapter.initialize();
+      setStorageAdapter(adapter);
+      return adapter;
+    } catch (error) {
+      console.error('Error initializing storage:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Load items from storage
+   */
+  const loadItems = async (adapter = storageAdapter) => {
+    if (!adapter || !adapter.isConnected()) return;
     
     try {
-      const loadedItems = await loadItemsFromDirectory(handle);
+      setIsLoading(true);
+      const loadedItems = await adapter.loadItems();
       setItems(loadedItems);
+      setStorageInfo(adapter.getStorageInfo());
     } catch (error) {
       console.error('Error loading items:', error);
       alert(`Error loading items: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -29,16 +53,19 @@ export const useItems = () => {
    * Save an item
    */
   const saveItem = async (item) => {
-    if (!directoryHandle) {
-      throw new Error('Please select a directory first');
+    if (!storageAdapter || !storageAdapter.isConnected()) {
+      throw new Error('Please connect to a storage location first');
     }
 
     try {
-      await saveItemToFile(item, directoryHandle);
+      setIsLoading(true);
+      await storageAdapter.saveItem(item);
       await loadItems();
     } catch (error) {
       console.error('Error saving item:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,18 +73,21 @@ export const useItems = () => {
    * Delete an item (move to trash)
    */
   const deleteItem = async (item) => {
-    if (!directoryHandle) {
-      throw new Error('Please select a directory first');
+    if (!storageAdapter || !storageAdapter.isConnected()) {
+      throw new Error('Please connect to a storage location first');
     }
 
     try {
-      const undoInfo = await moveItemToTrash(item, directoryHandle);
+      setIsLoading(true);
+      const undoInfo = await storageAdapter.deleteItem(item);
       setUndoStack(prev => [...prev, undoInfo]);
       await loadItems();
       return undoInfo;
     } catch (error) {
       console.error('Error deleting item:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,14 +95,15 @@ export const useItems = () => {
    * Delete multiple items
    */
   const deleteItems = async (itemsToDelete) => {
-    if (!directoryHandle) {
-      throw new Error('Please select a directory first');
+    if (!storageAdapter || !storageAdapter.isConnected()) {
+      throw new Error('Please connect to a storage location first');
     }
 
+    setIsLoading(true);
     const undoInfos = [];
     for (const item of itemsToDelete) {
       try {
-        const undoInfo = await moveItemToTrash(item, directoryHandle);
+        const undoInfo = await storageAdapter.deleteItem(item);
         undoInfos.push(undoInfo);
       } catch (error) {
         console.error('Error deleting item:', item.title, error);
@@ -83,7 +114,8 @@ export const useItems = () => {
       setUndoStack(prev => [...prev, ...undoInfos]);
       await loadItems();
     }
-
+    
+    setIsLoading(false);
     return undoInfos;
   };
 
@@ -91,7 +123,7 @@ export const useItems = () => {
    * Undo last delete operation
    */
   const undoLastDelete = async () => {
-    if (!directoryHandle || undoStack.length === 0) {
+    if (!storageAdapter || !storageAdapter.isConnected() || undoStack.length === 0) {
       return null;
     }
 
@@ -99,42 +131,76 @@ export const useItems = () => {
     setUndoStack(prev => prev.slice(0, -1));
 
     try {
-      const restoredFilename = await restoreItemFromTrash(lastUndo, directoryHandle);
+      setIsLoading(true);
+      const restoredIdentifier = await storageAdapter.restoreItem(lastUndo);
       await loadItems();
-      return restoredFilename;
+      return restoredIdentifier;
     } catch (error) {
       console.error('Error undoing delete:', error);
       // Put the undo back on the stack if restore failed
       setUndoStack(prev => [...prev, lastUndo]);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   /**
-   * Select a new directory
+   * Select a new storage location
    */
-  const selectNewDirectory = async () => {
+  const selectStorage = async (storageType = null) => {
     try {
-      const handle = await selectDirectory();
-      setDirectoryHandle(handle);
-      await loadItems(handle);
-      return handle;
+      setIsLoading(true);
+      let adapter = storageAdapter;
+      
+      if (!adapter || (storageType && adapter.getStorageType() !== storageType)) {
+        adapter = await StorageFactory.createAdapter(storageType);
+        await adapter.initialize();
+        setStorageAdapter(adapter);
+      }
+      
+      const storageHandle = await adapter.selectStorage();
+      await loadItems(adapter);
+      return storageHandle;
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Error selecting directory:', error);
+        console.error('Error selecting storage:', error);
         throw error;
       }
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  /**
+   * Disconnect from current storage
+   */
+  const disconnectStorage = async () => {
+    if (storageAdapter) {
+      await storageAdapter.disconnect();
+      setStorageAdapter(null);
+      setStorageInfo(null);
+      setItems([]);
+      setUndoStack([]);
+    }
+  };
+
+  /**
+   * Get available storage options
+   */
+  const getAvailableStorageOptions = async () => {
+    return await StorageFactory.getAvailableAdapters();
   };
 
   /**
    * Apply batch edits to multiple items
    */
   const applyBatchEdit = async (selectedIds, changes) => {
-    if (!directoryHandle) {
-      throw new Error('Please select a directory first');
+    if (!storageAdapter || !storageAdapter.isConnected()) {
+      throw new Error('Please connect to a storage location first');
     }
 
+    setIsLoading(true);
     const updated = [];
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id);
@@ -158,7 +224,7 @@ export const useItems = () => {
       if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
 
       try {
-        await saveItemToFile(newItem, directoryHandle);
+        await storageAdapter.saveItem(newItem);
         updated.push(newItem.id);
       } catch (error) {
         console.error('Error updating item:', item.title, error);
@@ -168,20 +234,26 @@ export const useItems = () => {
     if (updated.length > 0) {
       await loadItems();
     }
-
+    
+    setIsLoading(false);
     return updated;
   };
 
   return {
     items,
-    directoryHandle,
+    storageAdapter,
+    storageInfo,
+    isLoading,
     undoStack: undoStack.length,
+    initializeStorage,
     loadItems,
     saveItem,
     deleteItem,
     deleteItems,
     undoLastDelete,
-    selectNewDirectory,
+    selectStorage,
+    disconnectStorage,
+    getAvailableStorageOptions,
     applyBatchEdit
   };
 };

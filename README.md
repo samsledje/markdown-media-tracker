@@ -2,19 +2,21 @@
 
 # Markdown Media Tracker
 
-A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite and designed to use the browser File System Access API so your library lives in a directory you choose.
+A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite with flexible storage options — use local directories or sync with Google Drive.
 
 - Store each item (book or movie) as a single `.md` file with YAML frontmatter.
 - Browse, search, filter, sort, and batch-edit items.
 - Add items manually or search online (Open Library for books, OMDb for movies).
+- Choose between local storage or Google Drive synchronization.
 - Customize card size and theme colors.
 
 ## Requirements
 
 - Node.js (14+ recommended) and npm or yarn
-- A Chromium-based desktop browser (Chrome, Edge) that supports the File System Access API. Safari and some browsers do not support this API — see Troubleshooting below.
+- For **local storage**: A Chromium-based desktop browser (Chrome, Edge) that supports the File System Access API
+- For **Google Drive**: Any modern browser (Chrome, Firefox, Safari, Edge)
 
-Example data is included in the `data/` folder so you can browse sample items without selecting a directory.
+Example data is included in the `data/` folder so you can browse sample items without connecting to storage.
 
 ## Install & run locally
 
@@ -36,7 +38,49 @@ npm run dev
 
 3. Open the URL printed by Vite (usually `http://localhost:5173`) in a supported browser.
 
-When you first open the app you'll be prompted to "Select Directory". Choose or create a directory where the app will save individual `.md` files for each item.
+## Storage Options
+
+When you first open the app, you'll be prompted to choose your storage method:
+
+### Local Directory Storage
+
+Choose this option to store files directly on your device:
+
+- **Best for**: Desktop users who want full control over their files
+- **Requirements**: Chrome, Edge, or Opera on desktop (File System Access API)
+- **How it works**: Select or create a directory where the app will save individual `.md` files
+- **Benefits**: 
+  - Files stay on your device
+  - Works offline
+  - Full control over file location
+  - Compatible with Obsidian and other markdown tools
+
+### Google Drive Storage
+
+Choose this option to sync your library across devices:
+
+- **Best for**: Users who want to access their library from multiple devices
+- **Requirements**: Google account and any modern browser
+- **How it works**: 
+  1. Click "Select Google Drive" 
+  2. **Configure folder name** (optional): Change from "MarkdownMediaTracker" to any custom name
+  3. Click "Connect to Google Drive"
+  4. Sign in and grant permissions when prompted
+  5. Your files will be stored in the configured folder in your Google Drive
+- **Benefits**:
+  - Access from any device (desktop, mobile, tablet)
+  - Automatic cloud backup
+  - Share access across devices
+  - Files remain accessible through Google Drive web interface
+
+### Switching Storage
+
+You can switch between storage options at any time:
+
+1. Click the menu button (☰) in the top right
+2. Select "Switch Storage" (at the bottom)
+3. Choose a different storage option
+4. **Note**: Existing files will remain in their current location — you'll need to manually move them if desired
 
 ## Configure the OMDb API key
 
@@ -52,9 +96,9 @@ If you don't provide an OMDb API key the movie search functionality will be limi
 
 ## Demo Screenshots
 
-### Select directory screen
+### Storage selection screen
 
-![Directory select](public/screenshots/directory-select.jpg)
+![Storage selection](public/screenshots/directory-select.jpg)
 
 ### Main grid view
 
@@ -74,13 +118,13 @@ If you don't provide an OMDb API key the movie search functionality will be limi
 
 ## Obsidian Compatibility
 
-This tracker is **fully compatible with Obsidian** and particularly well-suited for use with the new [**Bases**](https://help.obsidian.md/bases) feature
+Markdown Media Tracker is **fully compatible with Obsidian** and particularly well-suited for use with the new [**Bases**](https://help.obsidian.md/bases) feature
 
 ### What is Obsidian Bases?
 
 Obsidian Bases is a powerful feature that allows you to create interactive filtered lists of notes. It turns any set of notes into a database-like view with filtering, sorting, and multiple view options (Table and Card views).
 
-### How This Tracker Works with Obsidian
+### How MMT Works with Obsidian
 
 **YAML Frontmatter Structure**: Each media item is saved as a standalone `.md` file with structured YAML frontmatter containing metadata like title, type, author/director, year, rating, tags, and dates. This format is natively recognized by Obsidian's Properties system.
 
@@ -115,12 +159,23 @@ The importer uses simple heuristics and may not perfectly map every custom CSV. 
 
 ## Troubleshooting
 
-- File System Access API not available: If your browser doesn't support the File System Access API (Safari on macOS and iOS currently lacks full support), the "Select Directory" flow will not work. Options:
-	- Use Chrome or Edge on desktop.
-	- Run the app inside an Electron wrapper that enables the API.
-	- As a temporary fallback you can edit or add markdown files directly in the `data/` folder — the sample files there follow the same structure the app expects.
+### Storage Issues
 
-- OMDb rate limits / API key: If movie searches fail, confirm your OMDb key is set in `src/config.js` and valid. OMDb requires a (free) API key you can get at http://www.omdbapi.com/apikey.aspx.
+- **File System Access API not available**: If your browser doesn't support the File System Access API (Safari on macOS and iOS currently lacks full support), local directory storage will not work. Options:
+  - **Use Google Drive storage instead** (works in all modern browsers)
+  - Use Chrome or Edge on desktop for local storage
+  - Run the app inside an Electron wrapper that enables the API
+  - As a temporary fallback you can edit or add markdown files directly in the `data/` folder — the sample files there follow the same structure the app expects
+
+- **Google Drive connection issues**: If Google Drive authentication fails:
+  - Ensure popups are allowed for the app's domain
+  - Try using an incognito/private browsing window
+  - Check that your Google account has Drive access enabled
+  - Verify your internet connection
+
+### API Issues
+
+- **OMDb rate limits / API key**: If movie searches fail, confirm your OMDb key is configured in the app's API settings. OMDb requires a (free) API key you can get at <http://www.omdbapi.com/apikey.aspx>.
 
 ## Contributing
 

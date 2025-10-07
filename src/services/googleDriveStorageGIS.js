@@ -34,7 +34,16 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
 
     try {
       if (!this.CLIENT_ID || !this.API_KEY) {
-        throw new Error('Google API credentials not configured. Please check your .env.local file.');
+        const isDev = import.meta.env.DEV;
+        const missingVars = [];
+        if (!this.CLIENT_ID) missingVars.push('VITE_GOOGLE_CLIENT_ID');
+        if (!this.API_KEY) missingVars.push('VITE_GOOGLE_API_KEY');
+        
+        const errorMessage = isDev 
+          ? `Google API credentials not configured. Missing: ${missingVars.join(', ')}. Please check your .env.local file.`
+          : `Google API credentials not configured. Missing: ${missingVars.join(', ')}. This might be a deployment configuration issue.`;
+        
+        throw new Error(errorMessage);
       }
 
       console.log('Initializing Google Identity Services...');

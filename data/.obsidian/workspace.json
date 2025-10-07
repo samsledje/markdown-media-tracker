@@ -11,13 +11,14 @@
             "id": "9992ef0cf67b4c2e",
             "type": "leaf",
             "state": {
-              "type": "bases",
+              "type": "markdown",
               "state": {
-                "file": "Movies and Books.base",
-                "viewName": "Books"
+                "file": "artemis-1759769964146.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-layout-grid",
-              "title": "Movies and Books"
+              "icon": "lucide-file",
+              "title": "artemis-1759769964146"
             }
           }
         ]
@@ -170,11 +171,12 @@
   },
   "active": "9992ef0cf67b4c2e",
   "lastOpenFiles": [
+    "Movies and Books.base",
+    "artemis-1759769964146.md.crswap",
     "the-lord-of-the-rings-the-two-towers-1759774066096.md.crswap",
     "the-lord-of-the-rings-the-return-of-the-king-1759774046262.md.crswap",
     "james-1759808447216.md",
     "spider-man-across-the-spider-verse-1759808495466.md.crswap",
-    "Movies and Books.base",
     "the-lord-of-the-rings-the-two-towers-1759774066096.md",
     "the-lord-of-the-rings-the-return-of-the-king-1759774046262.md",
     "the-lord-of-the-rings-the-fellowship-of-the-ring-1759774037685.md.crswap",

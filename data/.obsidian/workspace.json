@@ -11,14 +11,13 @@
             "id": "9992ef0cf67b4c2e",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "bases",
               "state": {
-                "file": "artemis-1759769964146.md",
-                "mode": "source",
-                "source": false
+                "file": "Movies and Books.base",
+                "viewName": "All"
               },
-              "icon": "lucide-file",
-              "title": "artemis-1759769964146"
+              "icon": "lucide-table",
+              "title": "Movies and Books"
             }
           }
         ]
@@ -172,6 +171,7 @@
   "active": "9992ef0cf67b4c2e",
   "lastOpenFiles": [
     "Movies and Books.base",
+    "artemis-1759769964146.md",
     "artemis-1759769964146.md.crswap",
     "the-lord-of-the-rings-the-two-towers-1759774066096.md.crswap",
     "the-lord-of-the-rings-the-return-of-the-king-1759774046262.md.crswap",
@@ -182,7 +182,6 @@
     "the-lord-of-the-rings-the-fellowship-of-the-ring-1759774037685.md.crswap",
     "the-lord-of-the-rings-the-fellowship-of-the-ring-1759774037685.md",
     "pulp-fiction-1759769758448.md.crswap",
-    "artemis-1759769964146.md",
     "project-hail-mary-1759769947734.md",
     "pulp-fiction-1759769758448.md",
     "Untitled"

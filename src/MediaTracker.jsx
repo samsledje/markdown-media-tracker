@@ -336,7 +336,7 @@ const MediaTracker = () => {
             <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
               <img src="./logo_white.svg" alt="logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
               <span className="hidden xs:inline">Markdown Media Tracker</span>
-              <span className="xs:hidden">Media Tracker</span>
+              <span className="xs:hidden">MMT</span>
             </h1>
             <div className="flex gap-2">
               {!storageAdapter || !storageAdapter.isConnected() ? null : (

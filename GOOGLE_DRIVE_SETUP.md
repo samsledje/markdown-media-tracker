@@ -42,7 +42,7 @@ This guide will walk you through setting up Google Drive API integration for the
    - Click "CONFIGURE CONSENT SCREEN"
    - Choose "External" (unless you have a Google Workspace account)
    - Fill in the required fields:
-     - App name: "Media Tracker"
+     - App name: "Markdown Media Tracker"
      - User support email: Your email
      - Developer contact information: Your email
    - Click "Save and Continue"

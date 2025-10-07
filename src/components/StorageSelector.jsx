@@ -22,7 +22,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 sm:py-20 text-center">
-      <img src="./logo_white.svg" alt="Media Tracker logo" className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 object-contain" />
+      <img src="./logo_white.svg" alt="Markdown Media Tracker logo" className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 object-contain" />
       <h2 className="text-2xl sm:text-3xl font-bold mb-4 leading-mobile">Welcome to Markdown Media Tracker</h2>
       <p className="text-slate-400 mb-8 sm:mb-12 max-w-2xl mx-auto text-base leading-mobile">
         Choose where to store your book and movie markdown files. Each item will be saved as a separate .md file with YAML frontmatter.

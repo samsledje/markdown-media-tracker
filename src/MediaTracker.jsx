@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -16,12 +16,13 @@ import HelpModal from './components/modals/HelpModal.jsx';
 import BatchEditModal from './components/modals/BatchEditModal.jsx';
 import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
-import ApiKeyManager from './components/ApiKeyManager.jsx';
+import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
 import { exportCSV } from './utils/csvUtils.js';
 import { processCSVImport } from './utils/importUtils.js';
+import { hasApiKey } from './config.js';
 
 // Constants
 import { PRIMARY_COLOR_PRESETS, HIGHLIGHT_COLOR_PRESETS } from './constants/colors.js';
@@ -33,6 +34,7 @@ const MediaTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showBatchEdit, setShowBatchEdit] = useState(false);
+  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -118,6 +120,7 @@ const MediaTracker = () => {
     setIsSearching(false);
     setSelectedItem(null);
     setShowBatchEdit(false);
+    setShowApiKeyManager(false);
     if (searchTerm) setSearchTerm('');
     if (selectionMode) clearSelection();
   };
@@ -253,6 +256,17 @@ const MediaTracker = () => {
     setMenuPos({ left, top, width });
   }, [menuOpen]);
 
+  // Auto-show API key modal when directory is selected and no API key is configured
+  useEffect(() => {
+    if (directoryHandle && !hasApiKey()) {
+      // Small delay to ensure the directory selection UI has settled
+      const timer = setTimeout(() => {
+        setShowApiKeyManager(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [directoryHandle]);
+
   return (
     <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
       <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
@@ -328,6 +342,14 @@ const MediaTracker = () => {
               Switch Directory
             </button>
 
+            <button
+              onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            >
+              <Key className="w-4 h-4" />
+              Manage API Keys
+            </button>
+
             {undoStack > 0 && (
               <button
                 onClick={() => { undoLastDelete(); setMenuOpen(false); }}
@@ -365,12 +387,6 @@ const MediaTracker = () => {
         </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 py-6">
-          {/* API Key Manager */}
-          <ApiKeyManager onApiKeyChange={() => {
-            // Refresh the component to update any API-dependent functionality
-            // This could trigger a re-render or update state as needed
-          }} />
-
           {/* Search and Type Filters */}
           <div className="mb-6 flex gap-4 flex-wrap">
             <div className="flex-1 min-w-[300px] relative">
@@ -846,6 +862,8 @@ const MediaTracker = () => {
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+
+      {showApiKeyManager && <ApiKeyModal onClose={() => setShowApiKeyManager(false)} />}
 
       {showBatchEdit && (
         <BatchEditModal

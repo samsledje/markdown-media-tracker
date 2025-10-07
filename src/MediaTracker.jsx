@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize, CheckSquare, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Maximize, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload } from 'lucide-react';
 
 const MediaTracker = () => {
   const [items, setItems] = useState([]);
@@ -24,6 +25,25 @@ const MediaTracker = () => {
   const [cardSize, setCardSize] = useState(() => {
     return localStorage.getItem('cardSize') || 'medium';
   });
+
+  // derive a list of all tags present in the items (unique, sorted)
+  const allTags = Array.from(
+    new Set(items.flatMap(it => (it.tags && Array.isArray(it.tags)) ? it.tags : []))
+  ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  // Toggle a tag in the active filter list
+  const toggleTagFilter = (tag) => {
+    setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+
+  // Clear visible filters
+  const clearFilters = () => {
+    setFilterTags([]);
+    setFilterRating(0);
+    setFilterType('all');
+    setSearchTerm('');
+    setFilterRecent('any');
+  };
   // Theme (primary + highlight) with persistence
   // sensible darker defaults for good contrast with white text
   const [primaryColor, setPrimaryColor] = useState(() => {
@@ -34,62 +54,58 @@ const MediaTracker = () => {
     return localStorage.getItem('themeHighlight') || '#7c3aed'; // purple-600
   });
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const [menuPos, setMenuPos] = useState(null);
   
   // (No slider presets — using fixed card sizes)
 
   // Load API key on mount
   useEffect(() => {
-    // Try to load from localStorage first
     const storedKey = localStorage.getItem('omdbApiKey');
-    if (storedKey) {
-      setOmdbApiKey(storedKey);
-    }
+    if (storedKey) setOmdbApiKey(storedKey);
   }, []);
 
-  // Get all unique tags from items
-  const allTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
-
-  // Filters pane is toggled only by the Filters button; removing outside-click and Escape-to-close behavior
-
-  // Compute dropdown position so it appears under the Filters button
+  // Close the hamburger menu on outside click or Escape
   useEffect(() => {
-    if (!showFilters || !filterButtonRef.current) return;
+    const onDocClick = (e) => {
+      if (!menuOpen) return;
 
-    const btnRect = filterButtonRef.current.getBoundingClientRect();
-    const spaceRight = window.innerWidth - btnRect.right;
-    const width = 320; // w-80 ~ 320px
-    // Prefer aligning right edge with button's right, but fall back to left if not enough space
-    const left = Math.max(8, Math.min(btnRect.right - width + btnRect.width, btnRect.left));
-    const top = btnRect.bottom + 8; // small gap
+      // If click is inside the menu button, ignore
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
 
-    setDropdownStyle({ position: 'fixed', top: `${top}px`, left: `${Math.max(8, btnRect.right - width)}px`, width: `${width}px` });
-  }, [showFilters]);
+      // If click is inside the portal menu, ignore
+      let el = e.target;
+      while (el) {
+        if (el.getAttribute && el.getAttribute('data-menu-portal') === '1') return;
+        el = el.parentElement;
+      }
 
-  const toggleTagFilter = (tag) => {
-    if (filterTags.includes(tag)) {
-      setFilterTags(filterTags.filter(t => t !== tag));
-    } else {
-      setFilterTags([...filterTags, tag]);
-    }
-  };
+      setMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
-  const clearFilters = () => {
-    setFilterTags([]);
-    setFilterRating(0);
-    setFilterType('all');
-    setSearchTerm('');
-    setFilterRecent('any');
-  };
-
+  // Compute portal menu position when opened
   useEffect(() => {
-    try {
-      localStorage.setItem('cardSize', cardSize);
-    } catch (e) {
-      // ignore
+    if (!menuOpen || !menuRef.current) {
+      setMenuPos(null);
+      return;
     }
-  }, [cardSize]);
-
-  // Persist and apply theme colors as CSS variables
+    const btnRect = menuRef.current.getBoundingClientRect();
+    const width = 192; // w-48
+    const left = Math.max(8, btnRect.right - width);
+    const top = btnRect.bottom + 8;
+    setMenuPos({ left, top, width });
+  }, [menuOpen]);
   useEffect(() => {
     try {
       localStorage.setItem('themePrimary', primaryColor);
@@ -762,51 +778,73 @@ const MediaTracker = () => {
               ) : (
                 <>
                   <button
-                    onClick={selectDirectory}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                    title="Switch directory"
-                  >
-                    <FolderOpen className="w-4 h-4" />
-                    Switch Directory
-                  </button>
-                  <button
                     onClick={() => setIsSearching(true)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
                     style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                    title="Search online"
+                    title="Add"
                   >
                     <Search className="w-4 h-4" />
-                    Search Online
+                    Add
                   </button>
-                  <button
-                    onClick={() => setIsAdding(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                    title="Add manually"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Manually
-                  </button>
-                  <button
-                    onClick={() => exportCSV(items)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
-                    title="Export CSV"
-                  >
-                    Export CSV
-                  </button>
-                  <label className="flex items-center gap-2 px-4 py-2 rounded-lg transition cursor-pointer" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }} title="Import CSV">
-                    <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => handleImportFile(e)} className="hidden" />
-                    Import CSV
-                  </label>
-                    {/* select toggle moved to the sort/filter area */}
+
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={() => setMenuOpen(!menuOpen)}
+                      aria-expanded={menuOpen}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700"
+                      title="More actions"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span className="hidden sm:inline">Menu</span>
+                    </button>
+
+                    {/** The dropdown is rendered via a portal to avoid stacking context issues. Menu content is rendered below via createPortal. */}
+                  </div>
                 </>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {menuOpen && menuPos && createPortal(
+  <div data-menu-portal="1" style={{ position: 'fixed', left: `${menuPos.left}px`, top: `${menuPos.top}px`, width: `${menuPos.width}px`, zIndex: 99999 }}>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-2 text-white">
+            <button
+              onClick={() => { setIsAdding(true); setMenuOpen(false); }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            >
+              <Plus className="w-4 h-4" />
+              Add Manually
+            </button>
+
+            <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
+              <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
+              <Upload className="w-4 h-4" />
+              Import CSV
+            </label>
+
+            <button
+              onClick={() => { exportCSV(items); setMenuOpen(false); }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+
+            <button
+              onClick={() => { selectDirectory(); setMenuOpen(false); }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            >
+              <FolderOpen className="w-4 h-4" />
+              Switch Directory
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {!directoryHandle ? (
         <div className="max-w-2xl mx-auto px-4 py-20 text-center">
@@ -1014,12 +1052,12 @@ const MediaTracker = () => {
               <div className="mb-3">
                 <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
                 <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setFilterRating(r)}
-                          className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
-                          style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                          title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
-                        >
+                  <button
+                    onClick={() => setFilterRating(0)}
+                    className={`px-3 py-1 rounded-lg ${filterRating === 0 ? '' : 'bg-slate-700/50'}`}
+                    style={filterRating === 0 ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                  >
+                    Any
                   </button>
                   {[1, 2, 3, 4, 5].map(r => (
                     <button
@@ -1329,7 +1367,7 @@ const MediaTracker = () => {
 
               <div className="mb-2 text-sm text-slate-300">Primary color</div>
               <div className="flex gap-2 mb-3">
-                {['#0b1220','#153883ff','#1a5a45ff','#882a2aff','#472384ff','#9b670dff'].map(c => (
+                {['#0b1220','#153883','#1a5a45','#882a2a','#472384','#9b670d'].map(c => (
                   <button
                     key={c}
                     onClick={() => setPrimaryColor(c)}
@@ -1350,7 +1388,7 @@ const MediaTracker = () => {
 
               <div className="mb-2 text-sm text-slate-300">Highlight color</div>
               <div className="flex gap-2">
-                {['#7c3aed','#2692eaff','#75ce4cff','#ea3939ff','#b433ffff','#ffb732ff'].map(c => (
+                {['#7c3aed','#2692ea','#328f56','#ea3939','#b433ff','#b06803'].map(c => (
                   <button
                     key={c}
                     onClick={() => setHighlightColor(c)}

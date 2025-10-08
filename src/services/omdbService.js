@@ -61,10 +61,16 @@ export const searchMovies = async (query, limit = 12) => {
           
           const details = await detailResponse.json();
           
+          // Extract and process actors - OMDb typically returns 3-4 main cast members
+          let actors = [];
+          if (details.Actors && details.Actors !== 'N/A') {
+            actors = details.Actors.split(', ').map(actor => actor.trim()).filter(actor => actor);
+          }
+          
           return {
             title: details.Title,
             director: details.Director !== 'N/A' ? details.Director : '',
-            actors: details.Actors !== 'N/A' ? details.Actors.split(', ') : [],
+            actors: actors,
             year: details.Year,
             coverUrl: details.Poster !== 'N/A' ? details.Poster : null,
             type: 'movie',

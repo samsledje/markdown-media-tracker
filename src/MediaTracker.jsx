@@ -348,7 +348,7 @@ const MediaTracker = () => {
                     title="Search"
                   >
                     <Search className="w-4 h-4" />
-                    <span className="hidden sm:inline">Search</span>
+                    <span className="hidden sm:inline">Add new media</span>
                   </button>
 
                   <div className="relative" ref={menuRef}>
@@ -446,7 +446,7 @@ const MediaTracker = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by title, author, director..."
+                placeholder="Search your library by title, author, director..."
                 ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

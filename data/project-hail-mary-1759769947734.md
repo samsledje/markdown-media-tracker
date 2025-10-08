@@ -2,7 +2,6 @@
 title: "Project Hail Mary"
 type: book
 author: "Andy Weir"
-actors: [""]
 year: 2021
 rating: 3
 coverUrl: "https://covers.openlibrary.org/b/id/11200092-M.jpg"

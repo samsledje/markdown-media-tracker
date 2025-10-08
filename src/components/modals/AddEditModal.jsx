@@ -12,6 +12,9 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     return today.toISOString().split('T')[0];
   };
 
+  // Check if this is from search results
+  const fromSearch = initialItem && (initialItem.dateAdded && initialItem.dateAdded !== '');
+
   const [item, setItem] = useState(initialItem || {
     title: '',
     type: 'book',
@@ -23,8 +26,11 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     rating: 0,
     tags: [],
     coverUrl: '',
-    dateRead: getTodayDate(),
-    dateWatched: getTodayDate(),
+    // Only set appropriate date based on type, not both
+    ...(initialItem?.type === 'movie' 
+      ? { dateWatched: getTodayDate() } 
+      : { dateRead: getTodayDate() }
+    ),
     dateAdded: new Date().toISOString(),
     review: ''
   });
@@ -72,7 +78,7 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
         </div>
         
         <div className="p-4 sm:p-6 pb-6">
-          <EditForm item={item} onChange={setItem} />
+          <EditForm item={item} onChange={setItem} fromSearch={fromSearch} />
           <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
               onClick={onClose}

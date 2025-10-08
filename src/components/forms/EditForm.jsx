@@ -4,7 +4,7 @@ import { Star, X } from 'lucide-react';
 /**
  * Form component for editing item details
  */
-const EditForm = ({ item, onChange }) => {
+const EditForm = ({ item, onChange, fromSearch = false }) => {
   const [tagInput, setTagInput] = useState('');
   const [actorInput, setActorInput] = useState('');
 
@@ -38,10 +38,13 @@ const EditForm = ({ item, onChange }) => {
           {['book', 'movie'].map(type => (
             <button
               key={type}
-              onClick={() => onChange({ ...item, type })}
+              onClick={() => !fromSearch && onChange({ ...item, type })}
+              disabled={fromSearch}
               className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
                 item.type === type
                   ? ''
+                  : fromSearch
+                  ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
               style={item.type === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
@@ -50,6 +53,9 @@ const EditForm = ({ item, onChange }) => {
             </button>
           ))}
         </div>
+        {fromSearch && (
+          <p className="text-xs text-slate-500 mt-1">Type is set from search results and cannot be changed</p>
+        )}
       </div>
 
       <div>

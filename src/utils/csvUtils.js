@@ -225,7 +225,7 @@ export const exportCSV = (items = []) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `media-tracker-export-${Date.now()}.csv`;
+    a.download = `markdown-media-tracker-export-${Date.now()}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();

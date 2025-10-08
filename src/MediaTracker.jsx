@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -68,6 +68,23 @@ const getStatusColorClass = (status) => {
   }
 };
 
+/**
+ * Export utility functions for filtering items by type
+ */
+const exportAllItems = (items) => {
+  exportCSV(items);
+};
+
+const exportBooks = (items) => {
+  const books = items.filter(item => item.type === 'book');
+  exportCSV(books);
+};
+
+const exportMovies = (items) => {
+  const movies = items.filter(item => item.type === 'movie');
+  exportCSV(movies);
+};
+
 const MediaTracker = () => {
   // Modal states
   const [selectedItem, setSelectedItem] = useState(null);
@@ -79,6 +96,7 @@ const MediaTracker = () => {
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [exportSubmenuOpen, setExportSubmenuOpen] = useState(false);
   const [searchResultItem, setSearchResultItem] = useState(null);
   const [storageError, setStorageError] = useState(null);
   const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
@@ -90,10 +108,13 @@ const MediaTracker = () => {
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
   const storageIndicatorRef = useRef(null);
+  const exportSubmenuTimeoutRef = useRef(null);
+  const exportContainerRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
+  const [exportSubmenuPosition, setExportSubmenuPosition] = useState('right');
 
   // Custom hooks
   const {
@@ -171,6 +192,7 @@ const MediaTracker = () => {
   const closeModals = () => {
     setMenuOpen(false);
     setCustomizeOpen(false);
+    setExportSubmenuOpen(false);
     setShowHelp(false);
     setIsAdding(false);
     setIsSearching(false);
@@ -182,6 +204,43 @@ const MediaTracker = () => {
     }
     if (searchTerm) setSearchTerm('');
     if (selectionMode) clearSelection();
+  };
+
+  // Export submenu hover handlers
+  const handleExportSubmenuEnter = () => {
+    if (exportSubmenuTimeoutRef.current) {
+      clearTimeout(exportSubmenuTimeoutRef.current);
+    }
+    calculateExportSubmenuPosition();
+    setExportSubmenuOpen(true);
+  };
+
+  const handleExportSubmenuLeave = () => {
+    exportSubmenuTimeoutRef.current = setTimeout(() => {
+      setExportSubmenuOpen(false);
+    }, 100);
+  };
+
+  // Calculate optimal position for export submenu
+  const calculateExportSubmenuPosition = () => {
+    if (!exportContainerRef.current) return;
+    
+    const containerRect = exportContainerRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const submenuWidth = 160; // min-w-[160px]
+    const spacing = 8; // ml-2/mr-2
+    const buffer = 16; // Extra buffer from screen edge
+    
+    // Check if submenu would overflow on the right
+    const rightEdge = containerRect.right + spacing + submenuWidth + buffer;
+    
+    if (rightEdge > viewportWidth) {
+      // Position to the left
+      setExportSubmenuPosition('left');
+    } else {
+      // Position to the right (default)
+      setExportSubmenuPosition('right');
+    }
   };
 
   // Focus search input
@@ -283,6 +342,27 @@ const MediaTracker = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Cleanup export submenu timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (exportSubmenuTimeoutRef.current) {
+        clearTimeout(exportSubmenuTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle window resize to recalculate submenu position
+  useEffect(() => {
+    const handleResize = () => {
+      if (exportSubmenuOpen) {
+        calculateExportSubmenuPosition();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [exportSubmenuOpen]);
 
   // Keyboard navigation setup
   const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
@@ -492,13 +572,52 @@ const MediaTracker = () => {
               Import CSV
             </label>
 
-            <button
-              onClick={() => { exportCSV(items); setMenuOpen(false); }}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            <div 
+              ref={exportContainerRef}
+              className="relative"
+              onMouseEnter={handleExportSubmenuEnter}
+              onMouseLeave={handleExportSubmenuLeave}
             >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+              <button
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </div>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {exportSubmenuOpen && (
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
+                  exportSubmenuPosition === 'left' 
+                    ? 'right-full mr-2 slide-in-from-right-2' 
+                    : 'left-full ml-2 slide-in-from-left-2'
+                }`}>
+                  <button
+                    onClick={() => { exportAllItems(items); setMenuOpen(false); setExportSubmenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    Export All
+                  </button>
+                  <button
+                    onClick={() => { exportBooks(items); setMenuOpen(false); setExportSubmenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <Book className="w-3 h-3" />
+                    Export Books
+                  </button>
+                  <button
+                    onClick={() => { exportMovies(items); setMenuOpen(false); setExportSubmenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <Film className="w-3 h-3" />
+                    Export Movies
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); }}

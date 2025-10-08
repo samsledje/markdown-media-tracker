@@ -100,6 +100,11 @@ const MediaTracker = () => {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [exportSubmenuOpen, setExportSubmenuOpen] = useState(false);
+  // Import progress state
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProcessed, setImportProcessed] = useState(0);
+  const [importAdded, setImportAdded] = useState(0);
+  const [importTotal, setImportTotal] = useState(0);
   const [searchResultItem, setSearchResultItem] = useState(null);
   const [storageError, setStorageError] = useState(null);
   const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
@@ -290,10 +295,23 @@ const MediaTracker = () => {
     }
 
     try {
-      const { added, format } = await processCSVImport(file, items, saveItem);
+      setIsImporting(true);
+      setImportProcessed(0);
+      setImportAdded(0);
+      setImportTotal(0);
+
+      const progressCb = ({ processed, added, total }) => {
+        setImportProcessed(processed);
+        setImportAdded(added);
+        setImportTotal(total);
+      };
+
+      const { added, format } = await processCSVImport(file, items, saveItem, progressCb);
       toast(`Imported ${added} items (detected format: ${format})`, { type: 'success' });
     } catch (error) {
       toast(error.message, { type: 'error' });
+    } finally {
+      setIsImporting(false);
     }
 
     e.target.value = '';
@@ -627,6 +645,7 @@ const MediaTracker = () => {
                       <span className="hidden sm:inline">Menu</span>
                     </button>
                   </div>
+                  {/* header-area left intentionally empty for floating progress UI */}
                 </>
               )}
             </div>
@@ -646,11 +665,21 @@ const MediaTracker = () => {
               Add Manually
             </button>
 
-            <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
-              <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
-              <Upload className="w-4 h-4" />
-              Import CSV
-            </label>
+                  <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
+                    <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
+                    <Upload className="w-4 h-4" />
+                    <div className="flex-1">
+                      <div>Import CSV</div>
+                      {isImporting && (
+                        <div className="mt-2">
+                          <div className="text-xs text-slate-300">Imported {importAdded} / {importTotal}</div>
+                          <div className="w-full bg-slate-700 rounded h-2 mt-1 overflow-hidden">
+                            <div className="bg-blue-500 h-2 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </label>
 
             <div 
               ref={exportContainerRef}
@@ -707,17 +736,7 @@ const MediaTracker = () => {
               Manage API Keys
             </button>
 
-            {undoStack > 0 && (
-              <button
-                onClick={() => { undoLastDelete(); setMenuOpen(false); }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                </svg>
-                Undo Delete ({undoStack})
-              </button>
-            )}
+            {/* Undo Delete option intentionally removed from the menu */}
 
             <button
               onClick={() => { handleDisconnectStorage(); setMenuOpen(false); }}
@@ -730,6 +749,24 @@ const MediaTracker = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Floating import progress (bottom-left) */}
+      {isImporting && (
+        <div className="fixed left-4 bottom-4 z-50">
+          <div className="w-80 bg-slate-800/80 border border-slate-700 rounded-lg p-3 shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                <div className="text-sm font-semibold">Importing CSV</div>
+              </div>
+              <div className="text-sm text-slate-300">{importAdded} / {importTotal}</div>
+            </div>
+            <div className="w-full bg-slate-700 rounded h-3 overflow-hidden">
+              <div className="bg-blue-500 h-3 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
+            </div>
+          </div>
+        </div>
       )}
 
       {showStorageSelector ? (
@@ -811,6 +848,7 @@ const MediaTracker = () => {
               >
                 <option value="dateAdded">Date Added</option>
                 <option value="dateConsumed">Date Read/Watched</option>
+                <option value="status">Status</option>
                 <option value="title">Title</option>
                 <option value="author">Author / Director</option>
                 <option value="year">Year</option>
@@ -1038,19 +1076,19 @@ const MediaTracker = () => {
               </div>
             ) : (
               <div className="w-full min-h-0">
-                <div className={`grid gap-3 sm:gap-4 w-full ${
+                <div style={{ gridAutoRows: '1fr' }} className={`grid gap-3 sm:gap-4 w-full ${
                   cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
                   cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
                   cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
                   cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
                   'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
-                } auto-rows-min`}>
+                }` }>
                 {filteredAndSortedItems.map((item, index) => (
                   <div
                     key={item.id}
                     ref={(el) => registerCardRef(item.id, el)}
                     onClick={(e) => handleItemClick(item, e)}
-                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full ${
+                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full flex flex-col h-full ${
                       isItemFocused(item.id) ? 'ring-2 ring-blue-500' :
                       isItemSelected(item.id) ? 'ring-2 ring-yellow-500' :
                       'border-slate-700 hover:border-slate-600'
@@ -1071,20 +1109,23 @@ const MediaTracker = () => {
                       </div>
                     )}
 
-                    {/* Cover image */}
-                    {item.coverUrl && (
-                      <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-32' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden`}>
+                    {/* Cover image container (reserved space when missing) */}
+                    <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-32' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden bg-slate-800/10`}>
+                      {item.coverUrl ? (
                         <img
                           src={item.coverUrl}
                           alt={item.title}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        // Empty placeholder to reserve space and keep alignment
+                        <div className="w-full h-full" aria-hidden="true" />
+                      )}
+                    </div>
 
                     {/* Content */}
-                    <div className="p-3">
+                    <div className={`p-3 flex-1 flex flex-col ${cardSize === 'tiny' ? 'pb-12' : 'pb-14'}`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
                           <h3 className={`font-semibold leading-tight mb-1 ${
@@ -1110,9 +1151,27 @@ const MediaTracker = () => {
                         </div>
                       </div>
 
-                      {/* Bottom section with year/rating and status */}
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex flex-col gap-2">
+                      {/* Tags */}
+                      {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {item.tags.slice(0, 3).map((tag, i) => (
+                            <span
+                              key={i}
+                              className={`px-2 py-1 rounded-full ${cardSize === 'small' ? 'text-xs' : 'text-xs'}`}
+                              style={{ backgroundColor: hexToRgba(highlightColor, 0.12), color: 'white' }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {item.tags.length > 3 && (
+                            <span className="text-xs text-slate-500">+{item.tags.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Footer pinned to bottom (absolute) */}
+                      <div className={`absolute left-0 right-0 bottom-0 px-3 py-3 flex items-center justify-between bg-transparent`}>
+                        <div className="flex items-center gap-2">
                           {/* Rating */}
                           {item.rating > 0 && (
                             <div className="flex items-center gap-1">
@@ -1126,8 +1185,8 @@ const MediaTracker = () => {
                               ))}
                             </div>
                           )}
-                          
-                          {/* Year */}
+
+                          {/* Year / Date */}
                           {item.year && (
                             <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
                               {item.year}
@@ -1148,24 +1207,6 @@ const MediaTracker = () => {
                           </div>
                         )}
                       </div>
-
-                      {/* Tags */}
-                      {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {item.tags.slice(0, 3).map((tag, i) => (
-                            <span
-                              key={i}
-                              className={`px-2 py-1 rounded-full ${cardSize === 'small' ? 'text-xs' : 'text-xs'}`}
-                              style={{ backgroundColor: hexToRgba(highlightColor, 0.12), color: 'white' }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {item.tags.length > 3 && (
-                            <span className="text-xs text-slate-500">+{item.tags.length - 3}</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}

@@ -69,16 +69,8 @@ export const searchBooks = async (query, limit = 12) => {
 export const getBookByISBN = async (isbn) => {
   if (!isbn) return null;
 
-  // Debug: log raw input to help diagnose malformed/truncated ISBNs
-  try {
-    console.debug('[OpenLibrary] raw ISBN input:', isbn, 'typeof:', typeof isbn, 'json:', JSON.stringify(isbn));
-  } catch (e) {
-    console.debug('[OpenLibrary] raw ISBN (stringify failed)', String(isbn));
-  }
-
   // Normalize ISBN: remove non-alphanumeric and uppercase any trailing x
   const normalized = String(isbn).replace(/[^0-9Xx]/g, '').toUpperCase();
-  console.debug('[OpenLibrary] normalized ISBN:', normalized, 'length:', normalized.length);
 
   try {
   // Try the ISBN endpoint first

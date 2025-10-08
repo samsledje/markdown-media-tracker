@@ -1,5 +1,5 @@
 import { parseCSV, detectCSVFormat, mapGoodreadsRow, mapLetterboxdRow, mapGenericRow } from './csvUtils.js';
-import { isDuplicate } from './commonUtils.js';
+import { isDuplicate, normalizeForCompare, normalizeISBNForCompare, sanitizeDisplayString } from './commonUtils.js';
 import { getBookByISBN } from '../services/openLibraryService.js';
 
 /**
@@ -7,9 +7,10 @@ import { getBookByISBN } from '../services/openLibraryService.js';
  * @param {File} file - CSV file to import
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
- * @returns {Promise<number>} Number of items imported
+ * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total }
+ * @returns {Promise<{added:number, format:string}>} Number of items imported and detected format
  */
-export const processCSVImport = async (file, existingItems, saveItem) => {
+export const processCSVImport = async (file, existingItems, saveItem, onProgress) => {
   if (!file) return 0;
 
   try {
@@ -28,12 +29,38 @@ export const processCSVImport = async (file, existingItems, saveItem) => {
     }
 
     let added = 0;
+    const total = mapped.length;
+    let processed = 0;
+
+    // Build a dedupe set from existingItems so we can detect duplicates quickly
+    const dedupeSet = new Set((existingItems || []).map(it => {
+      const t = normalizeForCompare(it.title||'');
+      const a = normalizeForCompare(it.author||'');
+      const i = normalizeISBNForCompare(it.isbn||'');
+      // Add both title|author and isbn keys (if present)
+      const keys = [`${t}|${a}`];
+      if (i) keys.push(`isbn:${i}`);
+      return keys;
+    }).flat());
+
+    // Report initial progress
+    if (typeof onProgress === 'function') onProgress({ processed, added, total });
+
     for (const m of mapped) {
+      // Basic de-dup: skip if same title+author exists
+  const t = normalizeForCompare(m.title||'');
+  const a = normalizeForCompare(m.author||'');
+  const i = normalizeISBNForCompare(m.isbn||'');
+  const key = `${t}|${a}`;
+  const isbnKey = i ? `isbn:${i}` : null;
+  if ((isbnKey && dedupeSet.has(isbnKey)) || dedupeSet.has(key) || isDuplicate(existingItems, m)) {
+        // mark as processed even if skipped
+        processed++;
+        if (typeof onProgress === 'function') onProgress({ processed, added, total });
+        continue;
+      }
+
       try {
-        // Basic de-dup: skip if same title+author exists
-        if (isDuplicate(existingItems, m)) {
-          continue;
-        }
 
         // Debug: log the mapped row to confirm upstream ISBN parsing
         try {
@@ -56,8 +83,8 @@ export const processCSVImport = async (file, existingItems, saveItem) => {
         }
 
         // Merge fields: prefer spreadsheet values; only fill when spreadsheet is empty
-        const mergedTitle = m.title && m.title.trim() ? m.title : (olData?.title || 'Untitled');
-        const mergedAuthor = m.author && m.author.trim() ? m.author : (olData?.author || '');
+  const mergedTitle = sanitizeDisplayString(m.title && m.title.trim() ? m.title : (olData?.title || 'Untitled'));
+  const mergedAuthor = sanitizeDisplayString(m.author && m.author.trim() ? m.author : (olData?.author || ''));
         const mergedYear = m.year && String(m.year).trim() ? m.year : (olData?.year || '');
         const mergedCover = m.coverUrl && m.coverUrl.trim() ? m.coverUrl : (olData?.coverUrl || '');
 
@@ -87,10 +114,23 @@ export const processCSVImport = async (file, existingItems, saveItem) => {
 
         const itemToSave = baseItem;
 
-        await saveItem(itemToSave);
-        added++;
+  await saveItem(itemToSave);
+  added++;
+  // add to dedupe set to prevent duplicates later in this import
+  dedupeSet.add(key);
+  if (i) dedupeSet.add(`isbn:${i}`);
       } catch (err) {
         console.error('Error saving imported item', m, err);
+      }
+      // increment processed count and report progress
+      processed++;
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress({ processed, added, total });
+        } catch (e) {
+          // swallow progress callback errors
+          console.warn('onProgress callback threw', e);
+        }
       }
     }
 

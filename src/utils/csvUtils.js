@@ -2,6 +2,78 @@ import { CSV_FORMATS, STATUS_TYPES } from '../constants/index.js';
 import { toast } from '../services/toastService.js';
 
 /**
+ * Normalize various date string formats to YYYY-MM-DD.
+ * Returns empty string for invalid/empty inputs.
+ * Handles formats like: "9/20/25", "9/20/2025", "2025-09-20", "2025/09/20"
+ */
+const normalizeDate = (input) => {
+  if (!input) return '';
+  let s = String(input).trim();
+
+  // Already ISO-ish (YYYY-MM-DD or YYYY/MM/DD)
+  const isoMatch = s.match(/^(\d{4})[\-/](\d{1,2})[\-/](\d{1,2})$/);
+  if (isoMatch) {
+    const y = isoMatch[1];
+    const m = String(isoMatch[2]).padStart(2, '0');
+    const d = String(isoMatch[3]).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // US-style M/D/YY or M/D/YYYY
+  const usMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (usMatch) {
+    let month = parseInt(usMatch[1], 10);
+    let day = parseInt(usMatch[2], 10);
+    let year = parseInt(usMatch[3], 10);
+    if (year < 100) {
+      // Interpret 2-digit years: 00-69 -> 2000-2069, 70-99 -> 1970-1999 (JS Date heuristics)
+      year += year >= 70 ? 1900 : 2000;
+    }
+    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return '';
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${year}-${mm}-${dd}`;
+  }
+
+  // Try Date.parse as fallback and format to YYYY-MM-DD
+  const parsed = Date.parse(s);
+  if (!Number.isNaN(parsed)) {
+    const d = new Date(parsed);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  return '';
+};
+
+/**
+ * Sanitize ISBN-like values coming from CSVs.
+ * Some spreadsheets export ISBNs as formulas like ="978123..." or prefix with '=' or a leading apostrophe.
+ */
+const sanitizeISBN = (input) => {
+  if (input === null || input === undefined) return '';
+  let s = String(input).trim();
+
+  // Remove leading equals used by spreadsheets: ="978..." or =978...
+  if (s.startsWith('="') && s.endsWith('"')) {
+    s = s.slice(2, -1);
+  } else if (s.startsWith('=')) {
+    s = s.slice(1);
+  }
+
+  // Remove surrounding quotes or leading apostrophe
+  if (s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1);
+  if (s.startsWith("'")) s = s.slice(1);
+
+  // Remove spaces and non-printable characters
+  s = s.replace(/\s+/g, '');
+
+  return s;
+};
+
+/**
  * Map Goodreads "Exclusive Shelf" to status
  * @param {string} shelf - Goodreads shelf name
  * @returns {string} Mapped status value
@@ -117,9 +189,9 @@ export const mapGoodreadsRow = (r) => {
   const status = mapGoodreadsShelfToStatus(r['Exclusive Shelf'] || r['Shelf'] || '');
   
   // Prefer the `ISBN` column when available; fallback to `ISBN13`.
-  // Ensure ISBN is always a string (CSV might produce numeric values)
+  // Ensure ISBN is sanitized for common spreadsheet exports like ="978..."
   const rawIsbn = r['ISBN'] || r['ISBN13'] || '';
-  const isbnStr = rawIsbn !== undefined && rawIsbn !== null ? String(rawIsbn).trim() : '';
+  const isbnStr = sanitizeISBN(rawIsbn);
 
   return {
     title: r['Title'] || r['title'] || r['Name'] || '',
@@ -128,7 +200,7 @@ export const mapGoodreadsRow = (r) => {
     year: r['Year Published'] || r['Original Publication Year'] || r['Year'] || '',
     rating: isNaN(rating) ? 0 : rating,
     status: status,
-    dateRead: r['Date Read'] || r['Date read'] || r['Date read (YYYY/MM/DD)'] || '',
+  dateRead: normalizeDate(r['Date Read'] || r['Date read'] || r['Date read (YYYY/MM/DD)'] || ''),
     tags,
     review: r['My Review'] || r['Review'] || '',
     type: 'book',
@@ -152,7 +224,7 @@ export const mapLetterboxdRow = (r) => {
     year: r['Year'] || r['year'] || '',
     rating: isNaN(rating) ? 0 : rating,
     status,
-    dateWatched: r['Date Watched'] || r['Watched Date'] || r['Date'] || '',
+  dateWatched: normalizeDate(r['Date Watched'] || r['Watched Date'] || r['Date'] || ''),
     tags,
     review: r['Review'] || r['Notes'] || '',
     type: 'movie',
@@ -186,11 +258,11 @@ export const mapGenericRow = (r) => {
     author: r['author'] || r['Author'] || '',
     director: r['director'] || r['Director'] || '',
     actors,
-    isbn: r['isbn'] || r['ISBN'] || '',
+  isbn: sanitizeISBN(r['isbn'] || r['ISBN'] || ''),
     year: r['year'] || r['Year'] || '',
     rating: isNaN(rating) ? 0 : rating,
-    dateRead: r['dateRead'] || r['Date Read'] || r['date_read'] || '',
-    dateWatched: r['dateWatched'] || r['Date Watched'] || r['date_watched'] || '',
+  dateRead: normalizeDate(r['dateRead'] || r['Date Read'] || r['date_read'] || ''),
+  dateWatched: normalizeDate(r['dateWatched'] || r['Date Watched'] || r['date_watched'] || ''),
     tags,
     review: r['review'] || r['Review'] || '',
     dateAdded: new Date().toISOString()

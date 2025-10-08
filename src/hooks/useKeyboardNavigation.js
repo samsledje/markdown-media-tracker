@@ -17,14 +17,25 @@ export const useKeyboardNavigation = ({
   onSearchOnline = () => {},
   onToggleFilters = () => {},
   onToggleCustomize = () => {},
-  onCycleFilterType = () => {},
+  onSwitchStorage = () => {},
+  onFilterAll = () => {},
+  onFilterBooks = () => {},
+  onFilterMovies = () => {},
   onToggleSelectionMode = () => {},
   onSelectAll = () => {},
   onDeleteSelected = () => {},
+  onToggleItemSelection = () => {},
   onOpenItem = () => {},
   onCloseModals = () => {},
+  onCloseBatchDeleteModal = () => {},
   selectionMode = false,
-  selectedCount = 0
+  selectedCount = 0,
+  // Modal states - when any of these are true, main shortcuts are disabled
+  hasOpenModal = false,
+  // Individual modal states for toggle functionality
+  showHelp = false,
+  customizeOpen = false,
+  showBatchDeleteConfirm = false
 } = {}) => {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [focusedId, setFocusedId] = useState(null);
@@ -35,23 +46,47 @@ export const useKeyboardNavigation = ({
    */
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Escape: close modals, clear search/selection
+      // Escape: close modals, clear search/selection (works always)
       if (e.key === KEYBOARD_SHORTCUTS.ESCAPE) {
-        onCloseModals();
+        // If the batch delete confirmation modal is open, close it specifically
+        // without exiting selection mode
+        if (showBatchDeleteConfirm) {
+          onCloseBatchDeleteModal();
+        } else {
+          onCloseModals();
+        }
         return;
       }
 
-      // Don't run shortcuts while typing in inputs/textareas
+      // Don't run main window shortcuts while typing in inputs/textareas
       if (isTyping()) return;
 
       const key = e.key;
 
-      // Show help: ?
+      // Allow toggle shortcuts even when modals are open
+      // Show help: ? (toggle)
       if (key === KEYBOARD_SHORTCUTS.HELP) {
         e.preventDefault();
         onOpenHelp();
         return;
       }
+
+      // Toggle customize: C (toggle)
+      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.CUSTOMIZE) {
+        e.preventDefault();
+        onToggleCustomize();
+        return;
+      }
+
+      // Switch storage: T (always works)
+      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.SWITCH_STORAGE) {
+        e.preventDefault();
+        onSwitchStorage();
+        return;
+      }
+
+      // Don't run other main window shortcuts when a modal is open
+      if (hasOpenModal) return;
 
       // Focus search: / or Ctrl/Cmd+K
       if ((key === KEYBOARD_SHORTCUTS.SEARCH && !e.ctrlKey && !e.metaKey) || 
@@ -61,9 +96,28 @@ export const useKeyboardNavigation = ({
         return;
       }
 
+      // Filter shortcuts: A (all), B (books), M (movies) - only when storage is connected
+      if (storageAdapter && storageAdapter.isConnected()) {
+        if (key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_ALL && !selectionMode) {
+          e.preventDefault();
+          onFilterAll();
+          return;
+        }
+        if (key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_BOOKS) {
+          e.preventDefault();
+          onFilterBooks();
+          return;
+        }
+        if (key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_MOVIES) {
+          e.preventDefault();
+          onFilterMovies();
+          return;
+        }
+      }
+
       // Storage-dependent shortcuts
       if (storageAdapter && storageAdapter.isConnected()) {
-        if (key.toLowerCase() === KEYBOARD_SHORTCUTS.ADD || key.toLowerCase() === KEYBOARD_SHORTCUTS.ADD_ALT) {
+        if (key.toLowerCase() === KEYBOARD_SHORTCUTS.ADD) {
           e.preventDefault();
           onAddItem();
           return;
@@ -79,20 +133,6 @@ export const useKeyboardNavigation = ({
       if (key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTERS) {
         e.preventDefault();
         onToggleFilters();
-        return;
-      }
-
-      // Toggle customize: C
-      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.CUSTOMIZE) {
-        e.preventDefault();
-        onToggleCustomize();
-        return;
-      }
-
-      // Cycle filter type: T
-      if (key.toLowerCase() === KEYBOARD_SHORTCUTS.TOGGLE_TYPE) {
-        e.preventDefault();
-        onCycleFilterType();
         return;
       }
 
@@ -120,33 +160,109 @@ export const useKeyboardNavigation = ({
         return;
       }
 
-      // Item navigation and activation
+      // Item navigation and activation (Arrow keys + vim-style navigation)
       if (items.length > 0 && [
         KEYBOARD_SHORTCUTS.ARROW_LEFT,
         KEYBOARD_SHORTCUTS.ARROW_RIGHT,
         KEYBOARD_SHORTCUTS.ARROW_UP,
         KEYBOARD_SHORTCUTS.ARROW_DOWN,
         KEYBOARD_SHORTCUTS.ENTER,
-        KEYBOARD_SHORTCUTS.SPACE
-      ].includes(key)) {
+        KEYBOARD_SHORTCUTS.SPACE,
+        'h', 'j', 'k', 'l' // vim-style navigation (h=left, j=down, k=up, l=right)
+      ].includes(key) || ['h', 'j', 'k', 'l'].includes(key.toLowerCase())) {
         e.preventDefault();
         
         let idx = focusedIndex;
         if (idx < 0) idx = 0;
         
-        const cols = GRID_COLUMNS_BY_SIZE[cardSize] || 3;
+        // Calculate actual columns by examining the DOM layout
+        const getActualColumns = () => {
+          if (items.length === 0) return 1;
+          
+          // Get the first two card elements to calculate actual column layout
+          const firstCard = cardRefs.current[items[0]?.id];
+          const secondCard = cardRefs.current[items[1]?.id];
+          
+          if (!firstCard || !secondCard) {
+            // Fallback to constants if DOM refs aren't available
+            return GRID_COLUMNS_BY_SIZE[cardSize] || 3;
+          }
+          
+          // Check if cards are on the same row by comparing their top positions
+          const firstRect = firstCard.getBoundingClientRect();
+          const secondRect = secondCard.getBoundingClientRect();
+          
+          // If they have roughly the same top position, they're in the same row
+          const tolerance = 10; // Allow small differences due to line height, etc.
+          const sameRow = Math.abs(firstRect.top - secondRect.top) < tolerance;
+          
+          if (!sameRow) {
+            // If first two items are not in same row, we have 1 column
+            return 1;
+          }
+          
+          // Count how many items are in the first row
+          let cols = 1;
+          for (let i = 1; i < Math.min(items.length, 12); i++) { // Check up to 12 items max
+            const card = cardRefs.current[items[i]?.id];
+            if (!card) break;
+            
+            const cardRect = card.getBoundingClientRect();
+            if (Math.abs(cardRect.top - firstRect.top) < tolerance) {
+              cols++;
+            } else {
+              break; // Found an item in a different row
+            }
+          }
+          
+          return cols;
+        };
+        
+        const cols = getActualColumns();
 
-        if (key === KEYBOARD_SHORTCUTS.ARROW_LEFT) {
+        if (key === KEYBOARD_SHORTCUTS.ARROW_LEFT || key.toLowerCase() === 'h') {
           idx = Math.max(0, idx - 1);
-        } else if (key === KEYBOARD_SHORTCUTS.ARROW_RIGHT) {
+        } else if (key === KEYBOARD_SHORTCUTS.ARROW_RIGHT || key.toLowerCase() === 'l') {
           idx = Math.min(items.length - 1, idx + 1);
-        } else if (key === KEYBOARD_SHORTCUTS.ARROW_UP) {
-          idx = Math.max(0, idx - cols);
-        } else if (key === KEYBOARD_SHORTCUTS.ARROW_DOWN) {
-          idx = Math.min(items.length - 1, idx + cols);
+        } else if (key === KEYBOARD_SHORTCUTS.ARROW_UP || key.toLowerCase() === 'k') {
+          // Move up: find the item in the same column (visual position)
+          const currentColumn = idx % cols;
+          let targetIdx = idx - cols;
+          
+          // If we'd go to a negative index, find the item in the same column from the top
+          if (targetIdx < 0) {
+            // Stay in the same column but go to the last possible row
+            targetIdx = currentColumn;
+            while (targetIdx + cols < items.length) {
+              targetIdx += cols;
+            }
+            // If this position exceeds our items, go back one row
+            if (targetIdx >= items.length) {
+              targetIdx = Math.max(0, targetIdx - cols);
+            }
+          }
+          idx = targetIdx;
+        } else if (key === KEYBOARD_SHORTCUTS.ARROW_DOWN || key.toLowerCase() === 'j') {
+          // Move down: find the item in the same column (visual position)
+          const currentColumn = idx % cols;
+          let targetIdx = idx + cols;
+          
+          // If we'd exceed the items length, wrap to the same column at the top
+          if (targetIdx >= items.length) {
+            targetIdx = currentColumn;
+          }
+          idx = targetIdx;
         } else if (key === KEYBOARD_SHORTCUTS.ENTER || key === KEYBOARD_SHORTCUTS.SPACE) {
           const item = items[focusedIndex >= 0 ? focusedIndex : 0];
-          if (item) onOpenItem(item);
+          if (item) {
+            if (selectionMode) {
+              // In selection mode, toggle selection instead of opening detail
+              onToggleItemSelection(item.id);
+            } else {
+              // In normal mode, open the item detail
+              onOpenItem(item);
+            }
+          }
           return;
         }
 
@@ -154,13 +270,14 @@ export const useKeyboardNavigation = ({
         const id = items[idx]?.id;
         setFocusedId(id || null);
         
-        // Scroll focused item into view
-        requestAnimationFrame(() => {
-          const node = id && cardRefs.current[id];
-          if (node && node.scrollIntoView) {
-            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        });
+        // Smoothly scroll the focused card into view
+        if (id && cardRefs.current[id]) {
+          cardRefs.current[id].scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
       }
     };
 
@@ -173,18 +290,27 @@ export const useKeyboardNavigation = ({
     focusedIndex,
     selectionMode,
     selectedCount,
+    hasOpenModal,
+    showHelp,
+    customizeOpen,
+    showBatchDeleteConfirm,
     onOpenHelp,
     onFocusSearch,
     onAddItem,
     onSearchOnline,
     onToggleFilters,
     onToggleCustomize,
-    onCycleFilterType,
+    onSwitchStorage,
+    onFilterAll,
+    onFilterBooks,
+    onFilterMovies,
     onToggleSelectionMode,
     onSelectAll,
     onDeleteSelected,
+    onToggleItemSelection,
     onOpenItem,
-    onCloseModals
+    onCloseModals,
+    onCloseBatchDeleteModal
   ]);
 
   /**

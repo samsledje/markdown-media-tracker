@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
+import { STATUS_TYPES } from '../../constants/index.js';
 
 /**
  * Modal for adding new items
@@ -18,6 +19,7 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
   const [item, setItem] = useState(initialItem || {
     title: '',
     type: 'book',
+    status: STATUS_TYPES.BOOK.TO_READ, // Default status for new books
     author: '',
     director: '',
     actors: [],
@@ -38,9 +40,26 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
   // Update item when initialItem changes
   useEffect(() => {
     if (initialItem) {
-      setItem(initialItem);
+      // Ensure initialItem has a default status if not present
+      const updatedItem = {
+        ...initialItem,
+        status: initialItem.status || (initialItem.type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED)
+      };
+      setItem(updatedItem);
     }
   }, [initialItem]);
+
+  // Handle status updates when type changes in the form
+  useEffect(() => {
+    if (!item.status || 
+        (item.type === 'book' && !Object.values(STATUS_TYPES.BOOK).includes(item.status)) ||
+        (item.type === 'movie' && !Object.values(STATUS_TYPES.MOVIE).includes(item.status))) {
+      const newStatus = item.type === 'book' ? STATUS_TYPES.BOOK.TO_READ : STATUS_TYPES.MOVIE.TO_WATCH;
+      setItem(prev => ({ ...prev, status: newStatus }));
+    }
+  }, [item.type]);
+
+  const modalRef = useRef(null);
 
   const handleSave = () => {
     if (!item.title) {
@@ -64,9 +83,69 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [item]);
 
+  // Focus trapping
+  useEffect(() => {
+    const handleTabKey = (e) => {
+      if (e.key !== 'Tab') return;
+
+      const modal = modalRef.current;
+      if (!modal) return;
+
+      // Get all focusable elements within the modal
+      const focusableElements = modal.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        // Shift + Tab: if focused on first element, go to last
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab: if focused on last element, go to first
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    return () => document.removeEventListener('keydown', handleTabKey);
+  }, []);
+
+  // Auto-focus the first focusable element when modal opens
+  useEffect(() => {
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusableElements = modal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    
+    if (focusableElements.length > 0) {
+      // Focus the first input field if available, otherwise the first focusable element
+      const firstInput = modal.querySelector('input, select, textarea');
+      if (firstInput) {
+        firstInput.focus();
+      } else {
+        focusableElements[0].focus();
+      }
+    }
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto">
+      <div 
+        ref={modalRef}
+        className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto"
+      >
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between">
           <h2 className="text-lg sm:text-xl font-bold">Add New Item</h2>
           <button

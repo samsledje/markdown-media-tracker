@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { filterItems, sortItems, getAllTags } from '../utils/filterUtils.js';
+import { filterItems, sortItems, getAllTags, getAllStatuses } from '../utils/filterUtils.js';
 import { FILTER_TYPES, SORT_OPTIONS, SORT_ORDERS, RECENT_FILTER_OPTIONS } from '../constants/index.js';
 
 /**
@@ -14,11 +14,13 @@ export const useFilters = (items) => {
   const [sortOrder, setSortOrder] = useState(SORT_ORDERS.DESC);
   const [filterRating, setFilterRating] = useState(0);
   const [filterTags, setFilterTags] = useState([]);
+  const [filterStatuses, setFilterStatuses] = useState([]);
   const [filterRecent, setFilterRecent] = useState(RECENT_FILTER_OPTIONS.ANY);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Get all available tags
+  // Get all available tags and statuses
   const allTags = useMemo(() => getAllTags(items), [items]);
+  const allStatuses = useMemo(() => getAllStatuses(items), [items]);
 
   // Apply filters and sorting
   const filteredAndSortedItems = useMemo(() => {
@@ -27,12 +29,13 @@ export const useFilters = (items) => {
       filterType,
       filterRating,
       filterTags,
+      filterStatuses,
       filterRecent
     };
 
     const filtered = filterItems(items, filters);
     return sortItems(filtered, sortBy, sortOrder);
-  }, [items, searchTerm, filterType, filterRating, filterTags, filterRecent, sortBy, sortOrder]);
+  }, [items, searchTerm, filterType, filterRating, filterTags, filterStatuses, filterRecent, sortBy, sortOrder]);
 
   /**
    * Toggle a tag in the filter list
@@ -46,6 +49,17 @@ export const useFilters = (items) => {
   };
 
   /**
+   * Toggle a status in the filter list
+   */
+  const toggleStatusFilter = (status) => {
+    setFilterStatuses(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  /**
    * Clear all filters
    */
   const clearFilters = () => {
@@ -53,10 +67,9 @@ export const useFilters = (items) => {
     setFilterType(FILTER_TYPES.ALL);
     setFilterRating(0);
     setFilterTags([]);
+    setFilterStatuses([]);
     setFilterRecent(RECENT_FILTER_OPTIONS.ANY);
-  };
-
-  /**
+  };  /**
    * Cycle through filter types
    */
   const cycleFilterType = () => {
@@ -81,8 +94,9 @@ export const useFilters = (items) => {
            filterType !== FILTER_TYPES.ALL ||
            filterRating !== 0 ||
            filterTags.length > 0 ||
+           filterStatuses.length > 0 ||
            filterRecent !== RECENT_FILTER_OPTIONS.ANY;
-  }, [searchTerm, filterType, filterRating, filterTags, filterRecent]);
+  }, [searchTerm, filterType, filterRating, filterTags, filterStatuses, filterRecent]);
 
   return {
     // Filter state
@@ -92,9 +106,11 @@ export const useFilters = (items) => {
     sortOrder,
     filterRating,
     filterTags,
+    filterStatuses,
     filterRecent,
     showFilters,
     allTags,
+    allStatuses,
     hasActiveFilters,
 
     // Filtered results
@@ -107,9 +123,11 @@ export const useFilters = (items) => {
     setSortOrder,
     setFilterRating,
     setFilterTags,
+    setFilterStatuses,
     setFilterRecent,
     setShowFilters,
     toggleTagFilter,
+    toggleStatusFilter,
     clearFilters,
     cycleFilterType,
     toggleSortOrder

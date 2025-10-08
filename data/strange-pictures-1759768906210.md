@@ -1,7 +1,9 @@
 ---
 title: "Strange Pictures"
 type: book
+status: to-read
 author: "Uketsu"
+actors: []
 year: 2025
 rating: 3
 coverUrl: "https://covers.openlibrary.org/b/id/15123137-M.jpg"

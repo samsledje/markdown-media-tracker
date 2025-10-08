@@ -82,6 +82,74 @@ You can switch between storage options at any time:
 3. Choose a different storage option
 4. **Note**: Existing files will remain in their current location — you'll need to manually move them if desired
 
+## Keyboard Shortcuts
+
+The app includes comprehensive keyboard shortcuts for efficient navigation and control. Press **?** at any time to view the help modal with all shortcuts.
+
+### Global Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **?** | Show/hide keyboard shortcuts help |
+| **/** or **Ctrl/Cmd+K** | Focus search (Esc to clear/unfocus) |
+| **Esc** | Close modals / clear search / exit selection mode |
+| **T** | Switch storage (show storage selector) |
+| **N** | Add item manually (when storage connected) |
+| **S** | Search online for books/movies (when storage connected) |
+| **F** | Toggle filters panel |
+| **C** | Show/hide customize appearance panel |
+
+### Browsing & Navigation
+
+| Key | Action |
+|-----|--------|
+| **Arrow keys** or **H/J/K/L** | Navigate between cards (vim-style: H=left, J=down, K=up, L=right) |
+| **Enter** or **Space** | Open selected item detail (or toggle selection in selection mode) |
+| **A** | Show all items |
+| **B** | Filter to books only |
+| **M** | Filter to movies only |
+
+### Selection Mode
+
+| Key | Action |
+|-----|--------|
+| **V** | Toggle selection mode on/off |
+| **Ctrl/Cmd+A** | Select all visible items (in selection mode) |
+| **Space** or **Enter** | Toggle selection of focused item (in selection mode) |
+| **Delete** or **Backspace** | Delete selected items (in selection mode) |
+| **Esc** | Exit selection mode (or close delete confirmation if open) |
+
+### Search Modal
+
+| Key | Action |
+|-----|--------|
+| **/** or **Ctrl/Cmd+K** | Focus search input |
+| **B** | Switch to book search |
+| **M** | Switch to movie search |
+| **Ctrl/Cmd+Enter** | Execute search |
+| **Esc** | Close search modal |
+
+### Item Detail Modal
+
+| Key | Action |
+|-----|--------|
+| **E** | Toggle edit mode |
+| **D** | Delete item |
+| **U** | Set status to "To Read/Watch" |
+| **I** | Set status to "Reading/Watching" (In Progress) |
+| **O** | Set status to "Read/Watched" (Completed) |
+| **0-5** | Set rating (0 = unrated, 1-5 = star rating) |
+| **Ctrl/Cmd+Enter** | Save changes (when editing) |
+| **Esc** | Close modal |
+
+### Smart Navigation Features
+
+- **Responsive Grid Navigation**: Up/down arrows automatically detect the actual number of columns based on card size and screen width
+- **Smooth Scrolling**: Navigation automatically scrolls focused cards into view
+- **Visual Focus Indicators**: Clearly shows which card is currently focused
+- **Modal-Aware**: Shortcuts intelligently disable/enable based on current modal state
+- **Selection Integration**: Navigation works seamlessly with selection mode for bulk operations
+
 ## Configure the OMDb API key
 
 The app uses OMDb (for movie lookups) and Open Library (for books). For movie searches, you'll need a free OMDb API key:

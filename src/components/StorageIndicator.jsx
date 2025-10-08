@@ -1,12 +1,45 @@
-import React, { useState } from 'react';
-import { Cloud, FolderOpen, Wifi, WifiOff, Settings } from 'lucide-react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { Cloud, FolderOpen, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 
 /**
  * Compact Storage Indicator Component
  * Shows storage status in bottom right, expandable on click
  */
-const StorageIndicator = ({ storageAdapter, storageInfo, onSwitchStorage }) => {
+const StorageIndicator = forwardRef(({ storageAdapter, storageInfo, onSwitchStorage }, ref) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    openModal: () => setIsExpanded(true),
+    closeModal: () => setIsExpanded(false),
+    toggleModal: () => setIsExpanded(prev => !prev),
+    isOpen: () => isExpanded
+  }));
+
+  // Handle keyboard shortcuts when modal is open
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleKeyDown = (e) => {
+      // Cmd+Enter or Ctrl+Enter: trigger switch storage
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        setIsExpanded(false);
+        onSwitchStorage();
+        return;
+      }
+      
+      // Escape: close modal
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsExpanded(false);
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded, onSwitchStorage]);
 
   if (!storageAdapter) return null;
 
@@ -105,7 +138,7 @@ const StorageIndicator = ({ storageAdapter, storageInfo, onSwitchStorage }) => {
               </div>
 
               {/* Actions */}
-              <div className="pt-2 border-t border-slate-600">
+              <div className="pt-2 border-t border-slate-600 space-y-2">
                 <button
                   onClick={() => {
                     setIsExpanded(false);
@@ -113,9 +146,14 @@ const StorageIndicator = ({ storageAdapter, storageInfo, onSwitchStorage }) => {
                   }}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
                 >
-                  <Settings className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4" />
                   Switch Storage
                 </button>
+                
+                {/* Keyboard hint */}
+                <div className="text-xs text-slate-400 text-center">
+                  Press <kbd className="px-1 py-0.5 bg-slate-700 rounded text-xs">⌘Enter</kbd> or <kbd className="px-1 py-0.5 bg-slate-700 rounded text-xs">Ctrl+Enter</kbd> to switch
+                </div>
               </div>
             </div>
           </div>
@@ -123,6 +161,6 @@ const StorageIndicator = ({ storageAdapter, storageInfo, onSwitchStorage }) => {
       )}
     </div>
   );
-};
+});
 
 export default StorageIndicator;

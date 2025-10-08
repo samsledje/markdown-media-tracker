@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -28,6 +28,45 @@ import { hasApiKey } from './config.js';
 
 // Constants
 import { PRIMARY_COLOR_PRESETS, HIGHLIGHT_COLOR_PRESETS } from './constants/colors.js';
+import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from './constants/index.js';
+
+/**
+ * Get the icon component for a given status
+ */
+const getStatusIcon = (status, className = '') => {
+  const iconType = STATUS_ICONS[status];
+  switch (iconType) {
+    case 'bookmark':
+      return <Bookmark className={className} />;
+    case 'layers':
+      return <Layers className={className} />;
+    case 'book-open':
+      return <BookOpen className={className} />;
+    case 'check-circle':
+      return <CheckCircle className={className} />;
+    case 'play-circle':
+      return <PlayCircle className={className} />;
+    default:
+      return <Bookmark className={className} />;
+  }
+};
+
+/**
+ * Get color class for status badge
+ */
+const getStatusColorClass = (status) => {
+  const colorType = STATUS_COLORS[status];
+  switch (colorType) {
+    case 'blue':
+      return 'bg-blue-500';
+    case 'yellow':
+      return 'bg-yellow-500';
+    case 'green':
+      return 'bg-green-500';
+    default:
+      return 'bg-blue-500';
+  }
+};
 
 const MediaTracker = () => {
   // Modal states
@@ -36,6 +75,7 @@ const MediaTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showBatchEdit, setShowBatchEdit] = useState(false);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,6 +89,7 @@ const MediaTracker = () => {
   const filtersRef = useRef(null);
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
+  const storageIndicatorRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
@@ -80,9 +121,11 @@ const MediaTracker = () => {
     sortOrder,
     filterRating,
     filterTags,
+    filterStatuses,
     filterRecent,
     showFilters,
     allTags,
+    allStatuses,
     hasActiveFilters,
     filteredAndSortedItems,
     setSearchTerm,
@@ -91,9 +134,11 @@ const MediaTracker = () => {
     setSortOrder,
     setFilterRating,
     setFilterTags,
+    setFilterStatuses,
     setFilterRecent,
     setShowFilters,
     toggleTagFilter,
+    toggleStatusFilter,
     clearFilters,
     cycleFilterType,
     toggleSortOrder
@@ -132,6 +177,9 @@ const MediaTracker = () => {
     setSelectedItem(null);
     setShowBatchEdit(false);
     setShowApiKeyManager(false);
+    if (storageIndicatorRef.current) {
+      storageIndicatorRef.current.closeModal();
+    }
     if (searchTerm) setSearchTerm('');
     if (selectionMode) clearSelection();
   };
@@ -142,6 +190,17 @@ const MediaTracker = () => {
       searchInputRef.current.focus();
       const val = searchInputRef.current.value || '';
       searchInputRef.current.setSelectionRange(val.length, val.length);
+    }
+  };
+
+  // Open/toggle storage indicator modal
+  const openStorageIndicator = () => {
+    if (storageIndicatorRef.current) {
+      // Close other modals first
+      setShowHelp(false);
+      setCustomizeOpen(false);
+      // Then toggle storage modal
+      storageIndicatorRef.current.toggleModal();
     }
   };
 
@@ -181,17 +240,22 @@ const MediaTracker = () => {
   // Handle batch operations
   const handleDeleteSelected = async () => {
     if (selectedCount === 0) return;
+    setShowBatchDeleteConfirm(true);
+  };
 
-    const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedCount} selected item(s)? This cannot be undone.`);
-    if (!confirmDelete) return;
-
+  const confirmBatchDelete = async () => {
     try {
       const selectedItems = getSelectedItems(filteredAndSortedItems);
       await deleteItems(selectedItems);
       clearSelection();
+      setShowBatchDeleteConfirm(false);
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  const cancelBatchDelete = () => {
+    setShowBatchDeleteConfirm(false);
   };
 
   const handleBatchEdit = async (changes) => {
@@ -205,25 +269,65 @@ const MediaTracker = () => {
     }
   };
 
+  // Track storage indicator state
+  const [storageIndicatorOpen, setStorageIndicatorOpen] = useState(false);
+
+  // Update storage indicator state when it changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (storageIndicatorRef.current) {
+        const isOpen = storageIndicatorRef.current.isOpen();
+        setStorageIndicatorOpen(isOpen);
+      }
+    }, 100); // Check every 100ms
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Keyboard navigation setup
   const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
     items: filteredAndSortedItems,
     cardSize,
     storageAdapter,
-    onOpenHelp: () => setShowHelp(true),
+    onOpenHelp: () => {
+      // Close other modals first
+      setCustomizeOpen(false);
+      if (storageIndicatorRef.current) {
+        storageIndicatorRef.current.closeModal();
+      }
+      // Then toggle help
+      setShowHelp(s => !s);
+    },
     onFocusSearch: focusSearch,
     onAddItem: () => setIsAdding(true),
     onSearchOnline: () => setIsSearching(true),
     onToggleFilters: () => setShowFilters(s => !s),
-    onToggleCustomize: () => setCustomizeOpen(s => !s),
-    onCycleFilterType: cycleFilterType,
+    onToggleCustomize: () => {
+      // Close other modals first
+      setShowHelp(false);
+      if (storageIndicatorRef.current) {
+        storageIndicatorRef.current.closeModal();
+      }
+      // Then toggle customize
+      setCustomizeOpen(s => !s);
+    },
+    onSwitchStorage: openStorageIndicator,
+    onFilterAll: () => setFilterType('all'),
+    onFilterBooks: () => setFilterType('book'),
+    onFilterMovies: () => setFilterType('movie'),
     onToggleSelectionMode: toggleSelectionMode,
     onSelectAll: () => selectAll(filteredAndSortedItems),
     onDeleteSelected: handleDeleteSelected,
+    onToggleItemSelection: toggleItemSelection,
     onOpenItem: setSelectedItem,
     onCloseModals: closeModals,
+    onCloseBatchDeleteModal: () => setShowBatchDeleteConfirm(false),
     selectionMode,
-    selectedCount
+    selectedCount,
+    hasOpenModal: !!(selectedItem || isAdding || isSearching || showHelp || showBatchEdit || showBatchDeleteConfirm || showApiKeyManager || customizeOpen || searchResultItem || storageIndicatorOpen),
+    showHelp,
+    customizeOpen,
+    showBatchDeleteConfirm
   });
 
   // Initialize storage options on component mount
@@ -450,24 +554,46 @@ const MediaTracker = () => {
                 ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.target.blur();
+                    setSearchTerm('');
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-3 sm:py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
             </div>
             <div className="flex gap-2 justify-center sm:justify-start">
-              {['all', 'book', 'movie'].map(type => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
-                    filterType === type
-                      ? ''
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
-                  style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                >
-                  {type}
-                </button>
-              ))}
+              {['all', 'book', 'movie'].map(type => {
+                const getTypeIcon = (type) => {
+                  switch (type) {
+                    case 'book':
+                      return <Book className="w-5 h-5" />;
+                    case 'movie':
+                      return <Film className="w-5 h-5" />;
+                    case 'all':
+                      return <span className="text-sm font-medium">All</span>;
+                    default:
+                      return null;
+                  }
+                };
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${
+                      filterType === type
+                        ? ''
+                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                    }`}
+                    style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                    title={type === 'all' ? 'All items' : type === 'book' ? 'Books only' : 'Movies only'}
+                  >
+                    {getTypeIcon(type)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -526,18 +652,19 @@ const MediaTracker = () => {
                     <>
                       <button
                         onClick={() => setShowBatchEdit(true)}
-                        className="px-3 py-2 rounded text-sm min-h-[44px]"
+                        className="p-2 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                         style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                        title="Batch Edit"
                       >
-                        <span className="hidden sm:inline">Batch Edit</span>
-                        <span className="sm:hidden">Edit</span>
+                        <SlidersHorizontal className="w-5 h-5" />
                       </button>
                       <button
                         onClick={handleDeleteSelected}
-                        className="px-3 py-2 rounded text-sm min-h-[44px]"
+                        className="p-2 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                         style={{ backgroundColor: 'rgba(255,0,0,0.16)', color: 'white' }}
+                        title="Delete Selected"
                       >
-                        Delete
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </>
                   )}
@@ -649,6 +776,30 @@ const MediaTracker = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Status Filter */}
+                <div>
+                  <div className="text-sm text-slate-300 mb-2">Status</div>
+                  <div className="flex flex-wrap gap-2">
+                    {allStatuses.length === 0 ? (
+                      <div className="text-sm text-slate-400">No status data available</div>
+                    ) : (
+                      allStatuses.map(status => (
+                        <button
+                          key={status}
+                          onClick={() => toggleStatusFilter(status)}
+                          className={`px-3 py-1 rounded-lg text-sm transition flex items-center gap-2 ${
+                            filterStatuses.includes(status) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                          }`}
+                          style={filterStatuses.includes(status) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          {getStatusIcon(status, 'w-4 h-4')}
+                          {STATUS_LABELS[status]}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -687,19 +838,20 @@ const MediaTracker = () => {
                 )}
               </div>
             ) : (
-              <div className={`grid gap-3 sm:gap-4 ${
-                cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
-                cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
-                cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-                cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
-                'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
-              }`}>
+              <div className="w-full min-h-0">
+                <div className={`grid gap-3 sm:gap-4 w-full ${
+                  cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
+                  cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                  cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                  cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+                  'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                } auto-rows-min`}>
                 {filteredAndSortedItems.map((item, index) => (
                   <div
                     key={item.id}
                     ref={(el) => registerCardRef(item.id, el)}
                     onClick={(e) => handleItemClick(item, e)}
-                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative ${
+                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full ${
                       isItemFocused(item.id) ? 'ring-2 ring-blue-500' :
                       isItemSelected(item.id) ? 'ring-2 ring-yellow-500' :
                       'border-slate-700 hover:border-slate-600'
@@ -749,7 +901,8 @@ const MediaTracker = () => {
                             </p>
                           )}
                         </div>
-                        <div className="flex-shrink-0 ml-2">
+                        <div className="flex-shrink-0 ml-2 flex items-center gap-2">
+                          {/* Type icon */}
                           {item.type === 'book' ? (
                             <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-6 h-6' : 'w-7 h-7'}`} />
                           ) : (
@@ -758,26 +911,44 @@ const MediaTracker = () => {
                         </div>
                       </div>
 
-                      {/* Rating */}
-                      {item.rating > 0 && (
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
-                                i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
-                              }`}
-                            />
-                          ))}
+                      {/* Bottom section with year/rating and status */}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex flex-col gap-2">
+                          {/* Rating */}
+                          {item.rating > 0 && (
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
+                                    i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Year */}
+                          {item.year && (
+                            <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
+                              {item.year}
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      {/* Year */}
-                      {item.year && (
-                        <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
-                          {item.year}
-                        </div>
-                      )}
+                        {/* Status badge */}
+                        {item.status && (
+                          <div
+                            className={`flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
+                              cardSize === 'tiny' ? 'w-5 h-5' : 'w-7 h-7'
+                            }`}
+                            title={STATUS_LABELS[item.status]}
+                            style={{ backdropFilter: 'blur(4px)' }}
+                          >
+                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : 'w-4 h-4'}`)}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Tags */}
                       {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
@@ -799,6 +970,7 @@ const MediaTracker = () => {
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>
@@ -930,6 +1102,32 @@ const MediaTracker = () => {
         />
       )}
 
+      {showBatchDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold mb-4">Delete Items</h3>
+            <p className="text-slate-300 mb-6">
+              Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelBatchDelete}
+                className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBatchDelete}
+                className="px-4 py-2 rounded transition text-sm text-white"
+                style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
+              >
+                Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedItem && (
         <ItemDetailModal
           item={selectedItem}
@@ -937,6 +1135,10 @@ const MediaTracker = () => {
           onSave={(item) => {
             saveItem(item);
             setSelectedItem(null);
+          }}
+          onQuickSave={(item) => {
+            // persist change but keep modal open
+            saveItem(item);
           }}
           onDelete={(item) => {
             deleteItem(item);
@@ -952,6 +1154,7 @@ const MediaTracker = () => {
         {/* Storage Indicator */}
         {!showStorageSelector && (
           <StorageIndicator
+            ref={storageIndicatorRef}
             storageAdapter={storageAdapter}
             storageInfo={storageInfo}
             onSwitchStorage={handleDisconnectStorage}
@@ -960,7 +1163,15 @@ const MediaTracker = () => {
         
         {/* Customize Button */}
         <button
-          onClick={() => setCustomizeOpen(true)}
+          onClick={() => {
+            // Close other modals first
+            setShowHelp(false);
+            if (storageIndicatorRef.current) {
+              storageIndicatorRef.current.closeModal();
+            }
+            // Then toggle customize
+            setCustomizeOpen(prev => !prev);
+          }}
           className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-all"
           style={{ backgroundColor: 'var(--mt-highlight)' }}
           title="Customize Appearance"
@@ -970,7 +1181,15 @@ const MediaTracker = () => {
         
         {/* Help Button */}
         <button
-          onClick={() => setShowHelp(true)}
+          onClick={() => {
+            // Close other modals first
+            setCustomizeOpen(false);
+            if (storageIndicatorRef.current) {
+              storageIndicatorRef.current.closeModal();
+            }
+            // Then toggle help
+            setShowHelp(prev => !prev);
+          }}
           className="w-12 h-12 bg-slate-700 hover:bg-slate-600 rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-all"
           title="Help & Shortcuts"
         >

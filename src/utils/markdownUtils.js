@@ -1,4 +1,14 @@
 // Markdown parsing and generation utilities
+import { STATUS_TYPES } from '../constants/index.js';
+
+/**
+ * Get default status for item type (for backward compatibility)
+ * @param {string} type - Item type ('book' or 'movie')
+ * @returns {string} Default status value
+ */
+const getDefaultStatus = (type) => {
+  return type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED;
+};
 
 /**
  * Parse markdown content with YAML frontmatter
@@ -29,6 +39,11 @@ export const parseMarkdown = (content) => {
       metadata[key] = value;
     }
   });
+
+  // Add default status for backward compatibility if not present
+  if (!metadata.status && metadata.type) {
+    metadata.status = getDefaultStatus(metadata.type);
+  }
   
   return { metadata, body: match[2].trim() };
 };
@@ -42,6 +57,10 @@ export const generateMarkdown = (item) => {
   let yaml = '---\n';
   yaml += `title: "${item.title}"\n`;
   yaml += `type: ${item.type}\n`;
+  
+  // Add status field with default if not present
+  const status = item.status || getDefaultStatus(item.type);
+  yaml += `status: ${status}\n`;
   
   if (item.author) yaml += `author: "${item.author}"\n`;
   if (item.director) yaml += `director: "${item.director}"\n`;

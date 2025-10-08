@@ -14,6 +14,46 @@ export const FILTER_TYPES = {
   MOVIE: 'movie'
 };
 
+export const STATUS_TYPES = {
+  BOOK: {
+    TO_READ: 'to-read',
+    READING: 'reading', 
+    READ: 'read'
+  },
+  MOVIE: {
+    TO_WATCH: 'to-watch',
+    WATCHING: 'watching',
+    WATCHED: 'watched'
+  }
+};
+
+export const STATUS_LABELS = {
+  'to-read': 'To Read',
+  'reading': 'Reading',
+  'read': 'Read',
+  'to-watch': 'To Watch', 
+  'watching': 'Watching',
+  'watched': 'Watched'
+};
+
+export const STATUS_ICONS = {
+  'to-read': 'layers',
+  'reading': 'book-open',
+  'read': 'check-circle',
+  'to-watch': 'layers',
+  'watching': 'play-circle',
+  'watched': 'check-circle'
+};
+
+export const STATUS_COLORS = {
+  'to-read': 'blue',
+  'reading': 'yellow', 
+  'read': 'green',
+  'to-watch': 'blue',
+  'watching': 'yellow',
+  'watched': 'green'
+};
+
 export const SORT_OPTIONS = {
   DATE_ADDED: 'dateAdded',
   DATE_CONSUMED: 'dateConsumed',
@@ -50,12 +90,14 @@ export const KEYBOARD_SHORTCUTS = {
   HELP: '?',
   SEARCH: '/',
   SEARCH_ALT: 'k',
-  ADD: 'a',
-  ADD_ALT: 'n',
+  ADD: 'n',
   ONLINE_SEARCH: 's',
   FILTERS: 'f',
   CUSTOMIZE: 'c',
-  TOGGLE_TYPE: 't',
+  SWITCH_STORAGE: 't',
+  FILTER_ALL: 'a',
+  FILTER_BOOKS: 'b',
+  FILTER_MOVIES: 'm',
   SELECTION_MODE: 'v',
   SELECT_ALL: 'a',
   ESCAPE: 'Escape',
@@ -66,7 +108,20 @@ export const KEYBOARD_SHORTCUTS = {
   ARROW_LEFT: 'ArrowLeft',
   ARROW_RIGHT: 'ArrowRight',
   ARROW_UP: 'ArrowUp',
-  ARROW_DOWN: 'ArrowDown'
+  ARROW_DOWN: 'ArrowDown',
+  // Modal-specific shortcuts
+  STATUS_TO_READ_WATCH: 'u',
+  STATUS_IN_PROGRESS: 'i', 
+  STATUS_COMPLETED: 'o',
+  RATING_1: '1',
+  RATING_2: '2',
+  RATING_3: '3',
+  RATING_4: '4',
+  RATING_5: '5',
+  RATING_CLEAR: '0',
+  EDIT_MODE: 'e',
+  DELETE_ITEM: 'd',
+  CONFIRM_ACTION: 'Enter' // Ctrl/Cmd+Enter for confirmations
 };
 
 export const GRID_COLUMNS_BY_SIZE = {

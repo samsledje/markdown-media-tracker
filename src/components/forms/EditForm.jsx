@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
+import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
 
 /**
  * Form component for editing item details
@@ -7,6 +8,14 @@ import { Star, X } from 'lucide-react';
 const EditForm = ({ item, onChange, fromSearch = false }) => {
   const [tagInput, setTagInput] = useState('');
   const [actorInput, setActorInput] = useState('');
+
+  const handleTypeChange = (newType) => {
+    if (fromSearch) return;
+    
+    // Update type and set appropriate default status
+    const newStatus = newType === 'book' ? STATUS_TYPES.BOOK.TO_READ : STATUS_TYPES.MOVIE.TO_WATCH;
+    onChange({ ...item, type: newType, status: newStatus });
+  };
 
   const addTag = () => {
     if (tagInput.trim() && !item.tags.includes(tagInput.trim())) {
@@ -38,7 +47,7 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
           {['book', 'movie'].map(type => (
             <button
               key={type}
-              onClick={() => !fromSearch && onChange({ ...item, type })}
+              onClick={() => handleTypeChange(type)}
               disabled={fromSearch}
               className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
                 item.type === type
@@ -56,6 +65,32 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
         {fromSearch && (
           <p className="text-xs text-slate-500 mt-1">Type is set from search results and cannot be changed</p>
         )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">Status</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {(item.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)).map(status => {
+            const isSelected = item.status === status;
+            return (
+              <button
+                key={status}
+                onClick={() => onChange({ ...item, status })}
+                className={`px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] border-2 ${
+                  isSelected
+                    ? 'text-white font-medium border-transparent'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-transparent hover:border-slate-500'
+                }`}
+                style={isSelected ? { 
+                  backgroundColor: 'var(--mt-highlight)',
+                  borderColor: 'var(--mt-highlight)'
+                } : {}}
+              >
+                {STATUS_LABELS[status]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div>

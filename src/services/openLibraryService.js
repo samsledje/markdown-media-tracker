@@ -59,3 +59,137 @@ export const searchBooks = async (query, limit = 12) => {
     throw new Error('Error searching for books. Please try again.');
   }
 };
+
+/**
+ * Fetch book data by ISBN using Open Library API
+ * Returns null if not found or on error
+ * @param {string} isbn
+ * @returns {Promise<object|null>} { title, author, year, isbn, coverUrl }
+ */
+export const getBookByISBN = async (isbn) => {
+  if (!isbn) return null;
+
+  // Debug: log raw input to help diagnose malformed/truncated ISBNs
+  try {
+    console.debug('[OpenLibrary] raw ISBN input:', isbn, 'typeof:', typeof isbn, 'json:', JSON.stringify(isbn));
+  } catch (e) {
+    console.debug('[OpenLibrary] raw ISBN (stringify failed)', String(isbn));
+  }
+
+  // Normalize ISBN: remove non-alphanumeric and uppercase any trailing x
+  const normalized = String(isbn).replace(/[^0-9Xx]/g, '').toUpperCase();
+  console.debug('[OpenLibrary] normalized ISBN:', normalized, 'length:', normalized.length);
+
+  try {
+  // Try the ISBN endpoint first
+  const isbnUrl = `${OPEN_LIBRARY_BASE_URL}/isbn/${encodeURIComponent(normalized)}.json`;
+  console.debug('[OpenLibrary] fetching ISBN URL:', isbnUrl);
+  let resp = await fetch(isbnUrl);
+    let data = null;
+    if (resp.ok) {
+      data = await resp.json();
+      console.debug('[OpenLibrary] ISBN endpoint hit', normalized, 'response:', data);
+    } else if (resp.status === 404) {
+      // Fallback: use the search endpoint which can sometimes find editions by ISBN
+      try {
+  const searchUrl = `${OPEN_LIBRARY_BASE_URL}/search.json?isbn=${encodeURIComponent(normalized)}&limit=1`;
+  console.debug('[OpenLibrary] fetching search fallback URL:', searchUrl);
+  const sresp = await fetch(searchUrl);
+        if (sresp.ok) {
+          const sdata = await sresp.json();
+          console.debug('[OpenLibrary] search.json fallback for ISBN', normalized, 'response.docs:', sdata.docs && sdata.docs.slice(0,1));
+          // sdata.docs may contain edition keys (edition_key) or work keys; prefer edition_key
+          const doc = sdata.docs && sdata.docs[0];
+          if (doc) {
+            const editionKey = doc.edition_key?.[0];
+            if (editionKey) {
+              const editionUrl = `${OPEN_LIBRARY_BASE_URL}/books/${encodeURIComponent(editionKey)}.json`;
+              console.debug('[OpenLibrary] fetching edition URL:', editionUrl);
+              const edResp = await fetch(editionUrl);
+              if (edResp.ok) data = await edResp.json();
+            } else if (doc.key) {
+              // as a last resort, fetch the work
+              const workUrl = `${OPEN_LIBRARY_BASE_URL}${doc.key}.json`;
+              console.debug('[OpenLibrary] fetching work URL:', workUrl);
+              const workResp = await fetch(workUrl);
+              if (workResp.ok) data = await workResp.json();
+            }
+          }
+        }
+      } catch (err) {
+        // ignore fallback errors
+      }
+    } else {
+      // other HTTP error
+      return null;
+    }
+
+    if (!data) return null;
+
+    // Attempt to extract author name(s)
+    let author = null;
+    if (data.authors && Array.isArray(data.authors) && data.authors.length > 0) {
+      try {
+        // authors are objects with key, need to fetch author detail
+        const authorKey = data.authors[0].key; // e.g. "/authors/OL12345A"
+        const authorResp = await fetch(`${OPEN_LIBRARY_BASE_URL}${authorKey}.json`);
+        if (authorResp.ok) {
+          const authorData = await authorResp.json();
+          author = authorData.name || null;
+        }
+      } catch (err) {
+        // fallback: leave author null
+      }
+    }
+
+    // Cover: Open Library provides covers via cover_edition_key or covers array
+    let coverUrl = null;
+    if (data.covers && Array.isArray(data.covers) && data.covers.length > 0) {
+      coverUrl = `${COVERS_BASE_URL}/b/id/${data.covers[0]}-L.jpg`;
+    } else if (data.cover_edition_key) {
+      // fetch edition to get cover id
+      try {
+        const edResp = await fetch(`${OPEN_LIBRARY_BASE_URL}/books/${data.cover_edition_key}.json`);
+        if (edResp.ok) {
+          const ed = await edResp.json();
+          if (ed.covers && ed.covers.length > 0) {
+            coverUrl = `${COVERS_BASE_URL}/b/id/${ed.covers[0]}-L.jpg`;
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // Additional fallback: use search endpoint to get a cover_i if we still don't have a cover
+    if (!coverUrl) {
+      try {
+        const sresp = await fetch(`${OPEN_LIBRARY_BASE_URL}/search.json?isbn=${encodeURIComponent(normalized)}&limit=1`);
+        if (sresp.ok) {
+          const sdata = await sresp.json();
+          const doc = sdata.docs && sdata.docs[0];
+          if (doc && doc.cover_i) {
+            coverUrl = `${COVERS_BASE_URL}/b/id/${doc.cover_i}-L.jpg`;
+            console.debug('[OpenLibrary] obtained cover via search.json cover_i for ISBN', normalized, 'cover_i:', doc.cover_i);
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    const result = {
+      title: data.title || null,
+      author: author,
+      year: data.publish_date || data.publish_year?.[0] || null,
+      isbn: String(normalized),
+      coverUrl: coverUrl,
+      type: 'book'
+    };
+    console.debug('[OpenLibrary] returning normalized book data for ISBN', normalized, result);
+    return result;
+  } catch (err) {
+    console.error('Error fetching book by ISBN', isbn, err);
+    return null;
+  }
+};

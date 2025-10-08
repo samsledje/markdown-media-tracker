@@ -115,13 +115,18 @@ export const mapGoodreadsRow = (r) => {
   const rating = r['My Rating'] ? parseInt(r['My Rating'], 10) : (r['Rating'] ? parseInt(r['Rating'], 10) : 0);
   const status = mapGoodreadsShelfToStatus(r['Exclusive Shelf'] || r['Shelf'] || '');
   
+  // Prefer the `ISBN` column when available; fallback to `ISBN13`.
+  // Ensure ISBN is always a string (CSV might produce numeric values)
+  const rawIsbn = r['ISBN'] || r['ISBN13'] || '';
+  const isbnStr = rawIsbn !== undefined && rawIsbn !== null ? String(rawIsbn).trim() : '';
+
   return {
     title: r['Title'] || r['title'] || r['Name'] || '',
     author: r['Author'] || r['author'] || '',
-    isbn: r['ISBN13'] || r['ISBN'] || '',
+    isbn: isbnStr,
     year: r['Year Published'] || r['Original Publication Year'] || r['Year'] || '',
     rating: isNaN(rating) ? 0 : rating,
-    status,
+    status: status,
     dateRead: r['Date Read'] || r['Date read'] || r['Date read (YYYY/MM/DD)'] || '',
     tags,
     review: r['My Review'] || r['Review'] || '',

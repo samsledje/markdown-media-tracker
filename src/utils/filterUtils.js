@@ -12,7 +12,8 @@ export const filterItems = (items, filters) => {
     filterType = 'all',
     filterRating = 0,
     filterTags = [],
-    filterRecent = 'any'
+    filterRecent = 'any',
+    filterStatuses = []
   } = filters;
 
   return items.filter(item => {
@@ -28,6 +29,9 @@ export const filterItems = (items, filters) => {
     const matchesRating = filterRating === 0 || (item.rating && item.rating >= filterRating);
     const matchesTags = filterTags.length === 0 || 
       (item.tags && filterTags.every(tag => item.tags.includes(tag)));
+    
+    const matchesStatus = filterStatuses.length === 0 || 
+      (item.status && filterStatuses.includes(item.status));
     
     // Recent filter
     const consumedDateStr = item.dateRead || item.dateWatched || null;
@@ -45,7 +49,7 @@ export const filterItems = (items, filters) => {
       return consumed >= cutoff;
     })();
     
-    return matchesSearch && matchesType && matchesRating && matchesTags && matchesRecent;
+    return matchesSearch && matchesType && matchesRating && matchesTags && matchesStatus && matchesRecent;
   });
 };
 
@@ -103,4 +107,15 @@ export const getAllTags = (items) => {
   return Array.from(
     new Set(items.flatMap(it => (it.tags && Array.isArray(it.tags)) ? it.tags : []))
   ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+};
+
+/**
+ * Get all unique statuses from items
+ * @param {object[]} items - Array of items
+ * @returns {string[]} Array of unique statuses
+ */
+export const getAllStatuses = (items) => {
+  return Array.from(
+    new Set(items.map(item => item.status).filter(Boolean))
+  );
 };

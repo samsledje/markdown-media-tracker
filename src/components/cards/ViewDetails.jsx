@@ -1,5 +1,44 @@
 import React from 'react';
-import { Book, Film, Star, Tag, Calendar, User, Hash } from 'lucide-react';
+import { Book, Film, Star, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
+
+/**
+ * Get the icon component for a given status
+ */
+const getStatusIcon = (status, className = '') => {
+  const iconType = STATUS_ICONS[status];
+  switch (iconType) {
+    case 'bookmark':
+      return <Bookmark className={className} />;
+    case 'layers':
+      return <Layers className={className} />;
+    case 'book-open':
+      return <BookOpen className={className} />;
+    case 'check-circle':
+      return <CheckCircle className={className} />;
+    case 'play-circle':
+      return <PlayCircle className={className} />;
+    default:
+      return <Bookmark className={className} />;
+  }
+};
+
+/**
+ * Get color class for status badge
+ */
+const getStatusColorClass = (status) => {
+  const colorType = STATUS_COLORS[status];
+  switch (colorType) {
+    case 'blue':
+      return 'bg-blue-500';
+    case 'yellow':
+      return 'bg-yellow-500';
+    case 'green':
+      return 'bg-green-500';
+    default:
+      return 'bg-blue-500';
+  }
+};
 
 /**
  * Component for displaying item details in read-only view
@@ -29,6 +68,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
           <div className="text-sm text-slate-400 uppercase tracking-wide mb-1">
             {item.type}
           </div>
+          {/* status removed here — handled via modal quick actions / badge */}
           <h3 className="text-2xl font-bold mb-2">{item.title}</h3>
           {item.author && (
             <div className="flex items-center gap-2 text-slate-300">
@@ -44,6 +84,8 @@ const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
           )}
         </div>
       </div>
+
+
 
       {item.actors && item.actors.length > 0 && (
         <div>

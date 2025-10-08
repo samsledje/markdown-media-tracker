@@ -269,6 +269,8 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
           items.push({
             id: file.name.replace('.md', ''),
             filename: file.name,
+            // preserve parsed status from frontmatter
+            status: metadata.status,
             fileId: file.id,
             title: metadata.title || 'Untitled',
             type: metadata.type || 'book',

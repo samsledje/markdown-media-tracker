@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -28,6 +28,45 @@ import { hasApiKey } from './config.js';
 
 // Constants
 import { PRIMARY_COLOR_PRESETS, HIGHLIGHT_COLOR_PRESETS } from './constants/colors.js';
+import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from './constants/index.js';
+
+/**
+ * Get the icon component for a given status
+ */
+const getStatusIcon = (status, className = '') => {
+  const iconType = STATUS_ICONS[status];
+  switch (iconType) {
+    case 'bookmark':
+      return <Bookmark className={className} />;
+    case 'layers':
+      return <Layers className={className} />;
+    case 'book-open':
+      return <BookOpen className={className} />;
+    case 'check-circle':
+      return <CheckCircle className={className} />;
+    case 'play-circle':
+      return <PlayCircle className={className} />;
+    default:
+      return <Bookmark className={className} />;
+  }
+};
+
+/**
+ * Get color class for status badge
+ */
+const getStatusColorClass = (status) => {
+  const colorType = STATUS_COLORS[status];
+  switch (colorType) {
+    case 'blue':
+      return 'bg-blue-500';
+    case 'yellow':
+      return 'bg-yellow-500';
+    case 'green':
+      return 'bg-green-500';
+    default:
+      return 'bg-blue-500';
+  }
+};
 
 const MediaTracker = () => {
   // Modal states
@@ -80,9 +119,11 @@ const MediaTracker = () => {
     sortOrder,
     filterRating,
     filterTags,
+    filterStatuses,
     filterRecent,
     showFilters,
     allTags,
+    allStatuses,
     hasActiveFilters,
     filteredAndSortedItems,
     setSearchTerm,
@@ -91,9 +132,11 @@ const MediaTracker = () => {
     setSortOrder,
     setFilterRating,
     setFilterTags,
+    setFilterStatuses,
     setFilterRecent,
     setShowFilters,
     toggleTagFilter,
+    toggleStatusFilter,
     clearFilters,
     cycleFilterType,
     toggleSortOrder
@@ -649,6 +692,30 @@ const MediaTracker = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Status Filter */}
+                <div>
+                  <div className="text-sm text-slate-300 mb-2">Status</div>
+                  <div className="flex flex-wrap gap-2">
+                    {allStatuses.length === 0 ? (
+                      <div className="text-sm text-slate-400">No status data available</div>
+                    ) : (
+                      allStatuses.map(status => (
+                        <button
+                          key={status}
+                          onClick={() => toggleStatusFilter(status)}
+                          className={`px-3 py-1 rounded-lg text-sm transition flex items-center gap-2 ${
+                            filterStatuses.includes(status) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                          }`}
+                          style={filterStatuses.includes(status) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                        >
+                          {getStatusIcon(status, 'w-4 h-4')}
+                          {STATUS_LABELS[status]}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -749,7 +816,8 @@ const MediaTracker = () => {
                             </p>
                           )}
                         </div>
-                        <div className="flex-shrink-0 ml-2">
+                        <div className="flex-shrink-0 ml-2 flex items-center gap-2">
+                          {/* Type icon */}
                           {item.type === 'book' ? (
                             <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-6 h-6' : 'w-7 h-7'}`} />
                           ) : (
@@ -797,6 +865,19 @@ const MediaTracker = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Bottom-right status badge (moved from top-right) */}
+                    {item.status && (
+                      <div
+                        className={`absolute top-2 right-2 z-20 flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
+                          cardSize === 'tiny' ? 'w-5 h-5' : 'w-7 h-7'
+                        }`}
+                        title={STATUS_LABELS[item.status]}
+                        style={{ backdropFilter: 'blur(4px)' }}
+                      >
+                        {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : 'w-4 h-4'}`)}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -937,6 +1018,10 @@ const MediaTracker = () => {
           onSave={(item) => {
             saveItem(item);
             setSelectedItem(null);
+          }}
+          onQuickSave={(item) => {
+            // persist change but keep modal open
+            saveItem(item);
           }}
           onDelete={(item) => {
             deleteItem(item);

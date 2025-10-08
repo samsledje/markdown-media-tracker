@@ -1,7 +1,9 @@
 ---
 title: "Nineteen Eighty-Four"
 type: book
+status: read
 author: "George Orwell"
+actors: []
 isbn: "9780198185215"
 year: 1949
 rating: 4

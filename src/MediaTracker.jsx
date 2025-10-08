@@ -17,14 +17,17 @@ import BatchEditModal from './components/modals/BatchEditModal.jsx';
 import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
 import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
+import ObsidianBaseModal from './components/modals/ObsidianBaseModal.jsx';
 import StorageSelector from './components/StorageSelector.jsx';
 import StorageIndicator from './components/StorageIndicator.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
 import { exportCSV } from './utils/csvUtils.js';
+import { OBSIDIAN_BASE_CONTENT, OBSIDIAN_BASE_FILENAME } from './services/obsidianBase.js';
 import { processCSVImport } from './utils/importUtils.js';
 import { hasApiKey } from './config.js';
+import { toast } from './services/toastService.js';
 
 // Constants
 import { PRIMARY_COLOR_PRESETS, HIGHLIGHT_COLOR_PRESETS } from './constants/colors.js';
@@ -222,16 +225,16 @@ const MediaTracker = () => {
     if (!file) return;
     
     if (!storageAdapter || !storageAdapter.isConnected()) {
-      alert('Please connect to a storage location first');
+      toast('Please connect to a storage location first', { type: 'error' });
       e.target.value = '';
       return;
     }
 
     try {
       const { added, format } = await processCSVImport(file, items, saveItem);
-      alert(`Imported ${added} items (detected format: ${format})`);
+      toast(`Imported ${added} items (detected format: ${format})`, { type: 'success' });
     } catch (error) {
-      alert(error.message);
+      toast(error.message, { type: 'error' });
     }
 
     e.target.value = '';
@@ -250,7 +253,7 @@ const MediaTracker = () => {
       clearSelection();
       setShowBatchDeleteConfirm(false);
     } catch (error) {
-      alert(error.message);
+      toast(error.message, { type: 'error' });
     }
   };
 
@@ -263,9 +266,9 @@ const MediaTracker = () => {
       const updated = await applyBatchEdit(selectedIds, changes);
       setShowBatchEdit(false);
       clearSelection();
-      alert(`Updated ${updated.length} items`);
+      toast(`Updated ${updated.length} items`, { type: 'success' });
     } catch (error) {
-      alert(error.message);
+      toast(error.message, { type: 'error' });
     }
   };
 
@@ -432,6 +435,82 @@ const MediaTracker = () => {
     }
   }, [storageAdapter, storageInfo]);
 
+  // Prompt to create Obsidian Base file when storage connects (only once per session)
+  const basePromptedRef = useRef(false);
+  const [showObsidianBaseModal, setShowObsidianBaseModal] = useState(false);
+  useEffect(() => {
+    if (!storageAdapter || !storageAdapter.isConnected() || basePromptedRef.current) return;
+
+    // Respect persistent 'don't ask again' preference
+    const dontAskPersisted = localStorage.getItem('obsidianBaseDontAsk') === 'true';
+    if (dontAskPersisted) {
+      basePromptedRef.current = true;
+      return;
+    }
+
+    let cancelled = false;
+
+    const checkAndPrompt = async () => {
+      try {
+        const exists = await storageAdapter.fileExists(OBSIDIAN_BASE_FILENAME);
+        if (cancelled) return;
+        if (exists) {
+          basePromptedRef.current = true;
+          return;
+        }
+
+        // Delay the prompt to avoid clashing with the API key modal.
+        // If an API key is required, give the API modal time to appear first.
+        const delay = hasApiKey() ? 600 : 3000;
+
+        setTimeout(async () => {
+          if (cancelled) return;
+
+          // If the API key modal is currently open, defer prompting now and allow
+          // the effect to re-run after the API modal closes (showApiKeyManager is a dependency).
+          if (showApiKeyManager) return;
+
+          // Show the nicer modal prompt instead of a native confirm
+          setShowObsidianBaseModal(true);
+          basePromptedRef.current = true;
+        }, delay);
+      } catch (err) {
+        console.error('Error checking for Obsidian Base file:', err);
+        basePromptedRef.current = true;
+      }
+    };
+
+    checkAndPrompt();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storageAdapter, storageInfo, showApiKeyManager]);
+
+  // Handler invoked by the ObsidianBaseModal when user chooses to create (or cancels)
+  const handleCreateObsidianBase = async (dontAsk = false) => {
+    try {
+      if (dontAsk) localStorage.setItem('obsidianBaseDontAsk', 'true');
+      setShowObsidianBaseModal(false);
+      if (!storageAdapter || !storageAdapter.isConnected()) {
+        toast('Please connect to a storage location first', { type: 'error' });
+        return;
+      }
+
+      const exists = await storageAdapter.fileExists(OBSIDIAN_BASE_FILENAME);
+      if (exists) {
+        toast(`Obsidian Base already exists: ${OBSIDIAN_BASE_FILENAME}`, { type: 'info' });
+        return;
+      }
+
+      await storageAdapter.writeFile(OBSIDIAN_BASE_FILENAME, OBSIDIAN_BASE_CONTENT);
+      toast(`Created ${OBSIDIAN_BASE_FILENAME} in your storage location.`, { type: 'success' });
+    } catch (err) {
+      console.error('Failed to create Obsidian Base file:', err);
+      toast(`Failed to create Obsidian Base: ${err.message}`, { type: 'error' });
+    }
+  };
+
   return (
     <div className="min-h-screen text-white flex flex-col" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
       <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
@@ -478,6 +557,7 @@ const MediaTracker = () => {
       {menuOpen && menuPos && createPortal(
         <div data-menu-portal="1" style={{ position: 'fixed', left: `${menuPos.left}px`, top: `${menuPos.top}px`, width: `${menuPos.width}px`, zIndex: 99999 }}>
           <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-2 text-white">
+
             <button
               onClick={() => { setIsAdding(true); setMenuOpen(false); }}
               className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
@@ -1093,6 +1173,12 @@ const MediaTracker = () => {
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
 
       {showApiKeyManager && <ApiKeyModal onClose={() => setShowApiKeyManager(false)} />}
+      {showObsidianBaseModal && (
+        <ObsidianBaseModal
+          onClose={() => setShowObsidianBaseModal(false)}
+          onCreate={handleCreateObsidianBase}
+        />
+      )}
 
       {showBatchEdit && (
         <BatchEditModal

@@ -15,6 +15,7 @@ dist-ssr
 # Editor directories and files
 .env
 data/.obsidian/*
+data/.trash/*
 .vscode/*
 !.vscode/extensions.json
 .idea

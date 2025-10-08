@@ -135,6 +135,41 @@ export class FileSystemStorage extends StorageAdapter {
     }
   }
 
+  /**
+   * Write an arbitrary file (e.g., Obsidian Base) to the root directory
+   * @param {string} filename
+   * @param {string} content
+   */
+  async writeFile(filename, content) {
+    if (!this.directoryHandle) {
+      throw new Error('Please select a directory first');
+    }
+
+    try {
+      const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+    } catch (err) {
+      console.error('Error writing file:', err);
+      throw new Error('Error writing file. Please try again.');
+    }
+  }
+
+  async fileExists(filename) {
+    if (!this.directoryHandle) {
+      throw new Error('Please select a directory first');
+    }
+
+    try {
+      await this.directoryHandle.getFileHandle(filename, { create: false });
+      return true;
+    } catch (err) {
+      // Not found -> return false
+      return false;
+    }
+  }
+
   async deleteItem(item) {
     if (!this.directoryHandle) {
       throw new Error('Please select a directory first');

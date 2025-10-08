@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StorageFactory } from '../services/storageAdapter.js';
+import { toast } from '../services/toastService.js';
 
 /**
  * Custom hook for managing items (books/movies) with storage adapter pattern
@@ -43,7 +44,7 @@ export const useItems = () => {
       setStorageInfo(adapter.getStorageInfo());
     } catch (error) {
       console.error('Error loading items:', error);
-      alert(`Error loading items: ${error.message}`);
+      toast(`Error loading items: ${error.message}`, { type: 'error' });
     } finally {
       setIsLoading(false);
     }

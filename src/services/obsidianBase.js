@@ -1,17 +1,23 @@
-views:
+export const OBSIDIAN_BASE_CONTENT = `views:
   - type: table
     name: All
     order:
       - title
+      - rating
+      - status
       - author
       - director
-      - actors
-      - dateAdded
-      - rating
       - year
-      - type
       - file.tags
+      - dateAdded
+      - dateRead
+      - dateWatched
+      - type
     sort:
+      - property: actors
+        direction: DESC
+      - property: title
+        direction: ASC
       - property: type
         direction: ASC
       - property: rating
@@ -20,9 +26,10 @@ views:
         direction: DESC
     columnSize:
       note.title: 209
-      note.author: 124
+      note.status: 91
+      note.author: 188
       note.director: 176
-      note.actors: 379
+      note.dateRead: 134
   - type: cards
     name: Books
     filters:
@@ -45,3 +52,6 @@ views:
       - year
     image: note.coverUrl
     imageFit: contain
+`;
+
+export const OBSIDIAN_BASE_FILENAME = 'Markdown Media Tracker.base';

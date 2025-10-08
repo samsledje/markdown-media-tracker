@@ -442,6 +442,56 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     }
   }
 
+  /**
+   * Write an arbitrary file (e.g., Obsidian Base) into the media tracker folder
+   * If a file with the same name exists, overwrite it.
+   * @param {string} filename
+   * @param {string} content
+   */
+  async writeFile(filename, content) {
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Google Drive');
+    }
+
+    try {
+      // Check for existing file with the same name
+      const searchResponse = await window.gapi.client.drive.files.list({
+        q: `name='${filename}' and '${this.mediaTrackerFolderId}' in parents and trashed=false`,
+        fields: 'files(id, name)'
+      });
+
+      if (searchResponse.result.files && searchResponse.result.files.length > 0) {
+        // Update existing file
+        const fileId = searchResponse.result.files[0].id;
+        await this._updateFile(fileId, content, filename);
+      } else {
+        // Create new file
+        await this._createFile(filename, content, this.mediaTrackerFolderId);
+      }
+    } catch (error) {
+      console.error('Error writing file to Google Drive:', error);
+      throw new Error(`Failed to write file: ${error.message}`);
+    }
+  }
+
+  async fileExists(filename) {
+    if (!this.isConnected()) {
+      throw new Error('Not connected to Google Drive');
+    }
+
+    try {
+      const response = await window.gapi.client.drive.files.list({
+        q: `name='${filename}' and '${this.mediaTrackerFolderId}' in parents and trashed=false`,
+        fields: 'files(id, name)'
+      });
+
+      return response.result.files && response.result.files.length > 0;
+    } catch (error) {
+      console.error('Error checking file existence on Google Drive:', error);
+      return false;
+    }
+  }
+
   // Method to check if a folder name is available or conflicts exist
   async checkFolderAvailability(folderName) {
     try {

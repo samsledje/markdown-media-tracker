@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
 
 /**
  * Modal for batch editing multiple selected items
@@ -24,6 +25,8 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
   const [applyDateRead, setApplyDateRead] = useState(false);
   const [dateWatched, setDateWatched] = useState('');
   const [applyDateWatched, setApplyDateWatched] = useState(false);
+  const [status, setStatus] = useState('');
+  const [applyStatus, setApplyStatus] = useState(false);
 
   // Compute preview
   const preview = selectedItems.map(it => {
@@ -46,6 +49,7 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
     }
     if (applyDateRead && dateRead) out.after.dateRead = dateRead;
     if (applyDateWatched && dateWatched) out.after.dateWatched = dateWatched;
+    if (applyStatus && status) out.after.status = status;
     return out;
   });
 
@@ -60,6 +64,7 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
     if (applyRemoveTags) changes.removeTags = removeTagsStr ? removeTagsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
     if (applyDateRead) changes.dateRead = dateRead;
     if (applyDateWatched) changes.dateWatched = dateWatched;
+    if (applyStatus) changes.status = status;
 
     if (Object.keys(changes).length === 0) {
       alert('No fields selected to apply');
@@ -79,7 +84,7 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [type, author, director, year, rating, addTagsStr, removeTagsStr, dateRead, dateWatched, applyType, applyAuthor, applyDirector, applyYear, applyRating, applyAddTags, applyRemoveTags, applyDateRead, applyDateWatched]);
+  }, [type, author, director, year, rating, addTagsStr, removeTagsStr, dateRead, dateWatched, status, applyType, applyAuthor, applyDirector, applyYear, applyRating, applyAddTags, applyRemoveTags, applyDateRead, applyDateWatched, applyStatus]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-2 sm:p-4 z-50">
@@ -195,6 +200,28 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
+                </select>
+              </label>
+              
+              <label className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  checked={applyStatus} 
+                  onChange={(e) => setApplyStatus(e.target.checked)} 
+                />
+                Status
+                <select 
+                  value={status} 
+                  onChange={(e) => setStatus(e.target.value)} 
+                  className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded"
+                >
+                  <option value="">(select)</option>
+                  {Object.values(STATUS_TYPES.BOOK).map(statusValue => (
+                    <option key={statusValue} value={statusValue}>{STATUS_LABELS[statusValue]}</option>
+                  ))}
+                  {Object.values(STATUS_TYPES.MOVIE).map(statusValue => (
+                    <option key={statusValue} value={statusValue}>{STATUS_LABELS[statusValue]}</option>
+                  ))}
                 </select>
               </label>
               

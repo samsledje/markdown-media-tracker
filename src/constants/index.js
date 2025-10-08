@@ -14,6 +14,46 @@ export const FILTER_TYPES = {
   MOVIE: 'movie'
 };
 
+export const STATUS_TYPES = {
+  BOOK: {
+    TO_READ: 'to-read',
+    READING: 'reading', 
+    READ: 'read'
+  },
+  MOVIE: {
+    TO_WATCH: 'to-watch',
+    WATCHING: 'watching',
+    WATCHED: 'watched'
+  }
+};
+
+export const STATUS_LABELS = {
+  'to-read': 'To Read',
+  'reading': 'Reading',
+  'read': 'Read',
+  'to-watch': 'To Watch', 
+  'watching': 'Watching',
+  'watched': 'Watched'
+};
+
+export const STATUS_ICONS = {
+  'to-read': 'layers',
+  'reading': 'book-open',
+  'read': 'check-circle',
+  'to-watch': 'layers',
+  'watching': 'play-circle',
+  'watched': 'check-circle'
+};
+
+export const STATUS_COLORS = {
+  'to-read': 'blue',
+  'reading': 'yellow', 
+  'read': 'green',
+  'to-watch': 'blue',
+  'watching': 'yellow',
+  'watched': 'green'
+};
+
 export const SORT_OPTIONS = {
   DATE_ADDED: 'dateAdded',
   DATE_CONSUMED: 'dateConsumed',

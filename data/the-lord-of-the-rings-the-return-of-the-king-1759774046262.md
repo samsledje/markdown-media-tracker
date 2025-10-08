@@ -1,6 +1,7 @@
 ---
 title: "The Lord of the Rings: The Return of the King"
 type: movie
+status: to-watch
 director: "Peter Jackson"
 actors: ["Elijah Wood", "Viggo Mortensen", "Ian McKellen"]
 year: 2003

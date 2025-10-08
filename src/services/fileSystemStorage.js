@@ -85,6 +85,8 @@ export class FileSystemStorage extends StorageAdapter {
             loadedItems.push({
               id: entry.name.replace('.md', ''),
               filename: entry.name,
+              // preserve parsed status from frontmatter
+              status: metadata.status,
               title: metadata.title || 'Untitled',
               type: metadata.type || 'book',
               author: metadata.author,

@@ -336,7 +336,7 @@ const MediaTracker = () => {
             <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
               <img src="./logo_white.svg" alt="logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
               <span className="hidden xs:inline">Markdown Media Tracker</span>
-              <span className="xs:hidden">Media Tracker</span>
+              <span className="xs:hidden">MMT</span>
             </h1>
             <div className="flex gap-2">
               {!storageAdapter || !storageAdapter.isConnected() ? null : (
@@ -348,7 +348,7 @@ const MediaTracker = () => {
                     title="Search"
                   >
                     <Search className="w-4 h-4" />
-                    <span className="hidden sm:inline">Search</span>
+                    <span className="hidden sm:inline">Add new media</span>
                   </button>
 
                   <div className="relative" ref={menuRef}>
@@ -446,7 +446,7 @@ const MediaTracker = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by title, author, director..."
+                placeholder="Search your library by title, author, director..."
                 ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

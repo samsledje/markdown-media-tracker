@@ -78,12 +78,16 @@ const SearchModal = ({ onClose, onSelect }) => {
       return today.toISOString().split('T')[0];
     };
 
+    // Only set the appropriate date field based on the item type
+    const dateFields = result.type === 'movie' 
+      ? { dateWatched: getTodayDate() }
+      : { dateRead: getTodayDate() };
+
     onSelect({
       ...result,
       rating: 0,
       tags: [],
-      dateRead: getTodayDate(),
-      dateWatched: getTodayDate(),
+      ...dateFields,
       dateAdded: new Date().toISOString(),
       review: ''
     });

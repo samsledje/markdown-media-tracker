@@ -60,7 +60,7 @@ const ApiKeyModal = ({ onClose }) => {
           {!getConfig('omdbApiKey') && (
             <div className="mb-4 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
               <p className="text-sm text-blue-200 mb-1">
-                <strong>🎉 Welcome to Media Tracker!</strong>
+                <strong>🎉 Welcome to Markdown Media Tracker!</strong>
               </p>
               <p className="text-xs text-blue-200">
                 To enable movie searches, you'll need a free OMDb API key. Don't worry - it takes just a minute to set up!

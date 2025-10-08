@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
-import { Cloud, FolderOpen, Wifi, WifiOff, Settings } from 'lucide-react';
+import { Cloud, FolderOpen, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 
 /**
  * Compact Storage Indicator Component
@@ -146,7 +146,7 @@ const StorageIndicator = forwardRef(({ storageAdapter, storageInfo, onSwitchStor
                   }}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
                 >
-                  <Settings className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4" />
                   Switch Storage
                 </button>
                 

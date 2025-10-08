@@ -13,10 +13,12 @@ const SearchModal = ({ onClose, onSelect }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchInputRef = useRef(null);
 
   const handleSearchBooks = async (searchQuery) => {
     setLoading(true);
+    setFocusedIndex(-1); // Reset focus when searching
     try {
       const books = await searchBooks(searchQuery);
       setResults(books);
@@ -34,6 +36,7 @@ const SearchModal = ({ onClose, onSelect }) => {
     }
 
     setLoading(true);
+    setFocusedIndex(-1); // Reset focus when searching
     try {
       const movies = await searchMovies(searchQuery);
       setResults(movies);
@@ -76,17 +79,65 @@ const SearchModal = ({ onClose, onSelect }) => {
           e.preventDefault();
           if (searchInputRef.current) {
             searchInputRef.current.focus();
+            setFocusedIndex(-1); // Reset result focus when focusing search
           }
         }
       }
       
-      // Don't handle shortcuts while typing
+      // Handle arrow navigation in search input
+      if (e.target === searchInputRef.current) {
+        if (e.key === 'ArrowDown' && results.length > 0) {
+          e.preventDefault();
+          searchInputRef.current.blur();
+          setFocusedIndex(0);
+          return;
+        }
+        // Don't handle other shortcuts while typing in search input
+        return;
+      }
+      
+      // Result navigation
+      if (results.length > 0 && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
+        e.preventDefault();
+        
+        let newIndex = focusedIndex;
+        const cols = 4; // Based on xl:grid-cols-4
+        
+        if (e.key === 'ArrowLeft') {
+          newIndex = Math.max(0, focusedIndex - 1);
+        } else if (e.key === 'ArrowRight') {
+          newIndex = Math.min(results.length - 1, focusedIndex + 1);
+        } else if (e.key === 'ArrowUp') {
+          if (focusedIndex < cols) {
+            // If in first row, focus search input
+            if (searchInputRef.current) {
+              searchInputRef.current.focus();
+              setFocusedIndex(-1);
+            }
+            return;
+          }
+          newIndex = Math.max(0, focusedIndex - cols);
+        } else if (e.key === 'ArrowDown') {
+          newIndex = Math.min(results.length - 1, focusedIndex + cols);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          if (focusedIndex >= 0 && focusedIndex < results.length) {
+            handleSelect(results[focusedIndex]);
+          }
+          return;
+        }
+        
+        setFocusedIndex(newIndex);
+        return;
+      }
+      
+      // Don't handle shortcuts while typing in other inputs
       if (e.target.tagName === 'INPUT') return;
       
       // Switch to books: B
       if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_BOOKS) {
         e.preventDefault();
         setSearchType('book');
+        setFocusedIndex(-1); // Reset focus when switching type
         return;
       }
       
@@ -94,12 +145,13 @@ const SearchModal = ({ onClose, onSelect }) => {
       if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_MOVIES) {
         e.preventDefault();
         setSearchType('movie');
+        setFocusedIndex(-1); // Reset focus when switching type
         return;
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [query, searchType]);
+  }, [query, searchType, results, focusedIndex]);
 
   const handleSelect = (result) => {
     // Get today's date in YYYY-MM-DD format
@@ -196,7 +248,11 @@ const SearchModal = ({ onClose, onSelect }) => {
                 <div
                   key={index}
                   onClick={() => handleSelect(result)}
-                  className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 hover:border-blue-500 transition cursor-pointer touch-manipulation"
+                  className={`bg-slate-700/30 border rounded-lg p-3 transition cursor-pointer touch-manipulation ${
+                    focusedIndex === index 
+                      ? 'border-blue-500 bg-blue-500/10' 
+                      : 'border-slate-600 hover:border-blue-500'
+                  }`}
                 >
                   {result.coverUrl && (
                     <img

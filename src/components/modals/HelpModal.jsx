@@ -52,6 +52,9 @@ const HelpModal = ({ onClose }) => {
               <li><strong>/</strong> or <strong>Ctrl/Cmd+K</strong> — Focus search input</li>
               <li><strong>B</strong> — Switch to book search</li>
               <li><strong>M</strong> — Switch to movie search</li>
+              <li><strong>↓</strong> — Exit search input, focus first result</li>
+              <li><strong>Arrow keys</strong> — Navigate search results</li>
+              <li><strong>Enter / Space</strong> — Select focused result</li>
               <li><strong>Ctrl/Cmd+Enter</strong> — Search with current query</li>
             </ul>
           </div>

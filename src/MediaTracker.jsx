@@ -850,26 +850,44 @@ const MediaTracker = () => {
                         </div>
                       </div>
 
-                      {/* Rating */}
-                      {item.rating > 0 && (
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
-                                i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
-                              }`}
-                            />
-                          ))}
+                      {/* Bottom section with year/rating and status */}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex flex-col gap-2">
+                          {/* Rating */}
+                          {item.rating > 0 && (
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
+                                    i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Year */}
+                          {item.year && (
+                            <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
+                              {item.year}
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      {/* Year */}
-                      {item.year && (
-                        <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
-                          {item.year}
-                        </div>
-                      )}
+                        {/* Status badge */}
+                        {item.status && (
+                          <div
+                            className={`flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
+                              cardSize === 'tiny' ? 'w-5 h-5' : 'w-7 h-7'
+                            }`}
+                            title={STATUS_LABELS[item.status]}
+                            style={{ backdropFilter: 'blur(4px)' }}
+                          >
+                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : 'w-4 h-4'}`)}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Tags */}
                       {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
@@ -889,19 +907,6 @@ const MediaTracker = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* Bottom-right status badge (moved from top-right) */}
-                    {item.status && (
-                      <div
-                        className={`absolute top-2 right-2 z-20 flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
-                          cardSize === 'tiny' ? 'w-5 h-5' : 'w-7 h-7'
-                        }`}
-                        title={STATUS_LABELS[item.status]}
-                        style={{ backdropFilter: 'blur(4px)' }}
-                      >
-                        {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : 'w-4 h-4'}`)}
-                      </div>
-                    )}
                   </div>
                 ))}
                 </div>

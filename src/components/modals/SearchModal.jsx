@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Book, Film } from 'lucide-react';
 import { searchBooks } from '../../services/openLibraryService.js';
 import { searchMovies, isServiceAvailable } from '../../services/omdbService.js';
+import { KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 
 /**
  * Modal for searching books and movies online
@@ -12,6 +13,7 @@ const SearchModal = ({ onClose, onSelect }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
+  const searchInputRef = useRef(null);
 
   const handleSearchBooks = async (searchQuery) => {
     setLoading(true);
@@ -65,6 +67,34 @@ const SearchModal = ({ onClose, onSelect }) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         if (query.trim()) handleSearch({ preventDefault: () => {} });
+      }
+      
+      // Focus search input with / key or Ctrl/Cmd+K (like main app)
+      if ((e.key === '/' && !e.ctrlKey && !e.metaKey) || 
+          ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        if (document.activeElement !== searchInputRef.current) {
+          e.preventDefault();
+          if (searchInputRef.current) {
+            searchInputRef.current.focus();
+          }
+        }
+      }
+      
+      // Don't handle shortcuts while typing
+      if (e.target.tagName === 'INPUT') return;
+      
+      // Switch to books: B
+      if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_BOOKS) {
+        e.preventDefault();
+        setSearchType('book');
+        return;
+      }
+      
+      // Switch to movies: M  
+      if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_MOVIES) {
+        e.preventDefault();
+        setSearchType('movie');
+        return;
       }
     };
     document.addEventListener('keydown', onKey);
@@ -135,6 +165,7 @@ const SearchModal = ({ onClose, onSelect }) => {
 
           <form onSubmit={handleSearch} className="space-y-3 sm:space-y-0 sm:flex sm:gap-2">
             <input
+              ref={searchInputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

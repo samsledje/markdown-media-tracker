@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, ChevronDown, Edit, Trash2, Star } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
-import { STATUS_TYPES } from '../../constants/index.js';
+import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
 
@@ -112,12 +112,68 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
     const onKey = (e) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
       }
+      
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         if (isEditing) {
           e.preventDefault();
           handleSave();
         }
+        return;
+      }
+
+      // Don't run shortcuts while typing in inputs/textareas
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      // Quick status changes (U/I/O)
+      if (!isEditing) {
+        const statusOptions = editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE);
+        
+        if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_TO_READ_WATCH) {
+          e.preventDefault();
+          handleQuickStatusChange(statusOptions[0]); // To Read/Watch
+          return;
+        }
+        if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_IN_PROGRESS) {
+          e.preventDefault();
+          handleQuickStatusChange(statusOptions[1]); // Reading/Watching
+          return;
+        }
+        if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_COMPLETED) {
+          e.preventDefault();
+          handleQuickStatusChange(statusOptions[2]); // Read/Watched
+          return;
+        }
+      }
+
+      // Quick rating changes (0-5)
+      if (!isEditing && [KEYBOARD_SHORTCUTS.RATING_CLEAR, KEYBOARD_SHORTCUTS.RATING_1, KEYBOARD_SHORTCUTS.RATING_2, 
+                         KEYBOARD_SHORTCUTS.RATING_3, KEYBOARD_SHORTCUTS.RATING_4, KEYBOARD_SHORTCUTS.RATING_5].includes(e.key)) {
+        e.preventDefault();
+        const rating = parseInt(e.key);
+        handleQuickRatingChange(rating);
+        return;
+      }
+
+      // Toggle edit mode (E)
+      if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.EDIT_MODE) {
+        e.preventDefault();
+        if (isEditing) {
+          handleSave();
+        } else {
+          setIsEditing(true);
+        }
+        return;
+      }
+
+      // Delete item (D)
+      if (!isEditing && e.key.toLowerCase() === KEYBOARD_SHORTCUTS.DELETE_ITEM) {
+        e.preventDefault();
+        handleDelete();
+        return;
       }
     };
 

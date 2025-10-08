@@ -89,6 +89,7 @@ const MediaTracker = () => {
   const filtersRef = useRef(null);
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
+  const storageIndicatorRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
@@ -176,6 +177,9 @@ const MediaTracker = () => {
     setSelectedItem(null);
     setShowBatchEdit(false);
     setShowApiKeyManager(false);
+    if (storageIndicatorRef.current) {
+      storageIndicatorRef.current.closeModal();
+    }
     if (searchTerm) setSearchTerm('');
     if (selectionMode) clearSelection();
   };
@@ -186,6 +190,17 @@ const MediaTracker = () => {
       searchInputRef.current.focus();
       const val = searchInputRef.current.value || '';
       searchInputRef.current.setSelectionRange(val.length, val.length);
+    }
+  };
+
+  // Open/toggle storage indicator modal
+  const openStorageIndicator = () => {
+    if (storageIndicatorRef.current) {
+      // Close other modals first
+      setShowHelp(false);
+      setCustomizeOpen(false);
+      // Then toggle storage modal
+      storageIndicatorRef.current.toggleModal();
     }
   };
 
@@ -254,25 +269,65 @@ const MediaTracker = () => {
     }
   };
 
+  // Track storage indicator state
+  const [storageIndicatorOpen, setStorageIndicatorOpen] = useState(false);
+
+  // Update storage indicator state when it changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (storageIndicatorRef.current) {
+        const isOpen = storageIndicatorRef.current.isOpen();
+        setStorageIndicatorOpen(isOpen);
+      }
+    }, 100); // Check every 100ms
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Keyboard navigation setup
   const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
     items: filteredAndSortedItems,
     cardSize,
     storageAdapter,
-    onOpenHelp: () => setShowHelp(true),
+    onOpenHelp: () => {
+      // Close other modals first
+      setCustomizeOpen(false);
+      if (storageIndicatorRef.current) {
+        storageIndicatorRef.current.closeModal();
+      }
+      // Then toggle help
+      setShowHelp(s => !s);
+    },
     onFocusSearch: focusSearch,
     onAddItem: () => setIsAdding(true),
     onSearchOnline: () => setIsSearching(true),
     onToggleFilters: () => setShowFilters(s => !s),
-    onToggleCustomize: () => setCustomizeOpen(s => !s),
-    onCycleFilterType: cycleFilterType,
+    onToggleCustomize: () => {
+      // Close other modals first
+      setShowHelp(false);
+      if (storageIndicatorRef.current) {
+        storageIndicatorRef.current.closeModal();
+      }
+      // Then toggle customize
+      setCustomizeOpen(s => !s);
+    },
+    onSwitchStorage: openStorageIndicator,
+    onFilterAll: () => setFilterType('all'),
+    onFilterBooks: () => setFilterType('book'),
+    onFilterMovies: () => setFilterType('movie'),
     onToggleSelectionMode: toggleSelectionMode,
     onSelectAll: () => selectAll(filteredAndSortedItems),
     onDeleteSelected: handleDeleteSelected,
+    onToggleItemSelection: toggleItemSelection,
     onOpenItem: setSelectedItem,
     onCloseModals: closeModals,
+    onCloseBatchDeleteModal: () => setShowBatchDeleteConfirm(false),
     selectionMode,
-    selectedCount
+    selectedCount,
+    hasOpenModal: !!(selectedItem || isAdding || isSearching || showHelp || showBatchEdit || showBatchDeleteConfirm || showApiKeyManager || customizeOpen || searchResultItem || storageIndicatorOpen),
+    showHelp,
+    customizeOpen,
+    showBatchDeleteConfirm
   });
 
   // Initialize storage options on component mount
@@ -499,6 +554,12 @@ const MediaTracker = () => {
                 ref={searchInputRef}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.target.blur();
+                    setSearchTerm('');
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-3 sm:py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
             </div>
@@ -1093,6 +1154,7 @@ const MediaTracker = () => {
         {/* Storage Indicator */}
         {!showStorageSelector && (
           <StorageIndicator
+            ref={storageIndicatorRef}
             storageAdapter={storageAdapter}
             storageInfo={storageInfo}
             onSwitchStorage={handleDisconnectStorage}
@@ -1101,7 +1163,15 @@ const MediaTracker = () => {
         
         {/* Customize Button */}
         <button
-          onClick={() => setCustomizeOpen(true)}
+          onClick={() => {
+            // Close other modals first
+            setShowHelp(false);
+            if (storageIndicatorRef.current) {
+              storageIndicatorRef.current.closeModal();
+            }
+            // Then toggle customize
+            setCustomizeOpen(prev => !prev);
+          }}
           className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-all"
           style={{ backgroundColor: 'var(--mt-highlight)' }}
           title="Customize Appearance"
@@ -1111,7 +1181,15 @@ const MediaTracker = () => {
         
         {/* Help Button */}
         <button
-          onClick={() => setShowHelp(true)}
+          onClick={() => {
+            // Close other modals first
+            setCustomizeOpen(false);
+            if (storageIndicatorRef.current) {
+              storageIndicatorRef.current.closeModal();
+            }
+            // Then toggle help
+            setShowHelp(prev => !prev);
+          }}
           className="w-12 h-12 bg-slate-700 hover:bg-slate-600 rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-all"
           title="Help & Shortcuts"
         >

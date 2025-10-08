@@ -1,6 +1,7 @@
 ---
 title: "The Lord of the Rings: The Fellowship of the Ring"
 type: movie
+status: watched
 director: "Peter Jackson"
 actors: ["Elijah Wood", "Ian McKellen", "Orlando Bloom"]
 year: 2001

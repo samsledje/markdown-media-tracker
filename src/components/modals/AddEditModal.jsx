@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import { STATUS_TYPES } from '../../constants/index.js';
+import { toast } from '../../services/toastService.js';
 
 /**
  * Modal for adding new items
@@ -63,7 +64,7 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
 
   const handleSave = () => {
     if (!item.title) {
-      alert('Title is required');
+      toast('Title is required', { type: 'error' });
       return;
     }
     onSave(item);

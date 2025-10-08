@@ -67,7 +67,7 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [] }) => {
     if (applyStatus) changes.status = status;
 
     if (Object.keys(changes).length === 0) {
-      alert('No fields selected to apply');
+      toast('No fields selected to apply', { type: 'error' });
       return;
     }
 

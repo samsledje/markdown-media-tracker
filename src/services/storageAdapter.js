@@ -86,6 +86,25 @@ export class StorageAdapter {
   }
 
   /**
+   * Write an arbitrary file to storage (used for misc files like Obsidian Base)
+   * @param {string} filename
+   * @param {string} content
+   * @returns {Promise<void>}
+   */
+  async writeFile(filename, content) {
+    throw new Error('writeFile() must be implemented by subclass');
+  }
+
+  /**
+   * Check whether a given file exists in storage
+   * @param {string} filename
+   * @returns {Promise<boolean>}
+   */
+  async fileExists(filename) {
+    throw new Error('fileExists() must be implemented by subclass');
+  }
+
+  /**
    * Get the storage type identifier
    * @returns {string} Storage type ('filesystem' | 'googledrive')
    */

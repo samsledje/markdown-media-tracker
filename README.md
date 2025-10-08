@@ -215,6 +215,16 @@ Obsidian Bases is a powerful feature that allows you to create interactive filte
 
 **Notes in Obsidian**: The body content of each `.md` file (after the frontmatter) contains your review or notes, which can include standard Obsidian markdown features like internal links, embeds, and formatting.
 
+### Create Obsidian Base Automatically
+
+The app now includes a convenience action to create an Obsidian Base configuration file for your library. Open the app, connect to your storage (Local Directory or Google Drive), then open the "Menu" (☰). Click "Create Obsidian Base". The app will:
+
+- Check whether a file named `Markdown Media Tracker.base` already exists in the selected storage folder.
+- If it doesn't exist, the app will create `Markdown Media Tracker.base` (YAML content) in the root of your storage folder.
+- If the file already exists, the app will leave it unchanged and notify you.
+
+After creating the file, you can open the same folder as a vault in Obsidian and use the Bases feature to view your library as a table or cards. The generated `.base` file defines a default set of views for All items, Books, and Movies and is safe to edit or replace later from within Obsidian.
+
 ## Import & Export CSV
 
 - Export CSV: When you've selected a directory, click the "Export CSV" button in the header to download a CSV snapshot of your current library. Fields include title, type, author/director, year, rating, read/watched dates, tags, cover URL, and notes.

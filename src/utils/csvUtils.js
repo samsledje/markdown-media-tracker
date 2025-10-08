@@ -1,4 +1,5 @@
 import { CSV_FORMATS, STATUS_TYPES } from '../constants/index.js';
+import { toast } from '../services/toastService.js';
 
 /**
  * Map Goodreads "Exclusive Shelf" to status
@@ -237,6 +238,6 @@ export const exportCSV = (items = []) => {
     URL.revokeObjectURL(url);
   } catch (err) {
     console.error('Error exporting CSV', err);
-    alert('Error exporting CSV. See console for details.');
+    toast('Error exporting CSV. See console for details.', { type: 'error' });
   }
 };

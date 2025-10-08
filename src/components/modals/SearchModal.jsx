@@ -3,6 +3,7 @@ import { X, Search, Book, Film } from 'lucide-react';
 import { searchBooks } from '../../services/openLibraryService.js';
 import { searchMovies, isServiceAvailable } from '../../services/omdbService.js';
 import { KEYBOARD_SHORTCUTS } from '../../constants/index.js';
+import { toast } from '../../services/toastService.js';
 
 /**
  * Modal for searching books and movies online
@@ -24,7 +25,7 @@ const SearchModal = ({ onClose, onSelect }) => {
       setResults(books);
     } catch (error) {
       console.error('Error searching books:', error);
-      alert(error.message);
+      toast(error.message, { type: 'error' });
     }
     setLoading(false);
   };
@@ -46,7 +47,7 @@ const SearchModal = ({ onClose, onSelect }) => {
       if (error.message === 'API_KEY_MISSING' || error.message.includes('Invalid OMDb API key')) {
         setShowApiKeyWarning(true);
       }
-      alert(error.message === 'API_KEY_MISSING' ? 'Please configure your OMDb API key first.' : error.message);
+      toast(error.message === 'API_KEY_MISSING' ? 'Please configure your OMDb API key first.' : error.message, { type: 'error' });
     }
     setLoading(false);
   };

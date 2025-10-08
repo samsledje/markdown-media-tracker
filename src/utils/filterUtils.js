@@ -1,4 +1,4 @@
-import { RECENT_FILTER_OPTIONS, SORT_OPTIONS, SORT_ORDERS } from '../constants/index.js';
+import { RECENT_FILTER_OPTIONS, SORT_OPTIONS, SORT_ORDERS, STATUS_TYPES } from '../constants/index.js';
 
 /**
  * Filter items based on search criteria
@@ -110,12 +110,23 @@ export const getAllTags = (items) => {
 };
 
 /**
- * Get all unique statuses from items
+ * Get all unique statuses from items in the desired order
  * @param {object[]} items - Array of items
  * @returns {string[]} Array of unique statuses
  */
 export const getAllStatuses = (items) => {
-  return Array.from(
-    new Set(items.map(item => item.status).filter(Boolean))
-  );
+  const foundStatuses = new Set(items.map(item => item.status).filter(Boolean));
+  
+  // Define the desired order: book statuses first, then movie statuses
+  const orderedStatuses = [
+    STATUS_TYPES.BOOK.TO_READ,
+    STATUS_TYPES.BOOK.READING, 
+    STATUS_TYPES.BOOK.READ,
+    STATUS_TYPES.MOVIE.TO_WATCH,
+    STATUS_TYPES.MOVIE.WATCHING,
+    STATUS_TYPES.MOVIE.WATCHED
+  ];
+  
+  // Return only the statuses that actually exist in the items, in the desired order
+  return orderedStatuses.filter(status => foundStatuses.has(status));
 };

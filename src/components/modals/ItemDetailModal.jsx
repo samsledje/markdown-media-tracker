@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, ChevronDown, Edit, Trash2 } from 'lucide-react';
+import { X, Save, ChevronDown, Edit, Trash2, Star } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
 import { STATUS_TYPES } from '../../constants/index.js';
@@ -12,6 +12,7 @@ import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-reac
 const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Ensure item has a status when creating editedItem
   const [editedItem, setEditedItem] = useState(() => {
@@ -41,7 +42,16 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   };
 
   const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
     onDelete(item);
+    setShowDeleteConfirm(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   const handleQuickStatusChange = (newStatus) => {
@@ -55,6 +65,19 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       onSave(updated);
     }
     setShowStatusMenu(false);
+  };
+
+  const handleQuickRatingChange = (newRating) => {
+    // If clicking on the same star that's currently the rating, toggle to unrated (0)
+    const finalRating = editedItem.rating === newRating ? 0 : newRating;
+    const updated = { ...editedItem, rating: finalRating };
+    setEditedItem(updated);
+    // Persist change via onQuickSave if provided, otherwise use onSave
+    if (typeof onQuickSave === 'function') {
+      onQuickSave(updated);
+    } else {
+      onSave(updated);
+    }
   };
 
   const getIconForStatus = (status, className = '') => {
@@ -147,11 +170,11 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             ) : (
               <button
                 onClick={handleSave}
-                className="px-3 py-2 sm:py-1 rounded transition text-sm flex items-center gap-1 min-h-[44px] sm:min-h-auto"
+                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
                 style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                title="Save"
               >
-                <Save className="w-4 h-4" />
-                Save
+                <Save className="w-5 h-5" />
               </button>
             )}
             <button
@@ -172,12 +195,37 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                 item={item} 
                 hexToRgba={hexToRgba} 
                 highlightColor={highlightColor} 
+                hideRating={true}
               />
             </div>
           )}
+
+          {/* Quick rating at bottom - only show when not editing */}
+          {!isEditing && (
+            <div className="mt-6">
+              <label className="block text-sm font-medium mb-2">Rating</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map(rating => (
+                  <button
+                    key={rating}
+                    onClick={() => handleQuickRatingChange(rating)}
+                    className="transition"
+                  >
+                    <Star
+                      className={`w-8 h-8 ${
+                        rating <= (editedItem.rating || 0)
+                          ? 'text-yellow-400 fill-yellow-400'
+                          : 'text-slate-600'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
-          {/* Status switcher in bottom right corner */}
-          {editedItem && editedItem.status && (
+          {/* Status switcher in bottom right corner - only show when not editing */}
+          {!isEditing && editedItem && editedItem.status && (
             <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
               <div className="relative flex items-center gap-2">
                 <div className={`flex items-center justify-center rounded-full p-2 text-white ${getColorForStatus(editedItem.status)} shadow-lg w-10 h-10`} title={STATUS_LABELS[editedItem.status]}>
@@ -215,6 +263,33 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             </div>
           )}
         </div>
+        
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
+              <h3 className="text-lg font-bold mb-4">Delete Item</h3>
+              <p className="text-slate-300 mb-6">
+                Are you sure you want to delete "{item.title}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 rounded transition text-sm text-white"
+                  style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

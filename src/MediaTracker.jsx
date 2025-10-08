@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -75,6 +75,7 @@ const MediaTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showBatchEdit, setShowBatchEdit] = useState(false);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -224,17 +225,22 @@ const MediaTracker = () => {
   // Handle batch operations
   const handleDeleteSelected = async () => {
     if (selectedCount === 0) return;
+    setShowBatchDeleteConfirm(true);
+  };
 
-    const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedCount} selected item(s)? This cannot be undone.`);
-    if (!confirmDelete) return;
-
+  const confirmBatchDelete = async () => {
     try {
       const selectedItems = getSelectedItems(filteredAndSortedItems);
       await deleteItems(selectedItems);
       clearSelection();
+      setShowBatchDeleteConfirm(false);
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  const cancelBatchDelete = () => {
+    setShowBatchDeleteConfirm(false);
   };
 
   const handleBatchEdit = async (changes) => {
@@ -497,20 +503,36 @@ const MediaTracker = () => {
               />
             </div>
             <div className="flex gap-2 justify-center sm:justify-start">
-              {['all', 'book', 'movie'].map(type => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
-                    filterType === type
-                      ? ''
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
-                  style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                >
-                  {type}
-                </button>
-              ))}
+              {['all', 'book', 'movie'].map(type => {
+                const getTypeIcon = (type) => {
+                  switch (type) {
+                    case 'book':
+                      return <Book className="w-5 h-5" />;
+                    case 'movie':
+                      return <Film className="w-5 h-5" />;
+                    case 'all':
+                      return <span className="text-sm font-medium">All</span>;
+                    default:
+                      return null;
+                  }
+                };
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${
+                      filterType === type
+                        ? ''
+                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                    }`}
+                    style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
+                    title={type === 'all' ? 'All items' : type === 'book' ? 'Books only' : 'Movies only'}
+                  >
+                    {getTypeIcon(type)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -569,18 +591,19 @@ const MediaTracker = () => {
                     <>
                       <button
                         onClick={() => setShowBatchEdit(true)}
-                        className="px-3 py-2 rounded text-sm min-h-[44px]"
+                        className="p-2 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                         style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                        title="Batch Edit"
                       >
-                        <span className="hidden sm:inline">Batch Edit</span>
-                        <span className="sm:hidden">Edit</span>
+                        <SlidersHorizontal className="w-5 h-5" />
                       </button>
                       <button
                         onClick={handleDeleteSelected}
-                        className="px-3 py-2 rounded text-sm min-h-[44px]"
+                        className="p-2 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                         style={{ backgroundColor: 'rgba(255,0,0,0.16)', color: 'white' }}
+                        title="Delete Selected"
                       >
-                        Delete
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </>
                   )}
@@ -754,19 +777,20 @@ const MediaTracker = () => {
                 )}
               </div>
             ) : (
-              <div className={`grid gap-3 sm:gap-4 ${
-                cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
-                cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
-                cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-                cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
-                'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
-              }`}>
+              <div className="w-full min-h-0">
+                <div className={`grid gap-3 sm:gap-4 w-full ${
+                  cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
+                  cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                  cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                  cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+                  'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                } auto-rows-min`}>
                 {filteredAndSortedItems.map((item, index) => (
                   <div
                     key={item.id}
                     ref={(el) => registerCardRef(item.id, el)}
                     onClick={(e) => handleItemClick(item, e)}
-                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative ${
+                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full ${
                       isItemFocused(item.id) ? 'ring-2 ring-blue-500' :
                       isItemSelected(item.id) ? 'ring-2 ring-yellow-500' :
                       'border-slate-700 hover:border-slate-600'
@@ -880,6 +904,7 @@ const MediaTracker = () => {
                     )}
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>
@@ -1009,6 +1034,32 @@ const MediaTracker = () => {
           onApply={handleBatchEdit}
           selectedItems={getSelectedItems(filteredAndSortedItems)}
         />
+      )}
+
+      {showBatchDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold mb-4">Delete Items</h3>
+            <p className="text-slate-300 mb-6">
+              Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelBatchDelete}
+                className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBatchDelete}
+                className="px-4 py-2 rounded transition text-sm text-white"
+                style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
+              >
+                Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {selectedItem && (

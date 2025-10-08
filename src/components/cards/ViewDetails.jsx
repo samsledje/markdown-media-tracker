@@ -43,7 +43,7 @@ const getStatusColorClass = (status) => {
 /**
  * Component for displaying item details in read-only view
  */
-const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
+const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false }) => {
   return (
     <div className="space-y-4">
       {item.coverUrl && (
@@ -84,8 +84,6 @@ const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
           )}
         </div>
       </div>
-
-
 
       {item.actors && item.actors.length > 0 && (
         <div>
@@ -131,7 +129,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor }) => {
         </div>
       )}
 
-      {item.rating && (
+      {item.rating && !hideRating && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Rating</div>
           <div className="flex gap-1">

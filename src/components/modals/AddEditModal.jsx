@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
+import { STATUS_TYPES } from '../../constants/index.js';
 
 /**
  * Modal for adding new items
@@ -18,6 +19,7 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
   const [item, setItem] = useState(initialItem || {
     title: '',
     type: 'book',
+    status: STATUS_TYPES.BOOK.TO_READ, // Default status for new books
     author: '',
     director: '',
     actors: [],
@@ -38,9 +40,24 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
   // Update item when initialItem changes
   useEffect(() => {
     if (initialItem) {
-      setItem(initialItem);
+      // Ensure initialItem has a default status if not present
+      const updatedItem = {
+        ...initialItem,
+        status: initialItem.status || (initialItem.type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED)
+      };
+      setItem(updatedItem);
     }
   }, [initialItem]);
+
+  // Handle status updates when type changes in the form
+  useEffect(() => {
+    if (!item.status || 
+        (item.type === 'book' && !Object.values(STATUS_TYPES.BOOK).includes(item.status)) ||
+        (item.type === 'movie' && !Object.values(STATUS_TYPES.MOVIE).includes(item.status))) {
+      const newStatus = item.type === 'book' ? STATUS_TYPES.BOOK.TO_READ : STATUS_TYPES.MOVIE.TO_WATCH;
+      setItem(prev => ({ ...prev, status: newStatus }));
+    }
+  }, [item.type]);
 
   const handleSave = () => {
     if (!item.title) {

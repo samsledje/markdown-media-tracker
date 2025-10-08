@@ -1,4 +1,39 @@
-import { CSV_FORMATS } from '../constants/index.js';
+import { CSV_FORMATS, STATUS_TYPES } from '../constants/index.js';
+
+/**
+ * Map Goodreads "Exclusive Shelf" to status
+ * @param {string} shelf - Goodreads shelf name
+ * @returns {string} Mapped status value
+ */
+const mapGoodreadsShelfToStatus = (shelf) => {
+  if (!shelf) return STATUS_TYPES.BOOK.READ;
+  const shelfLower = shelf.toLowerCase().trim();
+  switch (shelfLower) {
+    case 'to-read':
+    case 'want-to-read':
+      return STATUS_TYPES.BOOK.TO_READ;
+    case 'currently-reading':
+    case 'reading':
+      return STATUS_TYPES.BOOK.READING;
+    case 'read':
+    default:
+      return STATUS_TYPES.BOOK.READ;
+  }
+};
+
+/**
+ * Map Letterboxd watched status to status
+ * @param {string} watched - Letterboxd watched value
+ * @returns {string} Mapped status value
+ */
+const mapLetterboxdWatchedToStatus = (watched) => {
+  if (!watched) return STATUS_TYPES.MOVIE.WATCHED;
+  const watchedLower = watched.toLowerCase().trim();
+  if (watchedLower === 'true' || watchedLower === '1' || watchedLower === 'yes') {
+    return STATUS_TYPES.MOVIE.WATCHED;
+  }
+  return STATUS_TYPES.MOVIE.TO_WATCH;
+};
 
 /**
  * Parse CSV text into headers and rows
@@ -78,6 +113,7 @@ export const detectCSVFormat = (headers = []) => {
 export const mapGoodreadsRow = (r) => {
   const tags = (r['My Tags'] || r['Tags'] || r['Bookshelves'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
   const rating = r['My Rating'] ? parseInt(r['My Rating'], 10) : (r['Rating'] ? parseInt(r['Rating'], 10) : 0);
+  const status = mapGoodreadsShelfToStatus(r['Exclusive Shelf'] || r['Shelf'] || '');
   
   return {
     title: r['Title'] || r['title'] || r['Name'] || '',
@@ -85,6 +121,7 @@ export const mapGoodreadsRow = (r) => {
     isbn: r['ISBN13'] || r['ISBN'] || '',
     year: r['Year Published'] || r['Original Publication Year'] || r['Year'] || '',
     rating: isNaN(rating) ? 0 : rating,
+    status,
     dateRead: r['Date Read'] || r['Date read'] || r['Date read (YYYY/MM/DD)'] || '',
     tags,
     review: r['My Review'] || r['Review'] || '',
@@ -102,11 +139,13 @@ export const mapLetterboxdRow = (r) => {
   const tags = (r['Tags'] || r['tags'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
   const rawRating = r['Your Rating'] || r['Rating'] || r['star_rating'] || '';
   const rating = rawRating ? Math.round(parseFloat(rawRating)) : 0;
+  const status = mapLetterboxdWatchedToStatus(r['Watched'] || r['watched'] || '');
   
   return {
     title: r['Name'] || r['Title'] || r['name'] || '',
     year: r['Year'] || r['year'] || '',
     rating: isNaN(rating) ? 0 : rating,
+    status,
     dateWatched: r['Date Watched'] || r['Watched Date'] || r['Date'] || '',
     tags,
     review: r['Review'] || r['Notes'] || '',
@@ -128,9 +167,16 @@ export const mapGenericRow = (r) => {
   const actors = (r['actors'] || r['Actors'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
   const rating = r['rating'] ? Math.round(parseFloat(r['rating'])) : 0;
   
+  // Try to map status, with fallback to default
+  let status = r['status'] || r['Status'] || '';
+  if (!status) {
+    status = type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED;
+  }
+  
   return {
     title,
     type,
+    status,
     author: r['author'] || r['Author'] || '',
     director: r['director'] || r['Director'] || '',
     actors,
@@ -153,7 +199,7 @@ export const mapGenericRow = (r) => {
 export const exportCSV = (items = []) => {
   try {
     const headers = [
-      'id', 'title', 'type', 'author', 'director', 'actors', 'isbn', 'year', 'rating',
+      'id', 'title', 'type', 'status', 'author', 'director', 'actors', 'isbn', 'year', 'rating',
       'dateRead', 'dateWatched', 'dateAdded', 'tags', 'coverUrl', 'review', 'filename'
     ];
 

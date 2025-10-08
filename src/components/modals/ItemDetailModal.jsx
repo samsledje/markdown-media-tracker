@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
@@ -9,6 +9,7 @@ import ViewDetails from '../cards/ViewDetails.jsx';
 const ItemDetailModal = ({ item, onClose, onSave, onDelete, hexToRgba, highlightColor }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedItem, setEditedItem] = useState({ ...item });
+  const modalRef = useRef(null);
 
   const handleSave = () => {
     onSave(editedItem);
@@ -31,13 +32,28 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, hexToRgba, highlight
         }
       }
     };
+
+    const onClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isEditing, editedItem]);
+    document.addEventListener('mousedown', onClickOutside);
+    
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClickOutside);
+    };
+  }, [isEditing, editedItem, onClose]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto">
+      <div 
+        ref={modalRef}
+        className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto"
+      >
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between">
           <h2 className="text-lg sm:text-xl font-bold truncate mr-4">{item.title}</h2>
           <div className="flex gap-2 flex-shrink-0">

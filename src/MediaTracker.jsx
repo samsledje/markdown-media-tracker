@@ -1086,7 +1086,8 @@ const MediaTracker = () => {
               <div className="w-full min-h-0">
                 <div style={{ gridAutoRows: '1fr' }} className={`grid gap-3 sm:gap-4 w-full ${
                   cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
-                  cardSize === 'small' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                  // Small is now a denser middle-ground between tiny and medium
+                  cardSize === 'small' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' :
                   cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
                   cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
                   'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
@@ -1118,7 +1119,7 @@ const MediaTracker = () => {
                     )}
 
                     {/* Cover image container (reserved space when missing) */}
-                    <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-32' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden bg-slate-800/10`}>
+                    <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-36' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden bg-slate-800/10`}>
                       {item.coverUrl ? (
                         <img
                           src={item.coverUrl}
@@ -1152,9 +1153,10 @@ const MediaTracker = () => {
                         <div className="flex-shrink-0 ml-2 flex items-center gap-2">
                           {/* Type icon */}
                           {item.type === 'book' ? (
-                            <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-6 h-6' : 'w-7 h-7'}`} />
+                            // Slightly smaller icons for tiny, mid-size for small, default larger for medium+
+                            <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
                           ) : (
-                            <Film className={`text-purple-400 ${cardSize === 'tiny' ? 'w-6 h-6' : 'w-7 h-7'}`} />
+                            <Film className={`text-purple-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
                           )}
                         </div>
                       </div>
@@ -1181,7 +1183,7 @@ const MediaTracker = () => {
                       <div className={`absolute left-0 right-0 bottom-0 px-3 py-3 flex items-center justify-between bg-transparent`}>
                         <div className="flex items-center gap-2">
                           {/* Rating */}
-                          {item.rating > 0 && (
+                          {item.rating > 0 && cardSize !== 'tiny' && (
                             <div className="flex items-center gap-1">
                               {[...Array(5)].map((_, i) => (
                                 <Star
@@ -1206,12 +1208,12 @@ const MediaTracker = () => {
                         {item.status && (
                           <div
                             className={`flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
-                              cardSize === 'tiny' ? 'w-5 h-5' : 'w-7 h-7'
+                              cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'
                             }`}
                             title={STATUS_LABELS[item.status]}
                             style={{ backdropFilter: 'blur(4px)' }}
                           >
-                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : 'w-4 h-4'}`)}
+                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : cardSize === 'small' ? 'w-3 h-3' : 'w-4 h-4'}`)}
                           </div>
                         )}
                       </div>

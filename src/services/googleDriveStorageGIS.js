@@ -153,12 +153,15 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
             // Set the access token for gapi client
             window.gapi.client.setToken({ access_token: this.accessToken });
 
+            console.log('Starting folder initialization...');
             await this._initializeFolders();
+            console.log('Folder initialization complete. MediaTracker folder ID:', this.mediaTrackerFolderId);
             
             localStorage.setItem('googleDriveConnected', 'true');
             localStorage.setItem('googleDriveFolderId', this.mediaTrackerFolderId);
             
             const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
+            console.log('Google Drive connection successful, resolving...');
             resolve({
               folderId: this.mediaTrackerFolderId,
               folderName: folderName
@@ -200,11 +203,19 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
   // Rest of the methods remain the same as the original implementation
   async _initializeFolders() {
     try {
+      console.log('_initializeFolders: Starting...');
       // Get configured folder name, fallback to 'MediaTracker' for backward compatibility
       const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
+      console.log('_initializeFolders: Using folder name:', folderName);
       
+      console.log('_initializeFolders: Finding/creating main folder...');
       this.mediaTrackerFolderId = await this._findOrCreateFolder(folderName);
+      console.log('_initializeFolders: Main folder ID:', this.mediaTrackerFolderId);
+      
+      console.log('_initializeFolders: Finding/creating trash folder...');
       this.trashFolderId = await this._findOrCreateFolder('.trash', this.mediaTrackerFolderId);
+      console.log('_initializeFolders: Trash folder ID:', this.trashFolderId);
+      console.log('_initializeFolders: Complete');
     } catch (error) {
       console.error('Error initializing Google Drive folders:', error);
       throw error;
@@ -213,6 +224,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
 
   async _findOrCreateFolder(name, parentId = null) {
     try {
+      console.log(`_findOrCreateFolder: Looking for folder "${name}" with parent:`, parentId || 'root');
       let query = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
       if (parentId) {
         query += ` and '${parentId}' in parents`;
@@ -220,15 +232,19 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
         query += ` and parents in 'root'`;
       }
 
+      console.log('_findOrCreateFolder: Search query:', query);
       const searchResponse = await window.gapi.client.drive.files.list({
         q: query,
         fields: 'files(id, name)'
       });
 
+      console.log('_findOrCreateFolder: Search response:', searchResponse.result);
       if (searchResponse.result.files.length > 0) {
+        console.log(`_findOrCreateFolder: Found existing folder "${name}" with ID:`, searchResponse.result.files[0].id);
         return searchResponse.result.files[0].id;
       }
 
+      console.log(`_findOrCreateFolder: Creating new folder "${name}"`);
       const folderMetadata = {
         name: name,
         mimeType: 'application/vnd.google-apps.folder',
@@ -240,6 +256,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
         fields: 'id'
       });
 
+      console.log(`_findOrCreateFolder: Created folder "${name}" with ID:`, createResponse.result.id);
       return createResponse.result.id;
     } catch (error) {
       console.error(`Error finding/creating folder ${name}:`, error);
@@ -253,15 +270,22 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     }
 
     try {
+      console.log('loadItems: Starting to load items from Google Drive...');
+      console.log('loadItems: Searching in folder:', this.mediaTrackerFolderId);
+      
       const response = await window.gapi.client.drive.files.list({
         q: `'${this.mediaTrackerFolderId}' in parents and name contains '.md' and trashed=false`,
         fields: 'files(id, name, modifiedTime)',
         orderBy: 'modifiedTime desc'
       });
 
+      console.log('loadItems: Found files:', response.result.files.length);
       const items = [];
       
-      for (const file of response.result.files) {
+      for (let i = 0; i < response.result.files.length; i++) {
+        const file = response.result.files[i];
+        console.log(`loadItems: Processing file ${i + 1}/${response.result.files.length}: ${file.name}`);
+        
         try {
           const content = await this._downloadFile(file.id);
           const { metadata, body } = parseMarkdown(content);
@@ -292,6 +316,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
         }
       }
 
+      console.log(`loadItems: Successfully loaded ${items.length} items`);
       return items.sort((a, b) => 
         new Date(b.dateAdded) - new Date(a.dateAdded)
       );
@@ -303,10 +328,12 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
 
   async _downloadFile(fileId) {
     try {
+      console.log(`_downloadFile: Downloading file ${fileId}...`);
       const response = await window.gapi.client.drive.files.get({
         fileId: fileId,
         alt: 'media'
       });
+      console.log(`_downloadFile: Successfully downloaded file ${fileId}`);
       return response.body;
     } catch (error) {
       console.error(`Error downloading file ${fileId}:`, error);

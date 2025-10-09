@@ -530,22 +530,32 @@ const MediaTracker = () => {
     setMenuPos({ left, top, width });
   }, [menuOpen]);
 
+  // Track when storage is connected to trigger effects properly
+  const [isStorageConnected, setIsStorageConnected] = useState(false);
+  
+  // Update connection status when storage changes
+  useEffect(() => {
+    const connected = storageAdapter && storageAdapter.isConnected();
+    setIsStorageConnected(connected);
+  }, [storageAdapter, storageInfo]);
+
   // Auto-show API key modal when storage is connected and no API key is configured
   useEffect(() => {
-    if (storageAdapter && storageAdapter.isConnected() && !hasApiKey()) {
+    if (storageAdapter && isStorageConnected && !hasApiKey()) {
       // Small delay to ensure the storage connection UI has settled
       const timer = setTimeout(() => {
         setShowApiKeyManager(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [storageAdapter, storageInfo]);
+  }, [storageAdapter, isStorageConnected]);
 
   // Prompt to create Obsidian Base file when storage connects (only once per session)
   const basePromptedRef = useRef(false);
   const [showObsidianBaseModal, setShowObsidianBaseModal] = useState(false);
+  
   useEffect(() => {
-    if (!storageAdapter || !storageAdapter.isConnected() || basePromptedRef.current) return;
+    if (!storageAdapter || !isStorageConnected || basePromptedRef.current) return;
 
     // Respect persistent 'don't ask again' preference
     const dontAskPersisted = localStorage.getItem('obsidianBaseDontAsk') === 'true';
@@ -553,6 +563,9 @@ const MediaTracker = () => {
       basePromptedRef.current = true;
       return;
     }
+
+    // If the API key modal is currently open, defer until it closes
+    if (showApiKeyManager) return;
 
     let cancelled = false;
 
@@ -565,15 +578,13 @@ const MediaTracker = () => {
           return;
         }
 
-        // Delay the prompt to avoid clashing with the API key modal.
-        // If an API key is required, give the API modal time to appear first.
-        const delay = hasApiKey() ? 600 : 3000;
+        // Small delay to ensure the storage connection UI has settled
+        const delay = 600;
 
         setTimeout(async () => {
           if (cancelled) return;
 
-          // If the API key modal is currently open, defer prompting now and allow
-          // the effect to re-run after the API modal closes (showApiKeyManager is a dependency).
+          // Double-check that API modal isn't open (could have opened during delay)
           if (showApiKeyManager) return;
 
           // Show the nicer modal prompt instead of a native confirm
@@ -591,7 +602,7 @@ const MediaTracker = () => {
     return () => {
       cancelled = true;
     };
-  }, [storageAdapter, storageInfo, showApiKeyManager]);
+  }, [storageAdapter, isStorageConnected, showApiKeyManager]);
 
   // Handler invoked by the ObsidianBaseModal when user chooses to create (or cancels)
   const handleCreateObsidianBase = async (dontAsk = false) => {

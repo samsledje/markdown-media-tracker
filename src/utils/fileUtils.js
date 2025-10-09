@@ -25,12 +25,10 @@ export const loadItemsFromDirectory = async (handle) => {
   
   try {
     for await (const entry of handle.values()) {
-      console.log('Found entry:', entry.name, entry.kind);
       if (entry.kind === 'file' && entry.name.endsWith('.md')) {
         try {
           const file = await entry.getFile();
           const content = await file.text();
-          console.log('Loaded file:', entry.name);
           const { metadata, body } = parseMarkdown(content);
           
           loadedItems.push({
@@ -59,7 +57,6 @@ export const loadItemsFromDirectory = async (handle) => {
       }
     }
     
-    console.log(`Loaded ${loadedItems.length} items`);
     return loadedItems.sort((a, b) => 
       new Date(b.dateAdded) - new Date(a.dateAdded)
     );

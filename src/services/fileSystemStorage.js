@@ -74,12 +74,10 @@ export class FileSystemStorage extends StorageAdapter {
     
     try {
       for await (const entry of this.directoryHandle.values()) {
-        console.log('Found entry:', entry.name, entry.kind);
         if (entry.kind === 'file' && entry.name.endsWith('.md')) {
           try {
             const file = await entry.getFile();
-            const content = await file.text();
-            console.log('Loaded file:', entry.name);
+            const content = await file.text(); 
             const { metadata, body } = parseMarkdown(content);
             
             loadedItems.push({
@@ -108,7 +106,6 @@ export class FileSystemStorage extends StorageAdapter {
         }
       }
       
-      console.log(`Loaded ${loadedItems.length} items`);
       return loadedItems.sort((a, b) => 
         new Date(b.dateAdded) - new Date(a.dateAdded)
       );
@@ -124,7 +121,53 @@ export class FileSystemStorage extends StorageAdapter {
     }
 
     try {
-      const filename = item.filename || `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.md`;
+      // If filename is not provided, try to find an existing file that matches
+      // this item's identifying metadata (title + type + director/author). This
+      // ensures updates overwrite the original file instead of creating a new
+      // one when the import flow finds a match but the item object lacks
+      // filename.
+      let filename = item.filename;
+      if (!filename) {
+        try {
+          for await (const entry of this.directoryHandle.values()) {
+            if (entry.kind === 'file' && entry.name.endsWith('.md')) {
+              try {
+                const file = await entry.getFile();
+                const content = await file.text();
+                const { metadata } = parseMarkdown(content);
+                const titleMatch = String(metadata.title || '').trim().toLowerCase() === String(item.title || '').trim().toLowerCase();
+                const typeMatch = String(metadata.type || 'book') === String(item.type || 'book');
+                const secondMeta = item.type === 'movie' ? (metadata.director || '') : (metadata.author || '');
+                const secondMatch = String(secondMeta || '').trim().toLowerCase() === String(item.type === 'movie' ? (item.director || '') : (item.author || '')).trim().toLowerCase();
+                if (titleMatch && typeMatch && secondMatch) {
+                  filename = entry.name;
+                  break;
+                }
+              } catch (e) {
+                // ignore errors reading individual files
+              }
+            }
+          }
+        } catch (err) {
+          // ignore directory scan errors and fall back to creating a new file
+          filename = null;
+        }
+      }
+
+      // If we still don't have a filename, generate one
+      if (!filename) {
+        filename = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.md`;
+      }
+
+      // Ensure the item object knows its filename so callers can update the same file later
+      item.filename = filename;
+
+      const fileExists = await this.fileExists(filename).catch(() => false);
+      if (fileExists) {
+        console.debug('[Storage][FS] updating existing file', filename);
+      } else {
+        console.debug('[Storage][FS] creating new file', filename);
+      }
       const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(generateMarkdown(item));

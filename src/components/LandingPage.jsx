@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Lock, FileText, Database, Keyboard, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import StorageSelector from './StorageSelector.jsx';
 
@@ -13,45 +13,84 @@ const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) =>
   
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   const screenshots = [
     {
       src: './screenshots/main-panel.jpg',
-      caption: 'Browse your entire media library with filters and search'
-    },
-    {
-      src: './screenshots/item-detail.jpg',
-      caption: 'View detailed information for each book or movie'
+      caption: 'Keep track of books and movies in one central library'
     },
     {
       src: './screenshots/online-search.jpg',
       caption: 'Search Open Library and OMDb to quickly add new items'
     },
     {
+      src: './screenshots/manual-edit.jpg',
+      caption: 'Manually add or edit items with full control over details'
+    },
+    {
+      src: './screenshots/item-detail.jpg',
+      caption: 'View detailed information for each book or movie'
+    },
+    {
+      src: './screenshots/sort-and-filter.jpg',
+      caption: 'Sort and filter your collection by rating, tags, status, and more'
+    },
+    {
+      src: './screenshots/keyboard-shortcuts.jpg',
+      caption: 'Navigate efficiently with comprehensive keyboard shortcuts'
+    },
+    {
       src: './screenshots/custom-colors.jpg',
       caption: 'Customize colors and themes to match your style'
     },
     {
-      src: './screenshots/directory-select.jpg',
-      caption: 'Choose local storage or Google Drive for your data'
+      src: './screenshots/obsidian-files.jpg',
+      caption: 'Your entire library is a directory of markdown files, owned by you and compatible with Obsidian and other editors'
     }
   ];
   
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % screenshots.length);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentSlide((prev) => (prev + 1) % screenshots.length);
+      setIsTransitioning(false);
+    }, 300);
   };
   
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + screenshots.length) % screenshots.length);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentSlide((prev) => (prev - 1 + screenshots.length) % screenshots.length);
+      setIsTransitioning(false);
+    }, 300);
   };
   
   const goToSlide = (index) => {
-    setCurrentSlide(index);
+    if (index === currentSlide) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentSlide(index);
+      setIsTransitioning(false);
+    }, 1000);
+    setIsAutoPlaying(false); // Pause auto-play when user manually selects a slide
   };
 
   const scrollToSection = (ref) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Auto-rotate carousel every 5 seconds
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 6500);
+    
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, currentSlide]);
 
   const features = [
     {
@@ -97,13 +136,18 @@ const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) =>
           </p>
 
           {/* Screenshot Carousel */}
-          <div className="mb-10 max-w-4xl mx-auto">
+          <div 
+            className="mb-10 max-w-4xl mx-auto"
+            onMouseEnter={() => setIsAutoPlaying(false)}
+            onMouseLeave={() => setIsAutoPlaying(true)}
+          >
             <div className="relative group">
               <div className="relative overflow-hidden rounded-lg shadow-2xl border border-slate-700">
                 <img 
                   src={screenshots[currentSlide].src}
                   alt={screenshots[currentSlide].caption}
-                  className="w-full h-auto"
+                  className="w-full h-auto transition-opacity duration-300"
+                  style={{ opacity: isTransitioning ? 0 : 1 }}
                   loading="lazy"
                 />
                 
@@ -127,7 +171,10 @@ const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) =>
               
               {/* Caption below screenshot */}
               <div className="mt-4 px-4">
-                <p className="text-slate-300 text-sm sm:text-base text-center">
+                <p 
+                  className="text-slate-300 text-sm sm:text-base text-center transition-opacity duration-300"
+                  style={{ opacity: isTransitioning ? 0 : 1 }}
+                >
                   {screenshots[currentSlide].caption}
                 </p>
               </div>

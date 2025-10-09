@@ -81,6 +81,26 @@ export const sortItems = (items, sortBy, sortOrder) => {
         aVal = new Date(a.dateRead || a.dateWatched || 0);
         bVal = new Date(b.dateRead || b.dateWatched || 0);
         break;
+      case SORT_OPTIONS.STATUS:
+        {
+          // Define status ordering (same as getAllStatuses / desired display order)
+          const ordered = [
+            STATUS_TYPES.MOVIE.WATCHED,
+            STATUS_TYPES.BOOK.READ,
+            STATUS_TYPES.MOVIE.WATCHING,
+            STATUS_TYPES.BOOK.READING,
+            STATUS_TYPES.MOVIE.TO_WATCH,
+            STATUS_TYPES.BOOK.TO_READ, 
+          ];
+          const getRank = (it) => {
+            const s = it && it.status ? it.status : '';
+            const idx = ordered.indexOf(s);
+            return idx === -1 ? ordered.length : idx;
+          };
+          aVal = getRank(a);
+          bVal = getRank(b);
+        }
+        break;
       case SORT_OPTIONS.RATING:
         aVal = a.rating || 0;
         bVal = b.rating || 0;

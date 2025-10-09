@@ -60,6 +60,7 @@ export const SORT_OPTIONS = {
   TITLE: 'title',
   AUTHOR: 'author',
   YEAR: 'year',
+  STATUS: 'status',
   RATING: 'rating'
 };
 

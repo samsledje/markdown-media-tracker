@@ -92,6 +92,43 @@ export const searchMovies = async (query, limit = 12) => {
 };
 
 /**
+ * Get a single movie by title and optional year using OMDb API
+ * @param {string} title - Movie title
+ * @param {string|number} year - Optional year to narrow search
+ * @returns {Promise<object|null>} Movie details or null if not found
+ */
+export const getMovieByTitleYear = async (title, year = null) => {
+  if (!title || !String(title).trim()) return null;
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API_KEY_MISSING');
+  }
+
+  try {
+    const q = `${title}${year ? `&y=${encodeURIComponent(String(year))}` : ''}`;
+    const response = await fetch(`${OMDB_BASE_URL}/?t=${encodeURIComponent(title)}${year ? `&y=${encodeURIComponent(String(year))}` : ''}&apikey=${apiKey}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    if (data.Response === 'False') return null;
+
+    const actors = data.Actors && data.Actors !== 'N/A' ? data.Actors.split(',').map(a => a.trim()).filter(Boolean) : [];
+
+    return {
+      title: data.Title || title,
+      director: data.Director && data.Director !== 'N/A' ? data.Director : '',
+      actors,
+      year: data.Year || year || '',
+      coverUrl: data.Poster && data.Poster !== 'N/A' ? data.Poster : null,
+      plot: data.Plot && data.Plot !== 'N/A' ? data.Plot : ''
+    };
+  } catch (error) {
+    console.warn('Error in getMovieByTitleYear:', error);
+    throw error;
+  }
+};
+
+/**
  * Validate OMDb API key
  * @param {string} apiKey - API key to validate (optional, uses config if not provided)
  * @returns {Promise<boolean>} True if valid

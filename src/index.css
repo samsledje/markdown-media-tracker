@@ -108,3 +108,29 @@ input[type="range"].slider::-moz-range-thumb:hover {
 	transform: scale(1.1);
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
+
+/* Fade-in animation for landing page elements */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-fade-in {
+	animation: fadeIn 0.8s ease-out;
+}
+
+/* Smooth scroll behavior */
+html {
+	scroll-behavior: smooth;
+}
+
+/* Subtle hover scale for feature cards */
+.hover\:scale-102:hover {
+	transform: scale(1.02);
+}

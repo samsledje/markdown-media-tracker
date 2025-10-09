@@ -322,12 +322,34 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     try {
       const filename = item.filename || `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.md`;
       const content = generateMarkdown(item);
-      
+
+      // Ensure the item object contains the filename for subsequent updates
+      item.filename = filename;
+
       if (item.fileId) {
         await this._updateFile(item.fileId, content, filename);
       } else {
-        const fileId = await this._createFile(filename, content, this.mediaTrackerFolderId);
-        item.fileId = fileId;
+        // Try to find an existing file with the same name in the mediaTracker folder
+        try {
+          const res = await window.gapi.client.drive.files.list({
+            q: `name='${filename.replace(/'/g, "\\'")}' and '${this.mediaTrackerFolderId}' in parents and trashed=false`,
+            fields: 'files(id, name)'
+          });
+          if (res.result && res.result.files && res.result.files.length > 0) {
+            const existingFile = res.result.files[0];
+            item.fileId = existingFile.id;
+            console.debug('[Storage][GDrive] updating existing file with id', item.fileId, 'name', filename);
+            await this._updateFile(item.fileId, content, filename);
+          } else {
+            console.debug('[Storage][GDrive] creating new file', filename);
+            const fileId = await this._createFile(filename, content, this.mediaTrackerFolderId);
+            item.fileId = fileId;
+          }
+        } catch (err) {
+          // On any error, fall back to creating a new file
+          const fileId = await this._createFile(filename, content, this.mediaTrackerFolderId);
+          item.fileId = fileId;
+        }
       }
     } catch (error) {
       console.error('Error saving item to Google Drive:', error);

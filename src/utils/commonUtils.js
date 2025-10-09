@@ -70,14 +70,31 @@ export const normalizeISBNForCompare = (val) => {
 export const isDuplicate = (items, newItem) => {
   const nTitle = normalizeForCompare(newItem.title || '');
   const nAuthor = normalizeForCompare(newItem.author || '');
+  const nDirector = normalizeForCompare(newItem.director || '');
   const nIsbn = normalizeISBNForCompare(newItem.isbn || '');
 
   return items.some(it => {
     const itTitle = normalizeForCompare(it.title || '');
     const itAuthor = normalizeForCompare(it.author || '');
+    const itDirector = normalizeForCompare(it.director || '');
     const itIsbn = normalizeISBNForCompare(it.isbn || '');
+    
+    // Check ISBN first (for books)
     if (itIsbn && nIsbn && itIsbn === nIsbn) return true;
-    return itTitle === nTitle && itAuthor === nAuthor;
+    
+    // For movies, check title + director
+    if (newItem.type === 'movie' && it.type === 'movie') {
+      if (itTitle === nTitle && itDirector === nDirector) return true;
+      // Also check title-only for movies (fallback for cases with missing director info)
+      if (itTitle === nTitle && (!itDirector || !nDirector)) return true;
+    }
+    
+    // For books, check title + author
+    if (newItem.type !== 'movie' && it.type !== 'movie') {
+      return itTitle === nTitle && itAuthor === nAuthor;
+    }
+    
+    return false;
   });
 };
 

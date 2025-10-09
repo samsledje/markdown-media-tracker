@@ -25,7 +25,7 @@ import StorageIndicator from './components/StorageIndicator.jsx';
 import { hexToRgba } from './utils/colorUtils.js';
 import { exportCSV } from './utils/csvUtils.js';
 import { OBSIDIAN_BASE_CONTENT, OBSIDIAN_BASE_FILENAME } from './services/obsidianBase.js';
-import { processCSVImport } from './utils/importUtils.js';
+import { processImportFile } from './utils/importUtils.js';
 import { hasApiKey } from './config.js';
 import { toast } from './services/toastService.js';
 
@@ -283,7 +283,7 @@ const MediaTracker = () => {
     }
   };
 
-  // Handle CSV import
+  // Handle file import (CSV or ZIP)
   const handleImportFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -300,14 +300,22 @@ const MediaTracker = () => {
       setImportAdded(0);
       setImportTotal(0);
 
-      const progressCb = ({ processed, added, total }) => {
+      const progressCb = ({ processed, added, total, currentFile, filesCompleted, totalFiles }) => {
         setImportProcessed(processed);
         setImportAdded(added);
         setImportTotal(total);
+        // You can add additional state for current file progress if needed
       };
 
-      const { added, format } = await processCSVImport(file, items, saveItem, progressCb);
-      toast(`Imported ${added} items (detected format: ${format})`, { type: 'success' });
+      const result = await processImportFile(file, items, saveItem, progressCb);
+      const { added, format, filesProcessed } = result;
+      
+      let message = `Imported ${added} items (detected format: ${format})`;
+      if (filesProcessed && filesProcessed.length > 1) {
+        message += `\nProcessed files: ${filesProcessed.join(', ')}`;
+      }
+      
+      toast(message, { type: 'success' });
     } catch (error) {
       toast(error.message, { type: 'error' });
     } finally {
@@ -666,10 +674,10 @@ const MediaTracker = () => {
             </button>
 
                   <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
-                    <input id="import-csv-input" type="file" accept=".csv,text/csv" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
+                    <input id="import-csv-input" type="file" accept=".csv,.zip,text/csv,application/zip" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
                     <Upload className="w-4 h-4" />
                     <div className="flex-1">
-                      <div>Import CSV</div>
+                      <div>Import CSV/ZIP</div>
                       {isImporting && (
                         <div className="mt-2">
                           <div className="text-xs text-slate-300">Imported {importAdded} / {importTotal}</div>
@@ -758,7 +766,7 @@ const MediaTracker = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Upload className="w-5 h-5" />
-                <div className="text-sm font-semibold">Importing CSV</div>
+                <div className="text-sm font-semibold">Importing File</div>
               </div>
               <div className="text-sm text-slate-300">{importAdded} / {importTotal}</div>
             </div>

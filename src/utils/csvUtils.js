@@ -174,7 +174,8 @@ export const parseCSV = (text) => {
 export const detectCSVFormat = (headers = []) => {
   const h = headers.map(x => String(x).toLowerCase()).join('|');
   if (h.includes('my rating') || h.includes('isbn') && h.includes('author')) return CSV_FORMATS.GOODREADS;
-  if (h.includes('your rating') || h.includes('watched') || h.includes('name') && h.includes('year')) return CSV_FORMATS.LETTERBOXD;
+  // Detect Letterboxd exports. They often include 'Your Rating', 'Watched', 'Name'/'Year' and sometimes a 'Letterboxd URI' column
+  if (h.includes('letterboxd uri') || h.includes('your rating') || h.includes('watched') || (h.includes('name') && h.includes('year'))) return CSV_FORMATS.LETTERBOXD;
   return CSV_FORMATS.GENERIC;
 };
 

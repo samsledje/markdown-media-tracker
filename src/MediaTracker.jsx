@@ -1317,7 +1317,7 @@ const MediaTracker = () => {
             </a>
             <span className="text-slate-500">|</span>
             <a
-              href="https://github.com/samsledje/markdown-media-tracker/blob/main/PRIVACY_POLICY.md"
+              href="./privacy-policy.html"
               target="_blank"
               rel="noopener noreferrer"
               className="text-slate-400 hover:text-white transition-colors"

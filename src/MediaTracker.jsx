@@ -18,7 +18,7 @@ import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
 import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
 import ObsidianBaseModal from './components/modals/ObsidianBaseModal.jsx';
-import StorageSelector from './components/StorageSelector.jsx';
+import LandingPage from './components/LandingPage.jsx';
 import StorageIndicator from './components/StorageIndicator.jsx';
 
 // Utils
@@ -393,6 +393,13 @@ const MediaTracker = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [exportSubmenuOpen]);
 
+  // Scroll to top when storage is selected (transitions from landing page to main app)
+  useEffect(() => {
+    if (!showStorageSelector) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [showStorageSelector]);
+
   // Keyboard navigation setup
   const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
     items: filteredAndSortedItems,
@@ -630,47 +637,48 @@ const MediaTracker = () => {
 
   return (
     <div className="min-h-screen text-white flex flex-col" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
-      <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
-              <img src="./logo_white.svg" alt="logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
-              <span className="hidden xs:inline">Markdown Media Tracker</span>
-              <span className="xs:hidden">MMT</span>
-            </h1>
-            <div className="flex gap-2">
-              {!storageAdapter || !storageAdapter.isConnected() ? null : (
-                <>
-                  <button
-                    onClick={() => setIsSearching(true)}
-                    className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition min-h-[44px]"
-                    style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
-                    title="Search"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span className="hidden sm:inline">Add new media</span>
-                  </button>
-
-                  <div className="relative" ref={menuRef}>
+      {!showStorageSelector && (
+        <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
+          <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+                <img src="./logo_white.svg" alt="logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
+                <span className="hidden xs:inline">Markdown Media Tracker</span>
+                <span className="xs:hidden">MMT</span>
+              </h1>
+              <div className="flex gap-2">
+                {!storageAdapter || !storageAdapter.isConnected() ? null : (
+                  <>
                     <button
-                      onClick={() => setMenuOpen(!menuOpen)}
-                      aria-expanded={menuOpen}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700 min-h-[44px]"
-                      title="More actions"
+                      onClick={() => setIsSearching(true)}
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition min-h-[44px]"
+                      style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                      title="Search"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                      <span className="hidden sm:inline">Menu</span>
+                      <Search className="w-4 h-4" />
+                      <span className="hidden sm:inline">Add new media</span>
                     </button>
-                  </div>
-                  {/* header-area left intentionally empty for floating progress UI */}
-                </>
-              )}
+
+                    <div className="relative" ref={menuRef}>
+                      <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        aria-expanded={menuOpen}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700 min-h-[44px]"
+                        title="More actions"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <span className="hidden sm:inline">Menu</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {menuOpen && menuPos && createPortal(
         <div data-menu-portal="1" style={{ position: 'fixed', left: `${menuPos.left}px`, top: `${menuPos.top}px`, width: `${menuPos.width}px`, zIndex: 99999 }}>
@@ -790,7 +798,7 @@ const MediaTracker = () => {
 
       {showStorageSelector ? (
         <div className="flex-1">
-          <StorageSelector
+          <LandingPage
             onStorageSelect={handleStorageSelect}
             availableOptions={availableStorageOptions}
             error={storageError}
@@ -1498,7 +1506,7 @@ const MediaTracker = () => {
             </a>
             <span className="text-slate-500">|</span>
             <a
-              href="https://github.com/samsledje/markdown-media-tracker/blob/main/PRIVACY_POLICY.md"
+              href="./privacy-policy.html"
               target="_blank"
               rel="noopener noreferrer"
               className="text-slate-400 hover:text-white transition-colors"

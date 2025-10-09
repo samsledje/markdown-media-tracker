@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Markdown Media Tracker</title>
+    <style>
+        :root {
+            --mt-primary: #7c3aed;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #ffffff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1));
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(30, 41, 59, 0.8);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #ffffff;
+            border-bottom: 3px solid var(--mt-primary);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #c7d2fe;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--mt-primary);
+            padding-left: 15px;
+        }
+        
+        h3 {
+            color: #a5b4fc;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        .effective-date {
+            background: rgba(71, 85, 105, 0.4);
+            padding: 15px;
+            border-left: 4px solid var(--mt-primary);
+            margin-bottom: 30px;
+            font-weight: 600;
+            border-radius: 6px;
+        }
+        
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin: 8px 0;
+            color: #e2e8f0;
+        }
+        
+        p {
+            color: #e2e8f0;
+        }
+        
+        strong {
+            color: #ffffff;
+        }
+        
+        a {
+            color: #a78bfa;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+            color: #c4b5fd;
+        }
+        
+        .contact-info {
+            background: rgba(71, 85, 105, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border: 1px solid rgba(71, 85, 105, 0.5);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(71, 85, 105, 0.5);
+            font-style: italic;
+            color: #94a3b8;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy for Markdown Media Tracker</h1>
+        
+        <div class="effective-date">
+            <strong>Effective Date:</strong> October 7, 2025
+        </div>
+
+        <h2>Overview</h2>
+        <p>Markdown Media Tracker is a local-first application designed to help you track books and movies you've read or watched. We are committed to protecting your privacy and ensuring transparency about how your data is handled.</p>
+
+        <h2>Information We Collect</h2>
+
+        <h3>Personal Information</h3>
+        <p>The application does not collect personal information such as names, email addresses, or phone numbers, except as necessary for Google Drive integration (see Google Drive section below).</p>
+
+        <h3>Media Tracking Data</h3>
+        <p>When you use the application, you create and store:</p>
+        <ul>
+            <li>Book and movie titles, authors, directors, actors</li>
+            <li>Your personal ratings and reviews</li>
+            <li>Reading/watching dates</li>
+            <li>Tags and categories you assign</li>
+            <li>Cover images (URLs only)</li>
+            <li>ISBN numbers for books</li>
+            <li>Any notes or comments you add</li>
+        </ul>
+
+        <h3>API Keys</h3>
+        <ul>
+            <li><strong>OMDb API Key</strong>: If you choose to use movie search functionality, you must provide your own OMDb API key. This key is stored locally in your browser and is only sent to OMDb for movie searches.</li>
+            <li><strong>Google API Credentials</strong>: For Google Drive integration, the app uses Google API credentials that are configured by the application maintainer.</li>
+        </ul>
+
+        <h2>How We Use Your Information</h2>
+
+        <h3>Local Storage Mode</h3>
+        <p>When using local directory storage:</p>
+        <ul>
+            <li>All your data remains on your device</li>
+            <li>No data is transmitted to our servers or any third parties (except for optional API searches)</li>
+            <li>Your files are stored as plain text Markdown files on your local file system</li>
+        </ul>
+
+        <h3>Google Drive Integration</h3>
+        <p>When using Google Drive storage:</p>
+        <ul>
+            <li>Your media tracking data is stored in your Google Drive account</li>
+            <li>We access only the specific folder you designate for the application</li>
+            <li>Your data is transmitted securely to Google Drive using HTTPS encryption</li>
+            <li>We do not access, read, or store your data on our servers</li>
+        </ul>
+
+        <h3>Third-Party API Usage</h3>
+        <ul>
+            <li><strong>OMDb API</strong>: When searching for movies, your search queries and API key are sent to OMDb. This is governed by OMDb's privacy policy.</li>
+            <li><strong>Open Library API</strong>: When searching for books, your search queries are sent to Open Library. No authentication is required.</li>
+        </ul>
+
+        <h2>Data Storage and Security</h2>
+
+        <h3>Local Storage</h3>
+        <ul>
+            <li>Data is stored directly on your device using the File System Access API</li>
+            <li>Files are saved as standard Markdown files with YAML frontmatter</li>
+            <li>No data leaves your device except for optional API searches</li>
+        </ul>
+
+        <h3>Google Drive Storage</h3>
+        <ul>
+            <li>Data is stored in your personal Google Drive account</li>
+            <li>Communication with Google Drive is encrypted using HTTPS</li>
+            <li>We use Google's official APIs and follow their security guidelines</li>
+            <li>You can revoke access at any time through your Google Account settings</li>
+        </ul>
+
+        <h3>Browser Storage</h3>
+        <ul>
+            <li>API keys are stored in your browser's localStorage</li>
+            <li>Application preferences and settings are stored locally</li>
+            <li>No tracking cookies or analytics are used</li>
+        </ul>
+
+        <h2>Data Sharing</h2>
+        <p>We do not sell, trade, or otherwise transfer your personal information or media tracking data to third parties, except:</p>
+
+        <h3>Service Providers</h3>
+        <ul>
+            <li><strong>Google Drive</strong>: If you choose Google Drive storage, your data is stored in your Google Drive account according to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's privacy policy</a></li>
+            <li><strong>OMDb</strong>: If you use movie search, your queries are sent to OMDb according to their <a href="http://www.omdbapi.com/" target="_blank" rel="noopener noreferrer">privacy policy</a></li>
+            <li><strong>Open Library</strong>: If you use book search, your queries are sent to Open Library according to the <a href="https://archive.org/about/privacy.php" target="_blank" rel="noopener noreferrer">Internet Archive Privacy Policy</a></li>
+        </ul>
+
+        <h3>Legal Requirements</h3>
+        <p>We may disclose information if required by law or in response to valid legal requests.</p>
+
+        <h2>Your Rights and Choices</h2>
+
+        <h3>Data Control</h3>
+        <ul>
+            <li><strong>Local Storage</strong>: You have complete control over your data files and can move, copy, or delete them at any time</li>
+            <li><strong>Google Drive</strong>: You can access, modify, or delete your data through the application or directly in Google Drive</li>
+        </ul>
+
+        <h3>Access Revocation</h3>
+        <ul>
+            <li><strong>Google Drive</strong>: You can revoke the application's access to your Google Drive at any time through your Google Account settings</li>
+            <li><strong>API Keys</strong>: You can remove stored API keys from the application settings</li>
+        </ul>
+
+        <h3>Data Export</h3>
+        <ul>
+            <li>All your data is stored in standard Markdown format, making it easily portable to other applications</li>
+            <li>You can export your data at any time by copying the Markdown files</li>
+        </ul>
+
+        <h2>Third-Party Services</h2>
+        <p>This application integrates with:</p>
+
+        <h3>Google Drive API</h3>
+        <ul>
+            <li><strong>Purpose</strong>: Cloud storage and synchronization</li>
+            <li><strong>Data Shared</strong>: Your media tracking files</li>
+            <li><strong>Privacy Policy</strong>: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a></li>
+        </ul>
+
+        <h3>OMDb API</h3>
+        <ul>
+            <li><strong>Purpose</strong>: Movie information lookup</li>
+            <li><strong>Data Shared</strong>: Search queries</li>
+            <li><strong>Privacy Policy</strong>: <a href="http://www.omdbapi.com/" target="_blank" rel="noopener noreferrer">OMDb Terms</a></li>
+        </ul>
+
+        <h3>Open Library API</h3>
+        <ul>
+            <li><strong>Purpose</strong>: Book information lookup</li>
+            <li><strong>Data Shared</strong>: Search queries</li>
+            <li><strong>Privacy Policy</strong>: <a href="https://archive.org/about/privacy.php" target="_blank" rel="noopener noreferrer">Internet Archive Privacy Policy</a></li>
+        </ul>
+
+        <h2>Children's Privacy</h2>
+        <p>This application is not directed to children under 13. We do not knowingly collect personal information from children under 13.</p>
+
+        <h2>International Users</h2>
+        <p>This application can be used globally. If you are using the application from outside the United States, please be aware that your information may be transferred to, stored, and processed in the United States or other countries where our service providers operate.</p>
+
+        <h2>Changes to This Privacy Policy</h2>
+        <p>We may update this privacy policy from time to time. We will notify users of any material changes by updating the "Effective Date" at the top of this policy. Continued use of the application after changes constitutes acceptance of the revised policy.</p>
+
+        <h2>Data Retention</h2>
+
+        <h3>Local File Storage</h3>
+        <ul>
+            <li>Data persists until you manually delete it</li>
+            <li>The application does not automatically delete your data</li>
+        </ul>
+
+        <h3>Google Drive File Storage</h3>
+        <ul>
+            <li>Data persists in your Google Drive according to your Google Drive settings</li>
+            <li>You can delete data at any time through the application or Google Drive</li>
+        </ul>
+
+        <h2>Security Measures</h2>
+        <ul>
+            <li>All communications with Google Drive use HTTPS encryption</li>
+            <li>API keys are stored securely in browser localStorage</li>
+            <li>The application runs entirely in your browser with no server-side data processing</li>
+            <li>Regular security updates are applied to dependencies</li>
+        </ul>
+
+        <div class="contact-info">
+            <h2>Contact Information</h2>
+            <p>This is an open-source project. For privacy-related questions or concerns:</p>
+            <ul>
+                <li><strong>GitHub Repository</strong>: <a href="https://github.com/samsledje/markdown-media-tracker" target="_blank" rel="noopener noreferrer">samsledje/markdown-media-tracker</a></li>
+                <li><strong>Issues</strong>: Please file issues on GitHub for privacy concerns or questions</li>
+            </ul>
+        </div>
+
+        <h2>Open Source</h2>
+        <p>This application is open source. You can review the complete source code to understand exactly how your data is handled:</p>
+        <ul>
+            <li><strong>Repository</strong>: <a href="https://github.com/samsledje/markdown-media-tracker" target="_blank" rel="noopener noreferrer">https://github.com/samsledje/markdown-media-tracker</a></li>
+            <li><strong>License</strong>: See LICENSE file in the repository</li>
+        </ul>
+
+        <h2>Compliance</h2>
+        <p>This privacy policy is designed to comply with:</p>
+        <ul>
+            <li>General Data Protection Regulation (GDPR)</li>
+            <li>California Consumer Privacy Act (CCPA)</li>
+            <li>Google API Services User Data Policy</li>
+        </ul>
+
+        <div class="footer">
+            <p><em>This privacy policy was last updated on October 7, 2025.</em></p>
+        </div>
+    </div>
+</body>
+</html>

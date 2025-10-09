@@ -21,13 +21,7 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 sm:py-20 text-center">
-      <img src="./logo_white.svg" alt="Markdown Media Tracker logo" className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-6 object-contain" />
-      <h2 className="text-2xl sm:text-3xl font-bold mb-4 leading-mobile">Welcome to Markdown Media Tracker</h2>
-      <p className="text-slate-400 mb-8 sm:mb-12 max-w-2xl mx-auto text-base leading-mobile">
-        Choose where to store your book and movie markdown files. Each item will be saved as a separate .md file with YAML frontmatter.
-      </p>
-
+    <div className="text-center">
       {error && (
         <div className="mb-6 sm:mb-8 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
           <p className="font-medium">Connection Error</p>
@@ -69,11 +63,21 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
               className={`
                 w-full p-6 sm:p-8 rounded-xl border-2 transition-all duration-200 text-left flex flex-col min-h-[120px] sm:min-h-auto
                 ${option.supported 
-                  ? 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50 cursor-pointer' 
+                  ? 'border-slate-600 hover:bg-slate-800/50 cursor-pointer' 
                   : 'border-slate-700 bg-slate-800/30 cursor-not-allowed opacity-50'
                 }
                 ${isLoading ? 'pointer-events-none opacity-50' : ''}
               `}
+              onMouseEnter={(e) => {
+                if (option.supported && !isLoading) {
+                  e.currentTarget.style.borderColor = 'var(--mt-highlight)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (option.supported && !isLoading) {
+                  e.currentTarget.style.borderColor = '';
+                }
+              }}
             >
               <div className="flex items-center gap-4 mb-4">
                 {getIcon(option.type)}

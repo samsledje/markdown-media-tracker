@@ -264,7 +264,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     }
   }
 
-  async loadItems() {
+  async loadItems(onProgress = null) {
     if (!this.isConnected()) {
       throw new Error('Not connected to Google Drive');
     }
@@ -279,40 +279,80 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
         orderBy: 'modifiedTime desc'
       });
 
-      console.log('loadItems: Found files:', response.result.files.length);
-      const items = [];
+      const files = response.result.files;
+      const totalFiles = files.length;
+      console.log('loadItems: Found files:', totalFiles);
       
-      for (let i = 0; i < response.result.files.length; i++) {
-        const file = response.result.files[i];
-        console.log(`loadItems: Processing file ${i + 1}/${response.result.files.length}: ${file.name}`);
+      if (totalFiles === 0) {
+        return [];
+      }
+
+      const items = [];
+      let processedCount = 0;
+
+      // Process files in parallel batches to avoid overwhelming the browser
+      const BATCH_SIZE = 20; // Download 20 files concurrently
+      
+      for (let batchStart = 0; batchStart < totalFiles; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, totalFiles);
+        const batch = files.slice(batchStart, batchEnd);
         
-        try {
-          const content = await this._downloadFile(file.id);
-          const { metadata, body } = parseMarkdown(content);
-          
-          items.push({
-            id: file.name.replace('.md', ''),
-            filename: file.name,
-            // preserve parsed status from frontmatter
-            status: metadata.status,
-            fileId: file.id,
-            title: metadata.title || 'Untitled',
-            type: metadata.type || 'book',
-            author: metadata.author,
-            director: metadata.director,
-            actors: metadata.actors || [],
-            isbn: metadata.isbn,
-            year: metadata.year,
-            rating: metadata.rating,
-            tags: metadata.tags || [],
-            coverUrl: metadata.coverUrl,
-            dateRead: metadata.dateRead,
-            dateWatched: metadata.dateWatched,
-            dateAdded: metadata.dateAdded,
-            review: body
-          });
-        } catch (error) {
-          console.error(`Error loading file ${file.name}:`, error);
+        console.log(`loadItems: Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (files ${batchStart + 1}-${batchEnd} of ${totalFiles})`);
+        
+        // Download all files in this batch in parallel
+        const batchPromises = batch.map(async (file) => {
+          try {
+            const content = await this._downloadFile(file.id);
+            const { metadata, body } = parseMarkdown(content);
+            
+            return {
+              id: file.name.replace('.md', ''),
+              filename: file.name,
+              status: metadata.status,
+              fileId: file.id,
+              title: metadata.title || 'Untitled',
+              type: metadata.type || 'book',
+              author: metadata.author,
+              director: metadata.director,
+              actors: metadata.actors || [],
+              isbn: metadata.isbn,
+              year: metadata.year,
+              rating: metadata.rating,
+              tags: metadata.tags || [],
+              coverUrl: metadata.coverUrl,
+              dateRead: metadata.dateRead,
+              dateWatched: metadata.dateWatched,
+              dateAdded: metadata.dateAdded,
+              review: body
+            };
+          } catch (error) {
+            console.error(`Error loading file ${file.name}:`, error);
+            return null;
+          }
+        });
+        
+        // Wait for all files in this batch to complete
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        // Add successfully loaded items
+        batchResults.forEach(result => {
+          if (result.status === 'fulfilled' && result.value) {
+            items.push(result.value);
+          }
+          processedCount++;
+        });
+        
+        // Report progress after each batch
+        if (typeof onProgress === 'function') {
+          try {
+            onProgress({
+              processed: processedCount,
+              total: totalFiles,
+              items: [...items] // Send current items for progressive loading
+            });
+          } catch (err) {
+            console.error('Error in onProgress callback:', err);
+          }
         }
       }
 

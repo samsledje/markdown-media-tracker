@@ -12,6 +12,7 @@ export const useItems = () => {
   const [storageInfo, setStorageInfo] = useState(null);
   const [undoStack, setUndoStack] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadProgress, setLoadProgress] = useState({ processed: 0, total: 0 });
 
   /**
    * Initialize storage adapter
@@ -33,15 +34,39 @@ export const useItems = () => {
 
   /**
    * Load items from storage
+   * @param {StorageAdapter} adapter - Storage adapter to load from
+   * @param {Function} onProgress - Optional callback(progress) for progressive loading
    */
-  const loadItems = async (adapter = storageAdapter) => {
+  const loadItems = async (adapter = storageAdapter, onProgress = null) => {
     if (!adapter || !adapter.isConnected()) return;
     
     try {
       setIsLoading(true);
-      const loadedItems = await adapter.loadItems();
+      setLoadProgress({ processed: 0, total: 0 });
+      
+      // Create progress handler that updates state progressively
+      const progressHandler = (progress) => {
+        // Update load progress state
+        setLoadProgress({
+          processed: progress.processed || 0,
+          total: progress.total || 0
+        });
+        
+        // Update items state with partial results
+        if (progress.items && progress.items.length > 0) {
+          setItems(progress.items);
+        }
+        
+        // Call user-provided progress callback
+        if (typeof onProgress === 'function') {
+          onProgress(progress);
+        }
+      };
+      
+      const loadedItems = await adapter.loadItems(progressHandler);
       setItems(loadedItems);
       setStorageInfo(adapter.getStorageInfo());
+      setLoadProgress({ processed: loadedItems.length, total: loadedItems.length });
     } catch (error) {
       console.error('Error loading items:', error);
       toast(`Error loading items: ${error.message}`, { type: 'error' });
@@ -61,7 +86,20 @@ export const useItems = () => {
     try {
       setIsLoading(true);
       await storageAdapter.saveItem(item);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => {
+        const existingIndex = prevItems.findIndex(i => i.id === item.id);
+        if (existingIndex >= 0) {
+          // Update existing item
+          const updated = [...prevItems];
+          updated[existingIndex] = { ...updated[existingIndex], ...item };
+          return updated;
+        } else {
+          // Add new item
+          return [item, ...prevItems];
+        }
+      });
     } catch (error) {
       console.error('Error saving item:', error);
       throw error;
@@ -82,7 +120,10 @@ export const useItems = () => {
       setIsLoading(true);
       const undoInfo = await storageAdapter.deleteItem(item);
       setUndoStack(prev => [...prev, undoInfo]);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => prevItems.filter(i => i.id !== item.id));
+      
       return undoInfo;
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -102,10 +143,13 @@ export const useItems = () => {
 
     setIsLoading(true);
     const undoInfos = [];
+    const deletedIds = [];
+    
     for (const item of itemsToDelete) {
       try {
         const undoInfo = await storageAdapter.deleteItem(item);
         undoInfos.push(undoInfo);
+        deletedIds.push(item.id);
       } catch (error) {
         console.error('Error deleting item:', item.title, error);
       }
@@ -113,7 +157,9 @@ export const useItems = () => {
 
     if (undoInfos.length > 0) {
       setUndoStack(prev => [...prev, ...undoInfos]);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => prevItems.filter(item => !deletedIds.includes(item.id)));
     }
     
     setIsLoading(false);
@@ -134,7 +180,11 @@ export const useItems = () => {
     try {
       setIsLoading(true);
       const restoredIdentifier = await storageAdapter.restoreItem(lastUndo);
+      
+      // Reload items to restore the deleted item(s) since we don't have the full item data
+      // in the undo stack (only fileId/filename). This is unavoidable for undo operations.
       await loadItems();
+      
       return restoredIdentifier;
     } catch (error) {
       console.error('Error undoing delete:', error);
@@ -202,7 +252,8 @@ export const useItems = () => {
     }
 
     setIsLoading(true);
-    const updated = [];
+    const updatedItems = [];
+    
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id);
       if (!item) continue;
@@ -226,18 +277,23 @@ export const useItems = () => {
 
       try {
         await storageAdapter.saveItem(newItem);
-        updated.push(newItem.id);
+        updatedItems.push(newItem);
       } catch (error) {
         console.error('Error updating item:', item.title, error);
       }
     }
 
-    if (updated.length > 0) {
-      await loadItems();
+    if (updatedItems.length > 0) {
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => {
+        const itemsMap = new Map(prevItems.map(item => [item.id, item]));
+        updatedItems.forEach(item => itemsMap.set(item.id, item));
+        return Array.from(itemsMap.values());
+      });
     }
     
     setIsLoading(false);
-    return updated;
+    return updatedItems.map(item => item.id);
   };
 
   return {
@@ -245,6 +301,7 @@ export const useItems = () => {
     storageAdapter,
     storageInfo,
     isLoading,
+    loadProgress,
     undoStack: undoStack.length,
     initializeStorage,
     loadItems,

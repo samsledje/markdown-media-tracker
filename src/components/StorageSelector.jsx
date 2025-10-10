@@ -6,7 +6,7 @@ import GoogleDriveConfigModal from './modals/GoogleDriveConfigModal.jsx';
  * Storage Selector Component
  * Allows users to choose between local files and Google Drive storage
  */
-const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoading }) => {
+const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoading, loadProgress }) => {
   const [showGoogleDriveModal, setShowGoogleDriveModal] = useState(false);
 
   const getIcon = (type) => {
@@ -22,6 +22,30 @@ const StorageSelector = ({ onStorageSelect, availableOptions = [], error, isLoad
 
   return (
     <div className="text-center">
+      {/* Loading Progress Indicator */}
+      {isLoading && loadProgress && loadProgress.total > 0 && (
+        <div className="mb-6 sm:mb-8 p-6 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+            <p className="text-lg font-medium text-blue-300">
+              Loading your library...
+            </p>
+          </div>
+          <div className="max-w-md mx-auto">
+            <div className="flex justify-between text-sm text-slate-300 mb-2">
+              <span>{loadProgress.processed} / {loadProgress.total} files</span>
+              <span>{Math.round((loadProgress.processed / loadProgress.total) * 100)}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+              <div 
+                className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${(loadProgress.processed / loadProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {error && (
         <div className="mb-6 sm:mb-8 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
           <p className="font-medium">Connection Error</p>

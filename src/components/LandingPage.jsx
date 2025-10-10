@@ -6,7 +6,7 @@ import StorageSelector from './StorageSelector.jsx';
  * Enhanced Landing Page Component
  * Provides a comprehensive introduction to the app before storage selection
  */
-const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) => {
+const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading, loadProgress }) => {
   // Refs for smooth scrolling
   const featuresRef = useRef(null);
   const storageRef = useRef(null);
@@ -301,6 +301,7 @@ const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) =>
             availableOptions={availableOptions}
             error={error}
             isLoading={isLoading}
+            loadProgress={loadProgress}
           />
         </div>
       </section>

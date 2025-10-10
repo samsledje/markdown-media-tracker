@@ -64,7 +64,7 @@ export class FileSystemStorage extends StorageAdapter {
     this.trashHandle = null;
   }
 
-  async loadItems() {
+  async loadItems(onProgress = null) {
     if (!this.directoryHandle) {
       throw new Error('Please select a directory first');
     }

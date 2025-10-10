@@ -142,6 +142,7 @@ const MediaTracker = () => {
     storageAdapter,
     storageInfo,
     isLoading,
+    loadProgress,
     undoStack,
     initializeStorage,
     loadItems,
@@ -1067,6 +1068,7 @@ const MediaTracker = () => {
             availableOptions={availableStorageOptions}
             error={storageError}
             isLoading={isLoading}
+            loadProgress={loadProgress}
           />
         </div>
       ) : (

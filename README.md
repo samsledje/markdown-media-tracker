@@ -4,6 +4,22 @@
 
 A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite with flexible storage options — use local directories or sync with Google Drive.
 
+## Why Markdown Media Tracker?
+
+**Privacy-First Storage**  
+Your data stays yours. Choose local storage or Google Drive—no third-party servers, no tracking, no subscriptions.
+
+**Markdown-Powered**  
+Each item is a simple `.md` file with YAML frontmatter. Works seamlessly with Obsidian, Git, and your favorite text editor.
+
+**Rich Features**  
+Search Open Library and OMDb, import from Goodreads/Letterboxd, filter by rating and tags, and customize your view.
+
+**Keyboard-First**  
+Navigate your entire library without touching the mouse. Comprehensive shortcuts for power users who want speed.
+
+### Key Features
+
 - Store each item (book or movie) as a single `.md` file with YAML frontmatter.
 - Browse, search, filter, sort, and batch-edit items.
 - Add items manually or search online (Open Library for books, OMDb for movies).
@@ -37,6 +53,7 @@ npm run dev
 ```
 
 3. Open the URL printed by Vite (usually `http://localhost:5173`) in a supported browser.
+
 
 ## Storage Options
 
@@ -173,27 +190,55 @@ The app will work without an API key, but movie search functionality will be dis
 
 If you don't provide an OMDb API key the movie search functionality will be limited or fail — the app will still work for manual entry and browsing local markdown files.
 
-## Demo Screenshots
+## Screenshots
 
-### Storage selection screen
-
-![Storage selection](public/screenshots/directory-select.jpg)
-
-### Main grid view
+### Main Library View
 
 ![Main panel](public/screenshots/main-panel.jpg)
 
-### Item detail modal
+Keep track of books and movies in one central library with a clean, customizable interface.
 
-![Item detail modal](public/screenshots/item-detail.jpg)
-
-### Online search
+### Online Search
 
 ![Online search](public/screenshots/online-search.jpg)
 
-### Customize appearance
+Search Open Library and OMDb to quickly add new items with automatic metadata retrieval.
+
+### Manual Entry & Editing
+
+![Manual edit](public/screenshots/manual-edit.jpg)
+
+Manually add or edit items with full control over all details and metadata.
+
+### Item Details
+
+![Item detail modal](public/screenshots/item-detail.jpg)
+
+View comprehensive information for each book or movie, including cover art, ratings, tags, and your notes.
+
+### Sort & Filter
+
+![Sort and filter](public/screenshots/sort-and-filter.jpg)
+
+Sort and filter your collection by rating, tags, status, type, and more to find exactly what you're looking for.
+
+### Keyboard Navigation
+
+![Keyboard shortcuts](public/screenshots/keyboard-shortcuts.jpg)
+
+Navigate efficiently with comprehensive keyboard shortcuts for power users who want speed and efficiency.
+
+### Custom Colors & Themes
 
 ![Customize appearance](public/screenshots/custom-colors.jpg)
+
+Customize card sizes, colors, and themes to match your personal style and preferences.
+
+### Markdown Files & Obsidian
+
+![Obsidian files](public/screenshots/obsidian-files.jpg)
+
+Your entire library consists of simple markdown files with YAML frontmatter, fully compatible with Obsidian and other markdown editors.
 
 ## Obsidian Compatibility
 
@@ -287,6 +332,36 @@ Batch operations are optimized for large selections:
 
 The importer uses simple heuristics and may not perfectly map every custom CSV. Review imported items and edit any missing details. Basic deduplication is performed by matching Title + Author; duplicates will be skipped. Import operations use batch-optimized saving that prevents reloading after each individual item, significantly improving performance for large imports.
 
+### Import from Goodreads
+
+Export your "Bookshelf" CSV from Goodreads (My Books → Import/Export) and import it directly. The app will automatically:
+
+- Detect the Goodreads format and map columns like "Title", "Author", "My Rating", "My Review", and "Date Read"
+- Enrich missing metadata using Open Library lookups by ISBN
+- Save each book as an individual `.md` file in your library
+
+### Import from Letterboxd
+
+Letterboxd users can import their complete movie history using the full export:
+
+1. **Export your data**: Go to Letterboxd Settings → Data → Export Your Data and download the ZIP file
+2. **Import the ZIP**: Click "Import CSV" in the app and select the downloaded ZIP file
+3. **Automatic processing**: The app will process multiple files in the correct order:
+   - **watched.csv** and **watchlist.csv**: Creates movie entries with watch status
+   - **ratings.csv**: Updates existing movies with your ratings
+   - **reviews.csv**: Adds your reviews and merges tags
+   - **films.csv** (liked films): Adds a "liked" tag to existing movies
+
+The importer intelligently matches movies across files by title, director, and year to avoid duplicates and properly merge all your data. Movie metadata is automatically enriched using OMDb lookups.
+
+**Single CSV Import**: You can also import individual Letterboxd CSV files (like a standalone ratings export) if you prefer.
+
+### Import Notes
+
+- **Smart deduplication**: The app detects duplicates by matching title + author (books) or title + director (movies) to prevent duplicate entries
+- **Automatic enrichment**: Book imports use ISBN lookups via Open Library, movie imports use OMDb to fill missing metadata
+- **Progress tracking**: Real-time progress updates show you how many items have been processed during import
+- **Error handling**: If individual items fail to import, the process continues with remaining items
 
 ## Troubleshooting
 
@@ -296,7 +371,6 @@ The importer uses simple heuristics and may not perfectly map every custom CSV. 
   - **Use Google Drive storage instead** (works in all modern browsers)
   - Use Chrome or Edge on desktop for local storage
   - Run the app inside an Electron wrapper that enables the API
-  - As a temporary fallback you can edit or add markdown files directly in the `data/` folder — the sample files there follow the same structure the app expects
 
 - **Google Drive connection issues**: If Google Drive authentication fails:
   - Ensure popups are allowed for the app's domain

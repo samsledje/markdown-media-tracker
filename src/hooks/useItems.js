@@ -134,7 +134,7 @@ export const useItems = () => {
   };
 
   /**
-   * Delete multiple items
+   * Delete multiple items (parallel processing)
    */
   const deleteItems = async (itemsToDelete) => {
     if (!storageAdapter || !storageAdapter.isConnected()) {
@@ -145,14 +145,36 @@ export const useItems = () => {
     const undoInfos = [];
     const deletedIds = [];
     
-    for (const item of itemsToDelete) {
-      try {
-        const undoInfo = await storageAdapter.deleteItem(item);
-        undoInfos.push(undoInfo);
-        deletedIds.push(item.id);
-      } catch (error) {
-        console.error('Error deleting item:', item.title, error);
-      }
+    // Process deletions in parallel with batches
+    const BATCH_SIZE = 10; // Process 10 deletions concurrently
+    
+    for (let batchStart = 0; batchStart < itemsToDelete.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, itemsToDelete.length);
+      const batch = itemsToDelete.slice(batchStart, batchEnd);
+      
+      console.log(`Deleting batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (items ${batchStart + 1}-${batchEnd} of ${itemsToDelete.length})`);
+      
+      // Delete all items in this batch in parallel
+      const batchPromises = batch.map(async (item) => {
+        try {
+          const undoInfo = await storageAdapter.deleteItem(item);
+          return { success: true, undoInfo, id: item.id };
+        } catch (error) {
+          console.error('Error deleting item:', item.title, error);
+          return { success: false, error, id: item.id };
+        }
+      });
+      
+      // Wait for all deletions in this batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Collect successful deletions
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          undoInfos.push(result.value.undoInfo);
+          deletedIds.push(result.value.id);
+        }
+      });
     }
 
     if (undoInfos.length > 0) {
@@ -244,7 +266,7 @@ export const useItems = () => {
   };
 
   /**
-   * Apply batch edits to multiple items
+   * Apply batch edits to multiple items (parallel processing)
    */
   const applyBatchEdit = async (selectedIds, changes) => {
     if (!storageAdapter || !storageAdapter.isConnected()) {
@@ -254,6 +276,8 @@ export const useItems = () => {
     setIsLoading(true);
     const updatedItems = [];
     
+    // Prepare all items to edit
+    const itemsToEdit = [];
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id);
       if (!item) continue;
@@ -275,12 +299,38 @@ export const useItems = () => {
       if (changes.dateRead) newItem.dateRead = changes.dateRead;
       if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
 
-      try {
-        await storageAdapter.saveItem(newItem);
-        updatedItems.push(newItem);
-      } catch (error) {
-        console.error('Error updating item:', item.title, error);
-      }
+      itemsToEdit.push(newItem);
+    }
+
+    // Process edits in parallel with batches
+    const BATCH_SIZE = 10; // Process 10 edits concurrently
+    
+    for (let batchStart = 0; batchStart < itemsToEdit.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, itemsToEdit.length);
+      const batch = itemsToEdit.slice(batchStart, batchEnd);
+      
+      console.log(`Editing batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (items ${batchStart + 1}-${batchEnd} of ${itemsToEdit.length})`);
+      
+      // Save all items in this batch in parallel
+      const batchPromises = batch.map(async (item) => {
+        try {
+          await storageAdapter.saveItem(item);
+          return { success: true, item };
+        } catch (error) {
+          console.error('Error updating item:', item.title, error);
+          return { success: false, error, item };
+        }
+      });
+      
+      // Wait for all edits in this batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Collect successful edits
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          updatedItems.push(result.value.item);
+        }
+      });
     }
 
     if (updatedItems.length > 0) {

@@ -381,10 +381,54 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
 
     // console log length of mapped
     console.log("Mapped rows count:", mapped.length);
+    
+    // Queue for items ready to be saved (enriched and deduplicated)
+    const saveQueue = [];
+    const SAVE_BATCH_SIZE = 10; // Save 10 items concurrently
+    
+    // Helper to flush the save queue
+    const flushSaveQueue = async () => {
+      if (saveQueue.length === 0) return;
+      
+      const itemsToSave = [...saveQueue];
+      saveQueue.length = 0; // Clear the queue
+      
+      console.log(`[Import] Flushing save queue with ${itemsToSave.length} items`);
+      
+      // Save all items in parallel
+      const savePromises = itemsToSave.map(async ({ item, dedupeKeys }) => {
+        try {
+          await saveItem(item);
+          // Add to dedupe set after successful save
+          dedupeKeys.forEach(key => dedupeSet.add(key));
+          return { success: true, item };
+        } catch (err) {
+          console.error('Error saving imported item', item, err);
+          return { success: false, item, error: err };
+        }
+      });
+      
+      const results = await Promise.allSettled(savePromises);
+      
+      // Count successful saves
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          added++;
+        }
+      });
+      
+      // Report progress after batch
+      if (typeof onProgress === 'function') {
+        onProgress({ processed, added, total });
+      }
+    };
+    
     for (const rawRow of mapped) {
       // Check if import was aborted
       if (signal && signal.aborted) {
         console.log('[Import] Aborted during processing');
+        // Flush any pending saves before aborting
+        await flushSaveQueue();
         throw new DOMException('Import was cancelled', 'AbortError');
       }
 
@@ -465,36 +509,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
             existing.tags = Array.isArray(existing.tags) ? existing.tags : (existing.tags ? String(existing.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
             existing.tags = Array.from(new Set([...(existing.tags || []), 'liked']));
           }
-          try {
-            // Ensure the filename is preserved to avoid creating duplicates
-            if (!existing.filename && itemsForMatching) {
-              const originalItem = itemsForMatching.find(orig => 
-                orig.title === existing.title && 
-                orig.type === existing.type && 
-                orig.director === existing.director
-              );
-              if (originalItem && originalItem.filename) {
-                existing.filename = originalItem.filename;
-              }
+          // Ensure the filename is preserved to avoid creating duplicates
+          if (!existing.filename && itemsForMatching) {
+            const originalItem = itemsForMatching.find(orig => 
+              orig.title === existing.title && 
+              orig.type === existing.type && 
+              orig.director === existing.director
+            );
+            if (originalItem && originalItem.filename) {
+              existing.filename = originalItem.filename;
             }
-            
-            await saveItem(existing);
-            // Count this as an 'added' match (we updated an existing item)
-            added++;
-            
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-          } catch (e) {
-            console.error('[Import] Failed to save updated item for ratings/reviews import', existing.title, e);
+          }
+          
+          // Prepare dedupe keys
+          const t = normalizeForCompare(existing.title||'');
+          const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+          const i = normalizeISBNForCompare(existing.isbn||'');
+          const dedupeKeys = [`${t}|${second}`];
+          if (i) dedupeKeys.push(`isbn:${i}`);
+          if (existing.type === 'movie') {
+            dedupeKeys.push(`${t}|`);
+          }
+          
+          // Add to save queue instead of saving immediately
+          saveQueue.push({ item: existing, dedupeKeys });
+          
+          // Flush queue if it reaches batch size
+          if (saveQueue.length >= SAVE_BATCH_SIZE) {
+            await flushSaveQueue();
           }
           // mark as processed (not added)
           processed++;
@@ -596,35 +638,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
               const raw = baseItem.rating || existing.rating || 0;
               existing.rating = normalizeRating(raw);
             }
-            try {
-              // Ensure the filename is preserved to avoid creating duplicates
-              if (!existing.filename && itemsForMatching) {
-                const originalItem = itemsForMatching.find(orig => 
-                  orig.title === existing.title && 
-                  orig.type === existing.type && 
-                  orig.director === existing.director
-                );
-                if (originalItem && originalItem.filename) {
-                  existing.filename = originalItem.filename;
-                }
+            // Ensure the filename is preserved to avoid creating duplicates
+            if (!existing.filename && itemsForMatching) {
+              const originalItem = itemsForMatching.find(orig => 
+                orig.title === existing.title && 
+                orig.type === existing.type && 
+                orig.director === existing.director
+              );
+              if (originalItem && originalItem.filename) {
+                existing.filename = originalItem.filename;
               }
-              
-              await saveItem(existing);
-              added++;
-              
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-            } catch (e) {
-              console.error('[Import] Failed to save updated rating for', existing.title, e);
+            }
+            
+            // Prepare dedupe keys
+            const t = normalizeForCompare(existing.title||'');
+            const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+            const i = normalizeISBNForCompare(existing.isbn||'');
+            const dedupeKeys = [`${t}|${second}`];
+            if (i) dedupeKeys.push(`isbn:${i}`);
+            if (existing.type === 'movie') {
+              dedupeKeys.push(`${t}|`);
+            }
+            
+            // Add to save queue instead of saving immediately
+            saveQueue.push({ item: existing, dedupeKeys });
+            
+            // Flush queue if it reaches batch size
+            if (saveQueue.length >= SAVE_BATCH_SIZE) {
+              await flushSaveQueue();
             }
             // count as processed but not added
             processed++;
@@ -648,35 +689,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
               const merged = new Set([...(existing.tags || []), ...incomingTags]);
               existing.tags = Array.from(merged);
             }
-            try {
-              // Ensure the filename is preserved to avoid creating duplicates
-              if (!existing.filename && itemsForMatching) {
-                const originalItem = itemsForMatching.find(orig => 
-                  orig.title === existing.title && 
-                  orig.type === existing.type && 
-                  orig.director === existing.director
-                );
-                if (originalItem && originalItem.filename) {
-                  existing.filename = originalItem.filename;
-                }
+            // Ensure the filename is preserved to avoid creating duplicates
+            if (!existing.filename && itemsForMatching) {
+              const originalItem = itemsForMatching.find(orig => 
+                orig.title === existing.title && 
+                orig.type === existing.type && 
+                orig.director === existing.director
+              );
+              if (originalItem && originalItem.filename) {
+                existing.filename = originalItem.filename;
               }
-              
-              await saveItem(existing);
-              added++;
-              
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-            } catch (e) {
-              console.error('[Import] Failed to save updated review for', existing.title, e);
+            }
+            
+            // Prepare dedupe keys
+            const t = normalizeForCompare(existing.title||'');
+            const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+            const i = normalizeISBNForCompare(existing.isbn||'');
+            const dedupeKeys = [`${t}|${second}`];
+            if (i) dedupeKeys.push(`isbn:${i}`);
+            if (existing.type === 'movie') {
+              dedupeKeys.push(`${t}|`);
+            }
+            
+            // Add to save queue instead of saving immediately
+            saveQueue.push({ item: existing, dedupeKeys });
+            
+            // Flush queue if it reaches batch size
+            if (saveQueue.length >= SAVE_BATCH_SIZE) {
+              await flushSaveQueue();
             }
             // count as processed but not added
             processed++;
@@ -694,21 +734,26 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
 
         const itemToSave = baseItem;
 
-  await saveItem(itemToSave);
-  added++;
-  // add to dedupe set to prevent duplicates later in this import
-  dedupeSet.add(key);
-  if (i) dedupeSet.add(`isbn:${i}`);
-  // For movies, also add title-only key
-  if (m.type === 'movie') {
-    dedupeSet.add(`${t}|`);
-  }
+        // Prepare dedupe keys
+        const dedupeKeys = [key];
+        if (i) dedupeKeys.push(`isbn:${i}`);
+        if (m.type === 'movie') {
+          dedupeKeys.push(`${t}|`);
+        }
+        
+        // Add to save queue instead of saving immediately
+        saveQueue.push({ item: itemToSave, dedupeKeys });
+        
+        // Flush queue if it reaches batch size
+        if (saveQueue.length >= SAVE_BATCH_SIZE) {
+          await flushSaveQueue();
+        }
       } catch (err) {
         // Re-throw AbortError to stop the import
         if (err.name === 'AbortError') {
           throw err;
         }
-        console.error('Error saving imported item', m, err);
+        console.error('Error processing imported item', m, err);
       }
       // increment processed count and report progress
       processed++;
@@ -721,6 +766,9 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
         }
       }
     }
+    
+    // Flush any remaining items in the save queue
+    await flushSaveQueue();
 
     return { added, format };
   } catch (err) {

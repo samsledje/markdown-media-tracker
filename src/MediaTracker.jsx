@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -100,6 +100,7 @@ const MediaTracker = () => {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [exportSubmenuOpen, setExportSubmenuOpen] = useState(false);
+  const [settingsSubmenuOpen, setSettingsSubmenuOpen] = useState(false);
   // Import progress state
   const [isImporting, setIsImporting] = useState(false);
   const [importProcessed, setImportProcessed] = useState(0);
@@ -129,12 +130,15 @@ const MediaTracker = () => {
   const storageIndicatorRef = useRef(null);
   const exportSubmenuTimeoutRef = useRef(null);
   const exportContainerRef = useRef(null);
+  const settingsSubmenuTimeoutRef = useRef(null);
+  const settingsContainerRef = useRef(null);
   const importAbortControllerRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
   const [exportSubmenuPosition, setExportSubmenuPosition] = useState('right');
+  const [settingsSubmenuPosition, setSettingsSubmenuPosition] = useState('right');
 
   // Custom hooks
   const {
@@ -242,6 +246,21 @@ const MediaTracker = () => {
     }, 100);
   };
 
+  // Settings submenu hover handlers
+  const handleSettingsSubmenuEnter = () => {
+    if (settingsSubmenuTimeoutRef.current) {
+      clearTimeout(settingsSubmenuTimeoutRef.current);
+    }
+    calculateSettingsSubmenuPosition();
+    setSettingsSubmenuOpen(true);
+  };
+
+  const handleSettingsSubmenuLeave = () => {
+    settingsSubmenuTimeoutRef.current = setTimeout(() => {
+      setSettingsSubmenuOpen(false);
+    }, 100);
+  };
+
   // Calculate optimal position for export submenu
   const calculateExportSubmenuPosition = () => {
     if (!exportContainerRef.current) return;
@@ -264,6 +283,28 @@ const MediaTracker = () => {
     }
   };
 
+  // Calculate optimal position for settings submenu
+  const calculateSettingsSubmenuPosition = () => {
+    if (!settingsContainerRef.current) return;
+    
+    const containerRect = settingsContainerRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const submenuWidth = 160; // min-w-[160px]
+    const spacing = 8; // ml-2/mr-2
+    const buffer = 16; // Extra buffer from screen edge
+    
+    // Check if submenu would overflow on the right
+    const rightEdge = containerRect.right + spacing + submenuWidth + buffer;
+    
+    if (rightEdge > viewportWidth) {
+      // Position to the left
+      setSettingsSubmenuPosition('left');
+    } else {
+      // Position to the right (default)
+      setSettingsSubmenuPosition('right');
+    }
+  };
+
   // Focus search input
   const focusSearch = () => {
     if (searchInputRef.current) {
@@ -281,6 +322,28 @@ const MediaTracker = () => {
       setCustomizeOpen(false);
       // Then toggle storage modal
       storageIndicatorRef.current.toggleModal();
+    }
+  };
+
+  // Handle clearing Google Drive cache
+  const handleClearCache = async () => {
+    if (!storageAdapter || storageAdapter.getStorageType() !== 'googledrive') return;
+    
+    try {
+      await storageAdapter.clearCache();
+      toast('Cache cleared! Reloading fresh data...', { type: 'success' });
+      
+      // Reload items after clearing cache
+      setTimeout(() => {
+        loadItems();
+      }, 500);
+      
+      // Close menu
+      setMenuOpen(false);
+      setSettingsSubmenuOpen(false);
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      toast('Failed to clear cache', { type: 'error' });
     }
   };
 
@@ -942,13 +1005,47 @@ const MediaTracker = () => {
               )}
             </div>
 
-            <button
-              onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); }}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            <div 
+              ref={settingsContainerRef}
+              className="relative"
+              onMouseEnter={handleSettingsSubmenuEnter}
+              onMouseLeave={handleSettingsSubmenuLeave}
             >
-              <Key className="w-4 h-4" />
-              Manage API Keys
-            </button>
+              <button
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </div>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {settingsSubmenuOpen && (
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
+                  settingsSubmenuPosition === 'left' 
+                    ? 'right-full mr-2 slide-in-from-right-2' 
+                    : 'left-full ml-2 slide-in-from-left-2'
+                }`}>
+                  <button
+                    onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); setSettingsSubmenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <Key className="w-3 h-3" />
+                    API Keys
+                  </button>
+                  {storageAdapter?.getStorageType() === 'googledrive' && (
+                    <button
+                      onClick={handleClearCache}
+                      className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear Cache
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Undo Delete option intentionally removed from the menu */}
 
@@ -1719,6 +1816,7 @@ const MediaTracker = () => {
             storageAdapter={storageAdapter}
             storageInfo={storageInfo}
             onSwitchStorage={handleDisconnectStorage}
+            onRefresh={() => loadItems()}
           />
         )}
         

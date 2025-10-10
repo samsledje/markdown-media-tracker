@@ -108,6 +108,14 @@ const MediaTracker = () => {
   const [importCurrentFile, setImportCurrentFile] = useState('');
   const [importOmdbError, setImportOmdbError] = useState(null);
   const [importOmdbErrorResolver, setImportOmdbErrorResolver] = useState(null);
+  // Delete progress state
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [deleteTotal, setDeleteTotal] = useState(0);
+  // Batch edit progress state
+  const [isEditingBatch, setIsEditingBatch] = useState(false);
+  const [editProgress, setEditProgress] = useState(0);
+  const [editTotal, setEditTotal] = useState(0);
   const [searchResultItem, setSearchResultItem] = useState(null);
   const [storageError, setStorageError] = useState(null);
   const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
@@ -333,8 +341,23 @@ const MediaTracker = () => {
         });
       };
 
-      const result = await processImportFile(file, items, saveItem, progressCb, abortController.signal, handleAPIError);
+      // Create a batch-optimized saveItem that doesn't reload after each save
+      // We'll reload once at the end instead
+      const batchSaveItem = async (item) => {
+        if (!storageAdapter || !storageAdapter.isConnected()) {
+          throw new Error('Please connect to a storage location first');
+        }
+        // Just save without reloading
+        await storageAdapter.saveItem(item);
+      };
+
+      const result = await processImportFile(file, items, batchSaveItem, progressCb, abortController.signal, handleAPIError);
       const { added, format, filesProcessed } = result;
+      
+      // Reload items once at the end (much more efficient than reloading after each save)
+      if (added > 0) {
+        await loadItems();
+      }
       
       let message = `Imported ${added} items (detected format: ${format})`;
       if (filesProcessed && filesProcessed.length > 1) {
@@ -377,11 +400,45 @@ const MediaTracker = () => {
   const confirmBatchDelete = async () => {
     try {
       const selectedItems = getSelectedItems(filteredAndSortedItems);
-      await deleteItems(selectedItems);
+      const totalItems = selectedItems.length;
+      
+      // Set up progress tracking
+      setIsDeleting(true);
+      setDeleteProgress(0);
+      setDeleteTotal(totalItems);
+      
+      // Delete items one by one with progress tracking
+      if (!storageAdapter || !storageAdapter.isConnected()) {
+        throw new Error('Please connect to a storage location first');
+      }
+
+      let deletedCount = 0;
+      const undoInfos = [];
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        try {
+          // Delete without reloading after each one
+          const undoInfo = await storageAdapter.deleteItem(item);
+          undoInfos.push(undoInfo);
+          deletedCount++;
+          setDeleteProgress(i + 1);
+        } catch (error) {
+          console.error('Error deleting item:', item.title, error);
+        }
+      }
+      
+      // Reload items only once at the end
+      if (deletedCount > 0) {
+        await loadItems();
+        toast(`Deleted ${deletedCount} item${deletedCount !== 1 ? 's' : ''}`, { type: 'success' });
+      }
+      
       clearSelection();
       setShowBatchDeleteConfirm(false);
+      setIsDeleting(false);
     } catch (error) {
       toast(error.message, { type: 'error' });
+      setIsDeleting(false);
     }
   };
 
@@ -391,12 +448,62 @@ const MediaTracker = () => {
 
   const handleBatchEdit = async (changes) => {
     try {
-      const updated = await applyBatchEdit(selectedIds, changes);
+      if (!storageAdapter || !storageAdapter.isConnected()) {
+        throw new Error('Please connect to a storage location first');
+      }
+
+      // Convert Set to Array if needed
+      const selectedIdsArray = Array.from(selectedIds);
+      
+      // Set up progress tracking
+      setIsEditingBatch(true);
+      setEditProgress(0);
+      setEditTotal(selectedIdsArray.length);
+
+      const updated = [];
+      for (let i = 0; i < selectedIdsArray.length; i++) {
+        const id = selectedIdsArray[i];
+        const item = items.find(it => it.id === id);
+        if (!item) continue;
+
+        const newItem = { ...item };
+
+        // Apply only fields present in changes (non-empty)
+        if (changes.type) newItem.type = changes.type;
+        if (changes.author) newItem.author = changes.author;
+        if (changes.director) newItem.director = changes.director;
+        if (changes.year) newItem.year = changes.year;
+        if (changes.rating !== null && changes.rating !== undefined) newItem.rating = changes.rating;
+        if (changes.addTags && changes.addTags.length) {
+          newItem.tags = Array.from(new Set([...(newItem.tags || []), ...changes.addTags]));
+        }
+        if (changes.removeTags && changes.removeTags.length) {
+          newItem.tags = (newItem.tags || []).filter(t => !changes.removeTags.includes(t));
+        }
+        if (changes.dateRead) newItem.dateRead = changes.dateRead;
+        if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
+        if (changes.status) newItem.status = changes.status;
+
+        try {
+          await storageAdapter.saveItem(newItem);
+          updated.push(newItem.id);
+          setEditProgress(i + 1);
+        } catch (error) {
+          console.error('Error updating item:', item.title, error);
+        }
+      }
+
+      if (updated.length > 0) {
+        await loadItems();
+      }
+
       setShowBatchEdit(false);
+      setIsEditingBatch(false);
       clearSelection();
-      toast(`Updated ${updated.length} items`, { type: 'success' });
+      toast(`Updated ${updated.length} item${updated.length !== 1 ? 's' : ''}`, { type: 'success' });
     } catch (error) {
       toast(error.message, { type: 'error' });
+      setIsEditingBatch(false);
     }
   };
 
@@ -481,6 +588,7 @@ const MediaTracker = () => {
     onOpenItem: setSelectedItem,
     onCloseModals: closeModals,
     onCloseBatchDeleteModal: () => setShowBatchDeleteConfirm(false),
+    onConfirmBatchDelete: confirmBatchDelete,
     selectionMode,
     selectedCount,
     hasOpenModal: !!(selectedItem || isAdding || isSearching || showHelp || showBatchEdit || showBatchDeleteConfirm || showApiKeyManager || customizeOpen || searchResultItem || storageIndicatorOpen),
@@ -1504,6 +1612,9 @@ const MediaTracker = () => {
           onClose={() => setShowBatchEdit(false)}
           onApply={handleBatchEdit}
           selectedItems={getSelectedItems(filteredAndSortedItems)}
+          isProcessing={isEditingBatch}
+          progress={editProgress}
+          total={editTotal}
         />
       )}
 
@@ -1511,24 +1622,41 @@ const MediaTracker = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold mb-4">Delete Items</h3>
-            <p className="text-slate-300 mb-6">
-              Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelBatchDelete}
-                className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmBatchDelete}
-                className="px-4 py-2 rounded transition text-sm text-white"
-                style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
-              >
-                Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
-              </button>
-            </div>
+            
+            {!isDeleting ? (
+              <>
+                <p className="text-slate-300 mb-6">
+                  Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={cancelBatchDelete}
+                    className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBatchDelete}
+                    className="px-4 py-2 rounded transition text-sm text-white"
+                    style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
+                  >
+                    Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-300 mb-4">
+                  Deleting {deleteProgress} of {deleteTotal} items...
+                </p>
+                <div className="w-full bg-slate-700 rounded-full h-2.5 mb-4">
+                  <div
+                    className="bg-red-500 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${(deleteProgress / deleteTotal) * 100}%` }}
+                  ></div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

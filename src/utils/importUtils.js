@@ -116,18 +116,12 @@ const findMatchingMovie = (existingItems = [], mappedRow = {}) => {
  * Accepts numbers or numeric strings like '3.5' and returns an integer.
  */
 const normalizeRating = (r) => {
-  console.debug("NormalizeRating input:", r);
   if (r === null || r === undefined || r === '') return 0;
   const n = Number(r);
   if (Number.isNaN(n)) {
-    console.debug('[Import][Rating] normalizeRating: input not numeric', { input: r });
     return 0;
   }
-  const rounded = Math.round(n);
-  if (rounded === 0 && n !== 0) {
-    console.debug('[Import][Rating] normalizeRating: rounded to 0 unexpectedly', { input: r, parsed: n });
-  }
-  return rounded;
+  return Math.round(n);
 };
 
 /**
@@ -265,7 +259,6 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
         // later files see the most recent version.
         const existingIndex = itemsAddedInThisFile.findIndex(it => computeKey(it) === itemKey);
         if (existingIndex !== -1) {
-          console.debug('[Import][Zip] updating itemsAddedInThisFile for', item.title, itemKey);
           itemsAddedInThisFile[existingIndex] = { ...itemsAddedInThisFile[existingIndex], ...item };
         } else {
           // If it's not present in itemsAddedInThisFile, check if it already existed
@@ -274,11 +267,9 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
           // entry in currentItems so subsequent files can find the updated values.
           const curIndex = currentItems.findIndex(it => computeKey(it) === itemKey);
           if (curIndex === -1) {
-            console.debug('[Import][Zip] adding new item to itemsAddedInThisFile', item.title, itemKey);
             itemsAddedInThisFile.push({ ...item });
           } else {
             // Merge latest fields into the existing currentItems entry
-            console.debug('[Import][Zip] merging update into currentItems for', item.title, itemKey);
             currentItems[curIndex] = { ...currentItems[curIndex], ...item };
           }
         }
@@ -385,8 +376,6 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       return keys;
     }).flat());
 
-  console.debug('[Import][Dedup] Built dedupeSet with', dedupeSet.size, 'keys from', itemsForMatching.length, 'items');
-
     // Report initial progress
     if (typeof onProgress === 'function') onProgress({ processed, added, total });
 
@@ -410,7 +399,6 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
         };
         try {
           m = await processLetterboxdRow(rawRow, file.name, null, progressBridge, { skipOmdb: skipEnrichment });
-          console.debug("Processed Letterboxd row:", m.title);
         } catch (e) {
           // Handle OMDB errors specially
           if (e instanceof OMDBError && (e.type === 'QUOTA_EXCEEDED' || e.type === 'AUTH_FAILED' || e.type === 'INVALID_KEY')) {
@@ -450,19 +438,11 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   const isFilmsFile = format === 'letterboxd' && (lowerName.includes('films.csv') || lowerName === 'films.csv' || lowerName.includes('films'));
       if (isRatingsFile || isReviewsFile || isFilmsFile) {
         const existing = findMatchingMovie(itemsForMatching, m);
-        console.log('[Import][Letterboxd] Looking for existing match for', file.name, ':', m.title, existing ? 'FOUND' : 'not found');
-        console.log('[Import][Letterboxd] itemsForMatching count:', itemsForMatching.length);
-        console.log('[Import][Letterboxd] Movie details - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
-        if (itemsForMatching.length > 0) {
-          console.log('[Import][Letterboxd] Sample existing movies:', itemsForMatching.filter(it => it.type === 'movie').slice(0, 3).map(it => ({title: it.title, director: it.director, year: it.year})));
-        }
         if (existing) {
           if (isRatingsFile) {
             // prefer m.rating, fallback to m.Rating, then existing
             const raw = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') ? m.rating : ((m.Rating !== undefined && m.Rating !== null && String(m.Rating).trim() !== '') ? m.Rating : (existing.rating || 0));
-            const nr = normalizeRating(raw);
-            console.debug('[Import][Rating] updating existing rating', { title: existing.title, raw, normalized: nr });
-            existing.rating = nr;
+            existing.rating = normalizeRating(raw);
           }
           if (isReviewsFile) {
             existing.review = (m.review !== undefined && m.review !== null && String(m.review).trim() !== '') ? m.review : existing.review || '';
@@ -470,9 +450,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
             const hasRating = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') || (m.Rating !== undefined && m.Rating !== null && String(m.Rating).trim() !== '');
             if (hasRating) {
               const raw = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') ? m.rating : m.Rating;
-              const nr = normalizeRating(raw);
-              console.debug('[Import][Rating] reviews.csv contains rating, updating existing rating', { title: existing.title, raw, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(raw);
             }
             // merge tags if present on reviews.csv
             const incomingTags = Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
@@ -524,12 +502,9 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
           // skip the normal add flow for this row
           continue;
         }
-        console.log('[Import][Letterboxd] No existing match found for', m.title, 'in file', file.name);
-        console.log('[Import][Letterboxd] Movie details for fallthrough - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
         // if no existing item found, fall through to normal import behavior (create new)
         // EXCEPTION: For films.csv, we should NEVER create new movies - only update existing ones
         if (isFilmsFile) {
-          console.log('[Import][Films] Skipping', m.title, 'from films.csv - no existing movie found to add liked tag to');
           processed++;
           if (typeof onProgress === 'function') onProgress({ processed, added, total });
           continue; // Skip this entry entirely
@@ -546,13 +521,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       // For movies, also check for title-only matches (important for films.csv which may lack director info)
       const titleOnlyKey = m.type === 'movie' ? `${t}|` : null;
       
-      console.log('[Import][Dedup] Checking:', m.title, 'from file:', file.name);
-      console.log('[Import][Dedup] Movie details - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
-      console.log('[Import][Dedup] Keys - main:', key, 'titleOnly:', titleOnlyKey);
-      console.log('[Import][Dedup] dedupeSet has main key:', dedupeSet.has(key), 'titleOnly key:', titleOnlyKey ? dedupeSet.has(titleOnlyKey) : 'N/A');
-      
   if ((isbnKey && dedupeSet.has(isbnKey)) || dedupeSet.has(key) || (titleOnlyKey && dedupeSet.has(titleOnlyKey)) || isDuplicate(itemsForMatching, m)) {
-        console.log('[Import][Dedup] SKIPPING duplicate:', m.title, 'from file:', file.name);
         // mark as processed even if skipped
         processed++;
         if (typeof onProgress === 'function') onProgress({ processed, added, total });
@@ -560,19 +529,10 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       }
 
       try {
-
-        // Debug: log the mapped row to confirm upstream ISBN parsing
-        try {
-          console.debug('[Import] mapped row before enrichment:', m);
-        } catch (e) {
-          // ignore
-        }
-
         // If this is a Goodreads import and an ISBN exists, try to enrich missing fields
         let olData = null;
         if (format === 'goodreads' && m.isbn && !skipEnrichment) {
           try {
-            console.log('[Open Library] Looking up Open Library data for ISBN', m.isbn);
             olData = await getBookByISBN(m.isbn);
           } catch (err) {
             // Handle Open Library API errors specially
@@ -631,13 +591,10 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   if (format === 'letterboxd' && (lowerName.includes('ratings.csv') || lowerName === 'ratings.csv')) {
           // rating update
           const existing = findMatchingMovie(itemsForMatching, m);
-          console.debug('[Import][Letterboxd] Secondary ratings check - itemsForMatching count:', itemsForMatching.length);
           if (existing) {
             {
               const raw = baseItem.rating || existing.rating || 0;
-              const nr = normalizeRating(raw);
-              console.debug('[Import][Rating] applying baseItem rating', { title: existing.title, raw, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(raw);
             }
             try {
               // Ensure the filename is preserved to avoid creating duplicates
@@ -679,13 +636,10 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     if (format === 'letterboxd' && (lowerName.includes('reviews.csv') || lowerName === 'reviews.csv')) {
           // review update
           const existing = findMatchingMovie(itemsForMatching, m);
-          console.debug('[Import][Letterboxd] Secondary reviews check - itemsForMatching count:', itemsForMatching.length);
           if (existing) {
             existing.review = baseItem.review || existing.review || '';
             if (baseItem.rating) {
-              const nr = normalizeRating(baseItem.rating);
-              console.debug('[Import][Rating] overwriting existing rating with baseItem rating', { title: existing.title, raw: baseItem.rating, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(baseItem.rating);
             }
             // Merge tags from the review CSV if present (avoid duplicates)
             const incomingTags = Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
@@ -740,7 +694,6 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
 
         const itemToSave = baseItem;
 
-  console.log('[Import] Creating new item:', itemToSave.title, 'from file:', file.name, 'type:', itemToSave.type);
   await saveItem(itemToSave);
   added++;
   // add to dedupe set to prevent duplicates later in this import
@@ -750,7 +703,6 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   if (m.type === 'movie') {
     dedupeSet.add(`${t}|`);
   }
-  console.debug('[Import][Dedup] Added to dedupeSet:', key);
       } catch (err) {
         // Re-throw AbortError to stop the import
         if (err.name === 'AbortError') {

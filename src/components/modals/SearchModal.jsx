@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Book, Film } from 'lucide-react';
-import { searchBooks } from '../../services/openLibraryService.js';
-import { searchMovies, isServiceAvailable } from '../../services/omdbService.js';
+import { searchBooks, OpenLibraryError } from '../../services/openLibraryService.js';
+import { searchMovies, isServiceAvailable, OMDBError } from '../../services/omdbService.js';
 import { KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { toast } from '../../services/toastService.js';
 
@@ -25,7 +25,22 @@ const SearchModal = ({ onClose, onSelect }) => {
       setResults(books);
     } catch (error) {
       console.error('Error searching books:', error);
-      toast(error.message, { type: 'error' });
+      
+      // Handle different Open Library error types
+      if (error instanceof OpenLibraryError) {
+        switch (error.type) {
+          case 'SERVICE_DOWN':
+            toast('Open Library service is temporarily unavailable. Please try again later.', { type: 'error' });
+            break;
+          case 'NETWORK':
+            toast('Unable to connect to Open Library. Please check your internet connection.', { type: 'error' });
+            break;
+          default:
+            toast(error.message, { type: 'error' });
+        }
+      } else {
+        toast(error.message || 'Failed to search books', { type: 'error' });
+      }
     }
     setLoading(false);
   };
@@ -44,10 +59,30 @@ const SearchModal = ({ onClose, onSelect }) => {
       setShowApiKeyWarning(false);
     } catch (error) {
       console.error('Error searching movies:', error);
-      if (error.message === 'API_KEY_MISSING' || error.message.includes('Invalid OMDb API key')) {
+      
+      // Handle different OMDB error types
+      if (error instanceof OMDBError) {
+        switch (error.type) {
+          case 'AUTH_FAILED':
+          case 'INVALID_KEY':
+            setShowApiKeyWarning(true);
+            toast('OMDb API key is invalid or has expired. Please check your API key in settings.', { type: 'error' });
+            break;
+          case 'QUOTA_EXCEEDED':
+            toast('OMDb API daily limit reached. Try again tomorrow or upgrade your API key.', { type: 'error' });
+            break;
+          case 'RATE_LIMIT':
+            toast('OMDb API rate limit exceeded. Please wait a moment and try again.', { type: 'error' });
+            break;
+          default:
+            toast(error.message, { type: 'error' });
+        }
+      } else if (error.message === 'API_KEY_MISSING') {
         setShowApiKeyWarning(true);
+        toast('Please configure your OMDb API key first.', { type: 'error' });
+      } else {
+        toast(error.message || 'Failed to search movies', { type: 'error' });
       }
-      toast(error.message === 'API_KEY_MISSING' ? 'Please configure your OMDb API key first.' : error.message, { type: 'error' });
     }
     setLoading(false);
   };

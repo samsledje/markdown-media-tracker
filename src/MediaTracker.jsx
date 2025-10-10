@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -105,6 +105,9 @@ const MediaTracker = () => {
   const [importProcessed, setImportProcessed] = useState(0);
   const [importAdded, setImportAdded] = useState(0);
   const [importTotal, setImportTotal] = useState(0);
+  const [importCurrentFile, setImportCurrentFile] = useState('');
+  const [importOmdbError, setImportOmdbError] = useState(null);
+  const [importOmdbErrorResolver, setImportOmdbErrorResolver] = useState(null);
   const [searchResultItem, setSearchResultItem] = useState(null);
   const [storageError, setStorageError] = useState(null);
   const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
@@ -118,6 +121,7 @@ const MediaTracker = () => {
   const storageIndicatorRef = useRef(null);
   const exportSubmenuTimeoutRef = useRef(null);
   const exportContainerRef = useRef(null);
+  const importAbortControllerRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
@@ -294,20 +298,42 @@ const MediaTracker = () => {
       return;
     }
 
+    // Create an AbortController for this import
+    const abortController = new AbortController();
+    importAbortControllerRef.current = abortController;
+
     try {
       setIsImporting(true);
       setImportProcessed(0);
       setImportAdded(0);
       setImportTotal(0);
+      setImportCurrentFile('');
 
       const progressCb = ({ processed, added, total, currentFile, filesCompleted, totalFiles }) => {
         setImportProcessed(processed);
         setImportAdded(added);
         setImportTotal(total);
-        // You can add additional state for current file progress if needed
+        if (currentFile) {
+          setImportCurrentFile(currentFile);
+        }
       };
 
-      const result = await processImportFile(file, items, saveItem, progressCb);
+      // API error handler (OMDB/OpenLibrary) - pauses import and asks user what to do
+      const handleAPIError = async (error) => {
+        // If there's already an error showing, wait for it to be resolved first
+        if (importOmdbError) {
+          console.warn('[Import] API error occurred while another error modal is showing');
+          return { continue: false, skipEnrichment: false };
+        }
+        
+        return new Promise((resolve) => {
+          setImportOmdbError(error);
+          // Store the resolve function directly, not wrapped
+          setImportOmdbErrorResolver({ resolve });
+        });
+      };
+
+      const result = await processImportFile(file, items, saveItem, progressCb, abortController.signal, handleAPIError);
       const { added, format, filesProcessed } = result;
       
       let message = `Imported ${added} items (detected format: ${format})`;
@@ -317,12 +343,29 @@ const MediaTracker = () => {
       
       toast(message, { type: 'success' });
     } catch (error) {
-      toast(error.message, { type: 'error' });
+      // Don't show error toast for user-initiated abort
+      if (error.name !== 'AbortError') {
+        toast(error.message, { type: 'error' });
+      } else {
+        console.log('[Import] Import cancelled by user');
+      }
     } finally {
       setIsImporting(false);
+      importAbortControllerRef.current = null;
+      setImportOmdbError(null);
+      setImportOmdbErrorResolver(null);
     }
 
     e.target.value = '';
+  };
+
+  // Handle user response to API error (OMDB/OpenLibrary) during import
+  const handleImportOmdbErrorResponse = (continueImport, skipEnrichment) => {
+    if (importOmdbErrorResolver && importOmdbErrorResolver.resolve) {
+      importOmdbErrorResolver.resolve({ continue: continueImport, skipEnrichment });
+      setImportOmdbError(null);
+      setImportOmdbErrorResolver(null);
+    }
   };
 
   // Handle batch operations
@@ -490,6 +533,15 @@ const MediaTracker = () => {
   // Handle storage disconnection
   const handleDisconnectStorage = async () => {
     try {
+      // Cancel any active import before disconnecting
+      if (importAbortControllerRef.current) {
+        console.log('[Storage] Cancelling active import before disconnecting storage');
+        importAbortControllerRef.current.abort();
+        importAbortControllerRef.current = null;
+        // Give the import a moment to clean up
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       await disconnectStorage();
       setShowStorageSelector(true);
       closeModals();
@@ -779,7 +831,7 @@ const MediaTracker = () => {
       )}
 
       {/* Floating import progress (bottom-left) */}
-      {isImporting && (
+      {isImporting && !importOmdbError && (
         <div className="fixed left-4 bottom-4 z-50">
           <div className="w-80 bg-slate-800/80 border border-slate-700 rounded-lg p-3 shadow-lg">
             <div className="flex items-center justify-between mb-2">
@@ -792,6 +844,84 @@ const MediaTracker = () => {
             <div className="w-full bg-slate-700 rounded h-3 overflow-hidden">
               <div className="bg-blue-500 h-3 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* OMDB Error Modal during import */}
+      {importOmdbError && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {importOmdbError.name === 'OpenLibraryError' ? 'Open Library Issue Detected' : 'OMDb API Issue Detected'}
+                </h3>
+                <p className="text-sm text-slate-300 mb-1">
+                  {importOmdbError.message}
+                </p>
+                {importOmdbError.type === 'QUOTA_EXCEEDED' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Your daily API limit has been reached. Movies will be imported with basic information from the CSV file only.
+                  </p>
+                )}
+                {importOmdbError.type === 'AUTH_FAILED' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    There's an issue with your API key. Movies will be imported with basic information from the CSV file only.
+                  </p>
+                )}
+                {importOmdbError.type === 'NETWORK' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    {importOmdbError.name === 'OpenLibraryError' 
+                      ? 'Books will be imported with information from the CSV file only.' 
+                      : 'Movies will be imported with basic information from the CSV file only.'}
+                  </p>
+                )}
+                {importOmdbError.type === 'SERVICE_DOWN' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Books will be imported with information from the CSV file only.
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
+              {importCurrentFile && (
+                <div className="mb-3 pb-2 border-b border-slate-700">
+                  <p className="text-xs text-slate-400 mb-1">Current file:</p>
+                  <p className="text-sm text-blue-400 font-mono">{importCurrentFile}</p>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mb-2">Import progress:</p>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-200">{importAdded} / {importTotal} items</div>
+                <div className="flex-1 bg-slate-700 rounded h-2 overflow-hidden">
+                  <div className="bg-blue-500 h-2 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleImportOmdbErrorResponse(false, false)}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Cancel Import
+              </button>
+              <button
+                onClick={() => handleImportOmdbErrorResponse(true, true)}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Continue Without {importOmdbError.name === 'OpenLibraryError' ? 'Enrichment' : 'OMDb'}
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 text-center mt-3">
+              Continuing will import remaining {importOmdbError.name === 'OpenLibraryError' ? 'books' : 'movies'} using only CSV data
+            </p>
           </div>
         </div>
       )}

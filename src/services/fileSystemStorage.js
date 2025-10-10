@@ -278,7 +278,8 @@ export class FileSystemStorage extends StorageAdapter {
       return restoreName;
     } catch (err) {
       console.error('Error undoing trash', err);
-      throw new Error('Error restoring file. See console for details.');
+      const errorMsg = err.message || 'Unknown error';
+      throw new Error(`Error restoring file: ${errorMsg}`);
     }
   }
 

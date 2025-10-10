@@ -1,7 +1,7 @@
 import { parseCSV, detectCSVFormat, mapGoodreadsRow, mapLetterboxdRow, mapGenericRow } from './csvUtils.js';
 import { isDuplicate, normalizeForCompare, normalizeISBNForCompare, sanitizeDisplayString } from './commonUtils.js';
-import { getBookByISBN } from '../services/openLibraryService.js';
-import { getMovieByTitleYear } from '../services/omdbService.js';
+import { getBookByISBN, OpenLibraryError } from '../services/openLibraryService.js';
+import { getMovieByTitleYear, OMDBError } from '../services/omdbService.js';
 import JSZip from 'jszip';
 
 /**
@@ -25,9 +25,10 @@ const detectLetterboxdStatusFromFilename = (filename = '') => {
  * @param {string} filename - original filename
  * @param {string|null} omdbApiKey - optional API key (not used, service reads config)
  * @param {Function} onProgress - progress bridge callback (receives {processed,added,total})
+ * @param {object} options - additional options including skipOmdb flag
  * @returns {Promise<object>} enriched mapped row suitable for saving
  */
-const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onProgress = null) => {
+const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onProgress = null, options = {}) => {
   const title = row.title || row.Name || '';
   const year = row.year || '';
 
@@ -51,18 +52,25 @@ const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onPro
     try { onProgress(); } catch (e) { /* swallow */ }
   }
 
-  try {
-    const omdb = await getMovieByTitleYear(title, year);
-    if (omdb) {
-      row.director = row.director || omdb.director || '';
-      row.actors = row.actors && row.actors.length ? row.actors : (omdb.actors || []);
-      row.coverUrl = row.coverUrl || omdb.coverUrl || '';
-      row.plot = row.plot || omdb.plot || '';
-      row.year = row.year || omdb.year || '';
+  // Skip OMDB enrichment if requested (e.g., after quota exceeded)
+  if (!options.skipOmdb) {
+    try {
+      const omdb = await getMovieByTitleYear(title, year);
+      if (omdb) {
+        row.director = row.director || omdb.director || '';
+        row.actors = row.actors && row.actors.length ? row.actors : (omdb.actors || []);
+        row.coverUrl = row.coverUrl || omdb.coverUrl || '';
+        row.plot = row.plot || omdb.plot || '';
+        row.year = row.year || omdb.year || '';
+      }
+    } catch (err) {
+      // If this is an OMDB API error (quota/auth), rethrow it so import can pause
+      if (err instanceof OMDBError && (err.type === 'QUOTA_EXCEEDED' || err.type === 'AUTH_FAILED' || err.type === 'INVALID_KEY')) {
+        throw err;
+      }
+      // For other errors, gracefully fallback: keep spreadsheet values only
+      console.warn('[Import][Letterboxd] OMDb lookup failed for', title, year, err);
     }
-  } catch (err) {
-    // Graceful fallback: keep spreadsheet values only
-    console.warn('[Import][Letterboxd] OMDb lookup failed for', title, year, err);
   }
 
   // Call progress bridge after OMDb fetch
@@ -182,10 +190,17 @@ const createFileFromContent = (content, filename) => {
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total, currentFile }
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary)
  * @returns {Promise<{added:number, format:string, filesProcessed:string[]}>} Results summary
  */
-export const processZipImport = async (zipFile, existingItems, saveItem, onProgress) => {
+export const processZipImport = async (zipFile, existingItems, saveItem, onProgress, signal = null, onAPIError = null) => {
   if (!zipFile) return { added: 0, format: 'unknown', filesProcessed: [] };
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
+  }
 
   console.log('Processing Letterboxd zip file:', zipFile.name);
   
@@ -214,6 +229,12 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
     const processingOrder = ['watched.csv', 'watchlist.csv', 'ratings.csv', 'reviews.csv', 'films.csv'];
     
     for (const expectedFile of processingOrder) {
+      // Check if import was aborted
+      if (signal && signal.aborted) {
+        console.log('[Import][Zip] Aborted during file processing');
+        throw new DOMException('Import was cancelled', 'AbortError');
+      }
+
       const csvFile = csvFiles.find(f => f.name === expectedFile);
       if (!csvFile) continue;
 
@@ -276,7 +297,7 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
       };
 
       try {
-  const result = await processCSVImport(file, currentItems, trackingSaveItem, fileProgressWrapper, currentItems);
+  const result = await processCSVImport(file, currentItems, trackingSaveItem, fileProgressWrapper, currentItems, signal, onAPIError);
         totalAdded += result.added;
         filesProcessed.push(csvFile.name);
         
@@ -310,10 +331,18 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total }
+ * @param {object} [zipCurrentItems] - Optional current items for zip imports
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary), returns { continue: bool, skipEnrichment: bool }
  * @returns {Promise<{added:number, format:string}>} Number of items imported and detected format
  */
-export const processCSVImport = async (file, existingItems, saveItem, onProgress, zipCurrentItems = null) => {
+export const processCSVImport = async (file, existingItems, saveItem, onProgress, zipCurrentItems = null, signal = null, onAPIError = null) => {
   if (!file) return 0;
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
+  }
 
   // When called from a zip import, zipCurrentItems will be passed and contains
   // the up-to-date list of items (existing + those added earlier in the zip).
@@ -338,6 +367,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     let added = 0;
     const total = mapped.length;
     let processed = 0;
+    let skipEnrichment = false; // Flag to skip API enrichment (OMDB/OpenLibrary) after user chooses to continue without it
 
     // Build a dedupe set from existingItems so we can detect duplicates quickly
     // For books use title|author, for movies use title|director
@@ -363,6 +393,11 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     // console log length of mapped
     console.log("Mapped rows count:", mapped.length);
     for (const rawRow of mapped) {
+      // Check if import was aborted
+      if (signal && signal.aborted) {
+        console.log('[Import] Aborted during processing');
+        throw new DOMException('Import was cancelled', 'AbortError');
+      }
 
       // For Letterboxd, enrich row first so we can dedupe by director
       let m = rawRow;
@@ -374,11 +409,35 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
           }
         };
         try {
-          m = await processLetterboxdRow(rawRow, file.name, null, progressBridge);
+          m = await processLetterboxdRow(rawRow, file.name, null, progressBridge, { skipOmdb: skipEnrichment });
           console.debug("Processed Letterboxd row:", m.title);
         } catch (e) {
-          console.warn('[Import] Failed to process Letterboxd row');
-          m = rawRow; // fallback to raw mapping
+          // Handle OMDB errors specially
+          if (e instanceof OMDBError && (e.type === 'QUOTA_EXCEEDED' || e.type === 'AUTH_FAILED' || e.type === 'INVALID_KEY')) {
+            console.warn('[Import] OMDB API error:', e.message);
+            
+            // Ask user what to do via callback
+            if (typeof onAPIError === 'function') {
+              const decision = await onAPIError(e);
+              if (!decision || !decision.continue) {
+                // User chose to stop import
+                throw new DOMException('Import cancelled due to API error', 'AbortError');
+              }
+              if (decision.skipEnrichment) {
+                // User chose to continue without API enrichment
+                skipEnrichment = true;
+              }
+            } else {
+              // No callback provided, skip enrichment for remaining items
+              skipEnrichment = true;
+            }
+            
+            // Process the row again without OMDB
+            m = await processLetterboxdRow(rawRow, file.name, null, progressBridge, { skipOmdb: true });
+          } else {
+            console.warn('[Import] Failed to process Letterboxd row:', e);
+            m = rawRow; // fallback to raw mapping
+          }
         }
       }
 
@@ -511,13 +570,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
 
         // If this is a Goodreads import and an ISBN exists, try to enrich missing fields
         let olData = null;
-        if (format === 'goodreads' && m.isbn) {
+        if (format === 'goodreads' && m.isbn && !skipEnrichment) {
           try {
             console.log('[Open Library] Looking up Open Library data for ISBN', m.isbn);
             olData = await getBookByISBN(m.isbn);
           } catch (err) {
-            // ignore Open Library errors and proceed with spreadsheet data
-            console.warn('[Open Library] lookup failed for ISBN', m.isbn, err);
+            // Handle Open Library API errors specially
+            if (err instanceof OpenLibraryError && (err.type === 'NETWORK' || err.type === 'SERVICE_DOWN')) {
+              console.warn('[Import] Open Library API error:', err.message);
+              
+              // Ask user what to do via callback
+              if (typeof onAPIError === 'function') {
+                const decision = await onAPIError(err);
+                if (!decision || !decision.continue) {
+                  // User chose to stop import
+                  throw new DOMException('Import cancelled due to Open Library error', 'AbortError');
+                }
+                if (decision.skipEnrichment) {
+                  // User chose to continue without Open Library enrichment
+                  skipEnrichment = true;
+                }
+              } else {
+                // No callback provided, skip enrichment for remaining items
+                skipEnrichment = true;
+              }
+            } else {
+              // For other errors (book not found, etc), just proceed with spreadsheet data
+              console.warn('[Open Library] lookup failed for ISBN', m.isbn, err);
+            }
             olData = null;
           }
         }
@@ -672,6 +752,10 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   }
   console.debug('[Import][Dedup] Added to dedupeSet:', key);
       } catch (err) {
+        // Re-throw AbortError to stop the import
+        if (err.name === 'AbortError') {
+          throw err;
+        }
         console.error('Error saving imported item', m, err);
       }
       // increment processed count and report progress
@@ -689,7 +773,9 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     return { added, format };
   } catch (err) {
     console.error('Error importing CSV', err);
-    throw new Error('Error importing CSV. See console for details.');
+    // Provide more specific error message
+    const errorMsg = err.message || 'Unknown error';
+    throw new Error(`Error importing CSV: ${errorMsg}`);
   }
 };
 
@@ -699,11 +785,18 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total }
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary)
  * @returns {Promise<{added:number, format:string, filesProcessed?:string[]}>} Import results
  */
-export const processImportFile = async (file, existingItems, saveItem, onProgress) => {
+export const processImportFile = async (file, existingItems, saveItem, onProgress, signal = null, onAPIError = null) => {
   if (!file) {
     throw new Error('No file provided');
+  }
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
   }
 
   const fileName = file.name.toLowerCase();
@@ -712,10 +805,10 @@ export const processImportFile = async (file, existingItems, saveItem, onProgres
 
   if (isZip) {
     console.log('Detected zip file, processing as Letterboxd export');
-    return await processZipImport(file, existingItems, saveItem, onProgress);
+    return await processZipImport(file, existingItems, saveItem, onProgress, signal, onAPIError);
   } else if (isCsv) {
     console.log('Detected CSV file, processing as single CSV');
-    const result = await processCSVImport(file, existingItems, saveItem, onProgress);
+    const result = await processCSVImport(file, existingItems, saveItem, onProgress, null, signal, onAPIError);
     return {
       ...result,
       filesProcessed: [file.name]

@@ -11,7 +11,7 @@ import { toast } from '../../services/toastService.js';
 /**
  * Modal for viewing and editing item details
  */
-const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor, items = [], onNavigate }) => {
+const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor, items = [], onNavigate, allTags = [] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -303,7 +303,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         
         <div className="p-4 sm:p-6 pb-6 relative">
           {isEditing ? (
-            <EditForm item={editedItem} onChange={setEditedItem} />
+            <EditForm item={editedItem} onChange={setEditedItem} allTags={allTags} />
           ) : (
             <div className="relative">
               <ViewDetails 

@@ -1715,6 +1715,7 @@ const MediaTracker = () => {
           highlightColor={highlightColor}
           items={filteredAndSortedItems}
           onNavigate={setSelectedItem}
+          allTags={allTags}
         />
       )}
 
@@ -1781,6 +1782,7 @@ const MediaTracker = () => {
             setSearchResultItem(null);
           }}
           initialItem={searchResultItem}
+          allTags={allTags}
         />
       )}
 

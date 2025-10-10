@@ -12,6 +12,7 @@ export const useItems = () => {
   const [storageInfo, setStorageInfo] = useState(null);
   const [undoStack, setUndoStack] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadProgress, setLoadProgress] = useState({ processed: 0, total: 0 });
 
   /**
    * Initialize storage adapter
@@ -33,15 +34,39 @@ export const useItems = () => {
 
   /**
    * Load items from storage
+   * @param {StorageAdapter} adapter - Storage adapter to load from
+   * @param {Function} onProgress - Optional callback(progress) for progressive loading
    */
-  const loadItems = async (adapter = storageAdapter) => {
+  const loadItems = async (adapter = storageAdapter, onProgress = null) => {
     if (!adapter || !adapter.isConnected()) return;
     
     try {
       setIsLoading(true);
-      const loadedItems = await adapter.loadItems();
+      setLoadProgress({ processed: 0, total: 0 });
+      
+      // Create progress handler that updates state progressively
+      const progressHandler = (progress) => {
+        // Update load progress state
+        setLoadProgress({
+          processed: progress.processed || 0,
+          total: progress.total || 0
+        });
+        
+        // Update items state with partial results
+        if (progress.items && progress.items.length > 0) {
+          setItems(progress.items);
+        }
+        
+        // Call user-provided progress callback
+        if (typeof onProgress === 'function') {
+          onProgress(progress);
+        }
+      };
+      
+      const loadedItems = await adapter.loadItems(progressHandler);
       setItems(loadedItems);
       setStorageInfo(adapter.getStorageInfo());
+      setLoadProgress({ processed: loadedItems.length, total: loadedItems.length });
     } catch (error) {
       console.error('Error loading items:', error);
       toast(`Error loading items: ${error.message}`, { type: 'error' });
@@ -61,7 +86,20 @@ export const useItems = () => {
     try {
       setIsLoading(true);
       await storageAdapter.saveItem(item);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => {
+        const existingIndex = prevItems.findIndex(i => i.id === item.id);
+        if (existingIndex >= 0) {
+          // Update existing item
+          const updated = [...prevItems];
+          updated[existingIndex] = { ...updated[existingIndex], ...item };
+          return updated;
+        } else {
+          // Add new item
+          return [item, ...prevItems];
+        }
+      });
     } catch (error) {
       console.error('Error saving item:', error);
       throw error;
@@ -82,7 +120,10 @@ export const useItems = () => {
       setIsLoading(true);
       const undoInfo = await storageAdapter.deleteItem(item);
       setUndoStack(prev => [...prev, undoInfo]);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => prevItems.filter(i => i.id !== item.id));
+      
       return undoInfo;
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -93,7 +134,7 @@ export const useItems = () => {
   };
 
   /**
-   * Delete multiple items
+   * Delete multiple items (parallel processing)
    */
   const deleteItems = async (itemsToDelete) => {
     if (!storageAdapter || !storageAdapter.isConnected()) {
@@ -102,18 +143,45 @@ export const useItems = () => {
 
     setIsLoading(true);
     const undoInfos = [];
-    for (const item of itemsToDelete) {
-      try {
-        const undoInfo = await storageAdapter.deleteItem(item);
-        undoInfos.push(undoInfo);
-      } catch (error) {
-        console.error('Error deleting item:', item.title, error);
-      }
+    const deletedIds = [];
+    
+    // Process deletions in parallel with batches
+    const BATCH_SIZE = 10; // Process 10 deletions concurrently
+    
+    for (let batchStart = 0; batchStart < itemsToDelete.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, itemsToDelete.length);
+      const batch = itemsToDelete.slice(batchStart, batchEnd);
+      
+      console.log(`Deleting batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (items ${batchStart + 1}-${batchEnd} of ${itemsToDelete.length})`);
+      
+      // Delete all items in this batch in parallel
+      const batchPromises = batch.map(async (item) => {
+        try {
+          const undoInfo = await storageAdapter.deleteItem(item);
+          return { success: true, undoInfo, id: item.id };
+        } catch (error) {
+          console.error('Error deleting item:', item.title, error);
+          return { success: false, error, id: item.id };
+        }
+      });
+      
+      // Wait for all deletions in this batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Collect successful deletions
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          undoInfos.push(result.value.undoInfo);
+          deletedIds.push(result.value.id);
+        }
+      });
     }
 
     if (undoInfos.length > 0) {
       setUndoStack(prev => [...prev, ...undoInfos]);
-      await loadItems();
+      
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => prevItems.filter(item => !deletedIds.includes(item.id)));
     }
     
     setIsLoading(false);
@@ -134,7 +202,11 @@ export const useItems = () => {
     try {
       setIsLoading(true);
       const restoredIdentifier = await storageAdapter.restoreItem(lastUndo);
+      
+      // Reload items to restore the deleted item(s) since we don't have the full item data
+      // in the undo stack (only fileId/filename). This is unavoidable for undo operations.
       await loadItems();
+      
       return restoredIdentifier;
     } catch (error) {
       console.error('Error undoing delete:', error);
@@ -194,7 +266,7 @@ export const useItems = () => {
   };
 
   /**
-   * Apply batch edits to multiple items
+   * Apply batch edits to multiple items (parallel processing)
    */
   const applyBatchEdit = async (selectedIds, changes) => {
     if (!storageAdapter || !storageAdapter.isConnected()) {
@@ -202,7 +274,10 @@ export const useItems = () => {
     }
 
     setIsLoading(true);
-    const updated = [];
+    const updatedItems = [];
+    
+    // Prepare all items to edit
+    const itemsToEdit = [];
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id);
       if (!item) continue;
@@ -224,20 +299,51 @@ export const useItems = () => {
       if (changes.dateRead) newItem.dateRead = changes.dateRead;
       if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
 
-      try {
-        await storageAdapter.saveItem(newItem);
-        updated.push(newItem.id);
-      } catch (error) {
-        console.error('Error updating item:', item.title, error);
-      }
+      itemsToEdit.push(newItem);
     }
 
-    if (updated.length > 0) {
-      await loadItems();
+    // Process edits in parallel with batches
+    const BATCH_SIZE = 10; // Process 10 edits concurrently
+    
+    for (let batchStart = 0; batchStart < itemsToEdit.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, itemsToEdit.length);
+      const batch = itemsToEdit.slice(batchStart, batchEnd);
+      
+      console.log(`Editing batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (items ${batchStart + 1}-${batchEnd} of ${itemsToEdit.length})`);
+      
+      // Save all items in this batch in parallel
+      const batchPromises = batch.map(async (item) => {
+        try {
+          await storageAdapter.saveItem(item);
+          return { success: true, item };
+        } catch (error) {
+          console.error('Error updating item:', item.title, error);
+          return { success: false, error, item };
+        }
+      });
+      
+      // Wait for all edits in this batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Collect successful edits
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          updatedItems.push(result.value.item);
+        }
+      });
+    }
+
+    if (updatedItems.length > 0) {
+      // Update local state instead of reloading entire directory
+      setItems(prevItems => {
+        const itemsMap = new Map(prevItems.map(item => [item.id, item]));
+        updatedItems.forEach(item => itemsMap.set(item.id, item));
+        return Array.from(itemsMap.values());
+      });
     }
     
     setIsLoading(false);
-    return updated;
+    return updatedItems.map(item => item.id);
   };
 
   return {
@@ -245,6 +351,7 @@ export const useItems = () => {
     storageAdapter,
     storageInfo,
     isLoading,
+    loadProgress,
     undoStack: undoStack.length,
     initializeStorage,
     loadItems,

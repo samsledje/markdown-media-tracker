@@ -28,6 +28,7 @@ export const useKeyboardNavigation = ({
   onOpenItem = () => {},
   onCloseModals = () => {},
   onCloseBatchDeleteModal = () => {},
+  onConfirmBatchDelete = () => {},
   selectionMode = false,
   selectedCount = 0,
   // Modal states - when any of these are true, main shortcuts are disabled
@@ -55,6 +56,13 @@ export const useKeyboardNavigation = ({
         } else {
           onCloseModals();
         }
+        return;
+      }
+
+      // Enter: confirm batch delete when the confirmation modal is open
+      if (e.key === KEYBOARD_SHORTCUTS.ENTER && showBatchDeleteConfirm) {
+        e.preventDefault();
+        onConfirmBatchDelete();
         return;
       }
 
@@ -310,7 +318,8 @@ export const useKeyboardNavigation = ({
     onToggleItemSelection,
     onOpenItem,
     onCloseModals,
-    onCloseBatchDeleteModal
+    onCloseBatchDeleteModal,
+    onConfirmBatchDelete
   ]);
 
   /**
@@ -341,7 +350,7 @@ export const useKeyboardNavigation = ({
 
   return {
     focusedIndex,
-    focusedId,
+    focusedId, // Export focusedId directly for efficient comparisons
     registerCardRef,
     isItemFocused,
     resetFocus

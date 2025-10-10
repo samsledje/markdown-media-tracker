@@ -64,7 +64,7 @@ export class FileSystemStorage extends StorageAdapter {
     this.trashHandle = null;
   }
 
-  async loadItems() {
+  async loadItems(onProgress = null) {
     if (!this.directoryHandle) {
       throw new Error('Please select a directory first');
     }
@@ -278,7 +278,8 @@ export class FileSystemStorage extends StorageAdapter {
       return restoreName;
     } catch (err) {
       console.error('Error undoing trash', err);
-      throw new Error('Error restoring file. See console for details.');
+      const errorMsg = err.message || 'Unknown error';
+      throw new Error(`Error restoring file: ${errorMsg}`);
     }
   }
 

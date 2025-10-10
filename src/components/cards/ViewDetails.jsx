@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, Film, Star, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { Book, Film, Star, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image } from 'lucide-react';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 
 /**
@@ -43,16 +43,32 @@ const getStatusColorClass = (status) => {
 /**
  * Component for displaying item details in read-only view
  */
-const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false }) => {
+const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false }) => {
   return (
     <div className="space-y-4">
-      {item.coverUrl && (
+      {item.coverUrl ? (
         <div className="flex justify-center mb-6">
           <img
             src={item.coverUrl}
             alt={item.title}
             className="max-w-xs rounded-lg shadow-lg"
           />
+        </div>
+      ) : onFetchCover && (
+        <div className="flex justify-center mb-6">
+          <div className="max-w-xs w-full bg-slate-700/30 rounded-lg p-8 flex flex-col items-center gap-4">
+            <Image className="w-16 h-16 text-slate-500" />
+            <p className="text-slate-400 text-sm text-center">No cover image available</p>
+            <button
+              onClick={onFetchCover}
+              disabled={isFetchingCover}
+              className="px-4 py-2 rounded transition text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+            >
+              <Image className="w-4 h-4" />
+              {isFetchingCover ? 'Fetching...' : 'Fetch Cover'}
+            </button>
+          </div>
         </div>
       )}
       

@@ -4,6 +4,18 @@ const OPEN_LIBRARY_BASE_URL = 'https://openlibrary.org';
 const COVERS_BASE_URL = 'https://covers.openlibrary.org';
 
 /**
+ * Custom error class for Open Library API errors
+ */
+export class OpenLibraryError extends Error {
+  constructor(message, type, statusCode = null) {
+    super(message);
+    this.name = 'OpenLibraryError';
+    this.type = type; // 'NETWORK', 'SERVICE_DOWN', 'TIMEOUT'
+    this.statusCode = statusCode;
+  }
+}
+
+/**
  * Search for books using Open Library API
  * Note: This function requests edition data to get ISBN information from the most relevant edition.
  * It prefers ISBN-13 over ISBN-10 when both are available.
@@ -23,7 +35,18 @@ export const searchBooks = async (query, limit = 12) => {
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.status >= 500) {
+        throw new OpenLibraryError(
+          'Open Library service is temporarily unavailable. Please try again later.',
+          'SERVICE_DOWN',
+          response.status
+        );
+      }
+      throw new OpenLibraryError(
+        `Open Library error: ${response.status}`,
+        'NETWORK',
+        response.status
+      );
     }
 
     const data = await response.json();
@@ -56,7 +79,21 @@ export const searchBooks = async (query, limit = 12) => {
     return books;
   } catch (error) {
     console.error('Error searching books:', error);
-    throw new Error('Error searching for books. Please try again.');
+    // If already an OpenLibraryError, re-throw it
+    if (error instanceof OpenLibraryError) {
+      throw error;
+    }
+    // Network errors (no internet, DNS failure, etc.)
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new OpenLibraryError(
+        'Unable to connect to Open Library. Please check your internet connection.',
+        'NETWORK'
+      );
+    }
+    throw new OpenLibraryError(
+      'Error searching for books. Please try again.',
+      'NETWORK'
+    );
   }
 };
 
@@ -76,17 +113,40 @@ export const getBookByISBN = async (isbn) => {
   // Try the ISBN endpoint first
   const isbnUrl = `${OPEN_LIBRARY_BASE_URL}/isbn/${encodeURIComponent(normalized)}.json`;
   console.debug('[OpenLibrary] fetching ISBN URL:', isbnUrl);
-  let resp = await fetch(isbnUrl);
+  let resp;
+    try {
+      resp = await fetch(isbnUrl);
+    } catch (fetchError) {
+      // Network error on first fetch - throw immediately to avoid multiple prompts
+      throw new OpenLibraryError(
+        'Unable to connect to Open Library. Please check your internet connection.',
+        'NETWORK'
+      );
+    }
+    
     let data = null;
     if (resp.ok) {
       data = await resp.json();
       console.debug('[OpenLibrary] ISBN endpoint hit', normalized, 'response:', data);
+    } else if (resp.status >= 500) {
+      // Service down - throw immediately
+      throw new OpenLibraryError(
+        'Open Library service is temporarily unavailable. Please try again later.',
+        'SERVICE_DOWN',
+        resp.status
+      );
     } else if (resp.status === 404) {
       // Fallback: use the search endpoint which can sometimes find editions by ISBN
       try {
   const searchUrl = `${OPEN_LIBRARY_BASE_URL}/search.json?isbn=${encodeURIComponent(normalized)}&limit=1`;
   console.debug('[OpenLibrary] fetching search fallback URL:', searchUrl);
-  const sresp = await fetch(searchUrl);
+  let sresp;
+        try {
+          sresp = await fetch(searchUrl);
+        } catch (fetchError) {
+          // Network error - already handled above, just return null for 404 fallback
+          return null;
+        }
         if (sresp.ok) {
           const sdata = await sresp.json();
           console.debug('[OpenLibrary] search.json fallback for ISBN', normalized, 'response.docs:', sdata.docs && sdata.docs.slice(0,1));
@@ -182,6 +242,30 @@ export const getBookByISBN = async (isbn) => {
     return result;
   } catch (err) {
     console.error('Error fetching book by ISBN', isbn, err);
+    
+    // If it's already an OpenLibraryError, re-throw it
+    if (err instanceof OpenLibraryError) {
+      throw err;
+    }
+    
+    // For network errors during imports, we want to alert the user
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new OpenLibraryError(
+        'Unable to connect to Open Library. Please check your internet connection.',
+        'NETWORK'
+      );
+    }
+    
+    // For 500+ errors, indicate service is down
+    if (err.statusCode && err.statusCode >= 500) {
+      throw new OpenLibraryError(
+        'Open Library service is temporarily unavailable. Please try again later.',
+        'SERVICE_DOWN',
+        err.statusCode
+      );
+    }
+    
+    // For other errors, just return null (book not found is okay)
     return null;
   }
 };

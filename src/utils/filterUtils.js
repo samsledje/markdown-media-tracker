@@ -124,9 +124,18 @@ export const sortItems = (items, sortBy, sortOrder) => {
  * @returns {string[]} Sorted array of unique tags
  */
 export const getAllTags = (items) => {
-  return Array.from(
-    new Set(items.flatMap(it => (it.tags && Array.isArray(it.tags)) ? it.tags : []))
-  ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  const tagSet = new Set();
+  // More efficient: single loop, no intermediate arrays
+  for (let i = 0; i < items.length; i++) {
+    const tags = items[i].tags;
+    if (tags && Array.isArray(tags)) {
+      for (let j = 0; j < tags.length; j++) {
+        tagSet.add(tags[j]);
+      }
+    }
+  }
+  // Convert to array and sort once
+  return Array.from(tagSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 };
 
 /**
@@ -135,8 +144,6 @@ export const getAllTags = (items) => {
  * @returns {string[]} Array of unique statuses
  */
 export const getAllStatuses = (items) => {
-  const foundStatuses = new Set(items.map(item => item.status).filter(Boolean));
-  
   // Define the desired order: book statuses first, then movie statuses
   const orderedStatuses = [
     STATUS_TYPES.BOOK.TO_READ,
@@ -147,6 +154,21 @@ export const getAllStatuses = (items) => {
     STATUS_TYPES.MOVIE.WATCHED
   ];
   
+  // More efficient: use object for O(1) lookup instead of Set
+  const foundStatuses = {};
+  for (let i = 0; i < items.length; i++) {
+    const status = items[i].status;
+    if (status) {
+      foundStatuses[status] = true;
+    }
+  }
+  
   // Return only the statuses that actually exist in the items, in the desired order
-  return orderedStatuses.filter(status => foundStatuses.has(status));
+  const result = [];
+  for (let i = 0; i < orderedStatuses.length; i++) {
+    if (foundStatuses[orderedStatuses[i]]) {
+      result.push(orderedStatuses[i]);
+    }
+  }
+  return result;
 };

@@ -1,6 +1,7 @@
 import { StorageAdapter } from './storageAdapter.js';
 import { parseMarkdown, generateMarkdown } from '../utils/markdownUtils.js';
 import { getConfig } from '../config.js';
+import { driveCache } from './driveCache.js';
 
 /**
  * Google Drive Storage Adapter using Google Identity Services (newer, more reliable)
@@ -191,6 +192,9 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
       window.google.accounts.oauth2.revoke(this.accessToken);
     }
     
+    // DON'T clear cache on disconnect - we want it to persist!
+    // Users can manually clear cache via the UI if needed
+    
     this.isSignedIn = false;
     this.accessToken = null;
     this.mediaTrackerFolderId = null;
@@ -198,6 +202,21 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     
     localStorage.removeItem('googleDriveConnected');
     localStorage.removeItem('googleDriveFolderId');
+  }
+
+  /**
+   * Clear the cache for this folder (force refresh on next load)
+   */
+  async clearCache() {
+    if (this.mediaTrackerFolderId) {
+      try {
+        await driveCache.clearFolderCache(this.mediaTrackerFolderId);
+        console.log('Cache cleared successfully');
+      } catch (error) {
+        console.error('Error clearing cache:', error);
+        throw error;
+      }
+    }
   }
 
   // Rest of the methods remain the same as the original implementation
@@ -264,7 +283,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     }
   }
 
-  async loadItems() {
+  async loadItems(onProgress = null) {
     if (!this.isConnected()) {
       throw new Error('Not connected to Google Drive');
     }
@@ -273,50 +292,173 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
       console.log('loadItems: Starting to load items from Google Drive...');
       console.log('loadItems: Searching in folder:', this.mediaTrackerFolderId);
       
-      const response = await window.gapi.client.drive.files.list({
-        q: `'${this.mediaTrackerFolderId}' in parents and name contains '.md' and trashed=false`,
-        fields: 'files(id, name, modifiedTime)',
-        orderBy: 'modifiedTime desc'
+      // Get ALL files from Drive using pagination (handles folders with >100 files)
+      const files = [];
+      let pageToken = null;
+      let pageCount = 0;
+      
+      do {
+        pageCount++;
+        console.log(`loadItems: Fetching file list page ${pageCount}${pageToken ? ' (continuation)' : ''}...`);
+        
+        const response = await window.gapi.client.drive.files.list({
+          q: `'${this.mediaTrackerFolderId}' in parents and name contains '.md' and trashed=false`,
+          fields: 'nextPageToken, files(id, name, modifiedTime)',
+          orderBy: 'modifiedTime desc',
+          pageSize: 1000, // Max allowed by Google Drive API
+          pageToken: pageToken
+        });
+
+        files.push(...response.result.files);
+        pageToken = response.result.nextPageToken;
+        
+        console.log(`loadItems: Page ${pageCount} returned ${response.result.files.length} files (total so far: ${files.length})`);
+      } while (pageToken);
+
+      const totalFiles = files.length;
+      console.log('loadItems: Found files:', totalFiles);
+      
+      if (totalFiles === 0) {
+        return [];
+      }
+
+      // Get cached items
+      const cachedItemsMap = await driveCache.getCachedItems(this.mediaTrackerFolderId);
+      console.log('loadItems: Found cached items:', Object.keys(cachedItemsMap).length);
+      console.log('loadItems: Cache keys:', Object.keys(cachedItemsMap).slice(0, 3)); // Show first 3 for debugging
+
+      // Determine which files need to be downloaded
+      const filesToDownload = [];
+      const itemsFromCache = [];
+      
+      files.forEach(file => {
+        const cached = cachedItemsMap[file.id];
+        if (cached && cached.modifiedTime === file.modifiedTime) {
+          // Use cached version
+          console.log(`✓ Cache HIT for ${file.name} (${file.modifiedTime})`);
+          itemsFromCache.push(cached.data);
+        } else {
+          // Need to download (new or modified)
+          if (cached) {
+            console.log(`✗ Cache STALE for ${file.name} - cached: ${cached.modifiedTime}, drive: ${file.modifiedTime}`);
+          } else {
+            console.log(`✗ Cache MISS for ${file.name} (${file.id})`);
+          }
+          filesToDownload.push(file);
+        }
       });
 
-      console.log('loadItems: Found files:', response.result.files.length);
-      const items = [];
-      
-      for (let i = 0; i < response.result.files.length; i++) {
-        const file = response.result.files[i];
-        console.log(`loadItems: Processing file ${i + 1}/${response.result.files.length}: ${file.name}`);
-        
+      console.log(`loadItems: Using ${itemsFromCache.length} cached items, downloading ${filesToDownload.length} files`);
+
+      const items = [...itemsFromCache];
+      let processedCount = itemsFromCache.length;
+      const itemsToCache = [];
+
+      // Report initial progress with cached items
+      if (typeof onProgress === 'function' && itemsFromCache.length > 0) {
         try {
-          const content = await this._downloadFile(file.id);
-          const { metadata, body } = parseMarkdown(content);
-          
-          items.push({
-            id: file.name.replace('.md', ''),
-            filename: file.name,
-            // preserve parsed status from frontmatter
-            status: metadata.status,
-            fileId: file.id,
-            title: metadata.title || 'Untitled',
-            type: metadata.type || 'book',
-            author: metadata.author,
-            director: metadata.director,
-            actors: metadata.actors || [],
-            isbn: metadata.isbn,
-            year: metadata.year,
-            rating: metadata.rating,
-            tags: metadata.tags || [],
-            coverUrl: metadata.coverUrl,
-            dateRead: metadata.dateRead,
-            dateWatched: metadata.dateWatched,
-            dateAdded: metadata.dateAdded,
-            review: body
+          onProgress({
+            processed: processedCount,
+            total: totalFiles,
+            items: [...items]
           });
-        } catch (error) {
-          console.error(`Error loading file ${file.name}:`, error);
+        } catch (err) {
+          console.error('Error in onProgress callback:', err);
         }
       }
 
-      console.log(`loadItems: Successfully loaded ${items.length} items`);
+      // Download files that aren't cached or have changed
+      if (filesToDownload.length > 0) {
+        const BATCH_SIZE = 100; // Download 100 files concurrently (HTTP/2 multiplexing handles this well)
+        
+        for (let batchStart = 0; batchStart < filesToDownload.length; batchStart += BATCH_SIZE) {
+          const batchEnd = Math.min(batchStart + BATCH_SIZE, filesToDownload.length);
+          const batch = filesToDownload.slice(batchStart, batchEnd);
+          
+          console.log(`loadItems: Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (files ${batchStart + 1}-${batchEnd} of ${filesToDownload.length})`);
+          
+          // Download all files in this batch in parallel
+          const batchPromises = batch.map(async (file) => {
+            try {
+              const content = await this._downloadFile(file.id);
+              const { metadata, body } = parseMarkdown(content);
+              
+              const item = {
+                id: file.name.replace('.md', ''),
+                filename: file.name,
+                status: metadata.status,
+                fileId: file.id,
+                title: metadata.title || 'Untitled',
+                type: metadata.type || 'book',
+                author: metadata.author,
+                director: metadata.director,
+                actors: metadata.actors || [],
+                isbn: metadata.isbn,
+                year: metadata.year,
+                rating: metadata.rating,
+                tags: metadata.tags || [],
+                coverUrl: metadata.coverUrl,
+                dateRead: metadata.dateRead,
+                dateWatched: metadata.dateWatched,
+                dateAdded: metadata.dateAdded,
+                review: body
+              };
+
+              // Queue for caching
+              itemsToCache.push({
+                fileId: file.id,
+                modifiedTime: file.modifiedTime,
+                filename: file.name,
+                data: item
+              });
+
+              return item;
+            } catch (error) {
+              console.error(`Error loading file ${file.name}:`, error);
+              return null;
+            }
+          });
+          
+          // Wait for all files in this batch to complete
+          const batchResults = await Promise.allSettled(batchPromises);
+          
+          // Add successfully loaded items
+          batchResults.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+              items.push(result.value);
+            }
+            processedCount++;
+          });
+          
+          // Report progress after each batch
+          if (typeof onProgress === 'function') {
+            try {
+              onProgress({
+                processed: processedCount,
+                total: totalFiles,
+                items: [...items]
+              });
+            } catch (err) {
+              console.error('Error in onProgress callback:', err);
+            }
+          }
+        }
+
+        // Update cache with newly downloaded items
+        if (itemsToCache.length > 0) {
+          try {
+            console.log(`loadItems: Caching ${itemsToCache.length} items for folder ${this.mediaTrackerFolderId}`);
+            console.log('loadItems: Sample item to cache:', itemsToCache[0]?.fileId, itemsToCache[0]?.modifiedTime);
+            await driveCache.cacheItems(this.mediaTrackerFolderId, itemsToCache);
+            console.log(`loadItems: Successfully cached ${itemsToCache.length} items`);
+          } catch (error) {
+            console.error('Error updating cache:', error);
+            // Don't fail the entire load if caching fails
+          }
+        }
+      }
+
+      console.log(`loadItems: Successfully loaded ${items.length} items (${itemsFromCache.length} from cache, ${filesToDownload.length} downloaded)`);
       return items.sort((a, b) => 
         new Date(b.dateAdded) - new Date(a.dateAdded)
       );
@@ -376,6 +518,16 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
           // On any error, fall back to creating a new file
           const fileId = await this._createFile(filename, content, this.mediaTrackerFolderId);
           item.fileId = fileId;
+        }
+      }
+
+      // Invalidate cache for this item (will be refreshed on next load)
+      if (item.fileId) {
+        try {
+          await driveCache.removeCachedItem(item.fileId);
+        } catch (error) {
+          console.warn('Error invalidating cache after save:', error);
+          // Don't fail save if cache invalidation fails
         }
       }
     } catch (error) {
@@ -458,6 +610,14 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
         removeParents: this.mediaTrackerFolderId,
         fields: 'id, parents'
       });
+
+      // Remove from cache
+      try {
+        await driveCache.removeCachedItem(item.fileId);
+      } catch (error) {
+        console.warn('Error removing from cache after delete:', error);
+        // Don't fail delete if cache removal fails
+      }
 
       return {
         fileId: item.fileId,

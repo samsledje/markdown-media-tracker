@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Lock, FileText, Database, Keyboard, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import StorageSelector from './StorageSelector.jsx';
 
@@ -6,10 +6,17 @@ import StorageSelector from './StorageSelector.jsx';
  * Enhanced Landing Page Component
  * Provides a comprehensive introduction to the app before storage selection
  */
-const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) => {
+const LandingPage = forwardRef(({ onStorageSelect, availableOptions, error, isLoading, loadProgress }, ref) => {
   // Refs for smooth scrolling
   const featuresRef = useRef(null);
   const storageRef = useRef(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    scrollToStorage: () => {
+      storageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }));
   
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -301,11 +308,14 @@ const LandingPage = ({ onStorageSelect, availableOptions, error, isLoading }) =>
             availableOptions={availableOptions}
             error={error}
             isLoading={isLoading}
+            loadProgress={loadProgress}
           />
         </div>
       </section>
     </div>
   );
-};
+});
+
+LandingPage.displayName = 'LandingPage';
 
 export default LandingPage;

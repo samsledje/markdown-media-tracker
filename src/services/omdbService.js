@@ -4,6 +4,18 @@ import { getConfig, hasApiKey } from '../config.js';
 const OMDB_BASE_URL = 'https://www.omdbapi.com';
 
 /**
+ * Custom error class for OMDB API errors
+ */
+export class OMDBError extends Error {
+  constructor(message, type, statusCode = null) {
+    super(message);
+    this.name = 'OMDBError';
+    this.type = type; // 'AUTH_FAILED', 'RATE_LIMIT', 'QUOTA_EXCEEDED', 'NETWORK', 'INVALID_KEY'
+    this.statusCode = statusCode;
+  }
+}
+
+/**
  * Get the current API key from config
  * @returns {string|null} API key or null if not configured
  */
@@ -32,15 +44,41 @@ export const searchMovies = async (query, limit = 12) => {
       `${OMDB_BASE_URL}/?s=${encodeURIComponent(query)}&apikey=${apiKey}`
     );
 
+    // Check for HTTP errors
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.status === 401) {
+        throw new OMDBError(
+          'OMDb API authentication failed. Your API key may be invalid or expired.',
+          'AUTH_FAILED',
+          401
+        );
+      } else if (response.status === 429) {
+        throw new OMDBError(
+          'OMDb API rate limit exceeded. Please try again later.',
+          'RATE_LIMIT',
+          429
+        );
+      }
+      throw new OMDBError(
+        `OMDb API error: ${response.status}`,
+        'NETWORK',
+        response.status
+      );
     }
 
     const data = await response.json();
     
     if (data.Response === 'False') {
       if (data.Error === 'Invalid API key!') {
-        throw new Error('Invalid OMDb API key. Please check your key.');
+        throw new OMDBError(
+          'Invalid OMDb API key. Please check your API key in settings.',
+          'INVALID_KEY'
+        );
+      } else if (data.Error && data.Error.toLowerCase().includes('limit')) {
+        throw new OMDBError(
+          'OMDb API daily limit reached. You can continue importing without movie data enrichment.',
+          'QUOTA_EXCEEDED'
+        );
       } else {
         return [];
       }
@@ -108,9 +146,44 @@ export const getMovieByTitleYear = async (title, year = null) => {
   try {
     const q = `${title}${year ? `&y=${encodeURIComponent(String(year))}` : ''}`;
     const response = await fetch(`${OMDB_BASE_URL}/?t=${encodeURIComponent(title)}${year ? `&y=${encodeURIComponent(String(year))}` : ''}&apikey=${apiKey}`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new OMDBError(
+          'OMDb API authentication failed. Your API key may be invalid or expired.',
+          'AUTH_FAILED',
+          401
+        );
+      } else if (response.status === 429) {
+        throw new OMDBError(
+          'OMDb API rate limit exceeded. Please try again later.',
+          'RATE_LIMIT',
+          429
+        );
+      }
+      throw new OMDBError(
+        `OMDb API error: ${response.status}`,
+        'NETWORK',
+        response.status
+      );
+    }
+    
     const data = await response.json();
-    if (data.Response === 'False') return null;
+    
+    if (data.Response === 'False') {
+      if (data.Error === 'Invalid API key!') {
+        throw new OMDBError(
+          'Invalid OMDb API key. Please check your API key in settings.',
+          'INVALID_KEY'
+        );
+      } else if (data.Error && data.Error.toLowerCase().includes('limit')) {
+        throw new OMDBError(
+          'OMDb API daily limit reached. You can continue importing without movie data enrichment.',
+          'QUOTA_EXCEEDED'
+        );
+      }
+      return null;
+    }
 
     const actors = data.Actors && data.Actors !== 'N/A' ? data.Actors.split(',').map(a => a.trim()).filter(Boolean) : [];
 

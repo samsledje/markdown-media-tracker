@@ -5,14 +5,17 @@ import ViewDetails from '../cards/ViewDetails.jsx';
 import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { fetchCoverForItem } from '../../utils/coverUtils.js';
+import { toast } from '../../services/toastService.js';
 
 /**
  * Modal for viewing and editing item details
  */
-const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor }) => {
+const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor, items = [], onNavigate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isFetchingCover, setIsFetchingCover] = useState(false);
   
   // Ensure item has a status when creating editedItem
   const [editedItem, setEditedItem] = useState(() => {
@@ -77,6 +80,42 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       onQuickSave(updated);
     } else {
       onSave(updated);
+    }
+  };
+
+  const handleFetchCover = async () => {
+    setIsFetchingCover(true);
+    try {
+      const coverUrl = await fetchCoverForItem(editedItem);
+      
+      if (coverUrl) {
+        const updated = { ...editedItem, coverUrl };
+        setEditedItem(updated);
+        
+        // Persist the change
+        if (typeof onQuickSave === 'function') {
+          onQuickSave(updated);
+        } else {
+          onSave(updated);
+        }
+        
+        toast('Cover image found and added!', { type: 'success' });
+      } else {
+        toast('No cover image found. Try adding one manually.', { type: 'info' });
+      }
+    } catch (error) {
+      console.error('Error fetching cover:', error);
+      
+      // Handle specific error types
+      if (error.message === 'API_KEY_MISSING') {
+        toast('OMDb API key required for movie covers. Please configure in settings.', { type: 'error' });
+      } else if (error.name === 'OpenLibraryError' || error.name === 'OMDBError') {
+        toast(`Unable to fetch cover: ${error.message}`, { type: 'error' });
+      } else {
+        toast('Error fetching cover image. Please try again.', { type: 'error' });
+      }
+    } finally {
+      setIsFetchingCover(false);
     }
   };
 
@@ -175,6 +214,26 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         handleDelete();
         return;
       }
+
+      // Navigate to previous/next item (Arrow keys when not editing)
+      if (!isEditing && items.length > 0 && onNavigate) {
+        if (e.key === KEYBOARD_SHORTCUTS.ARROW_LEFT || e.key === KEYBOARD_SHORTCUTS.ARROW_UP) {
+          e.preventDefault();
+          const currentIndex = items.findIndex(i => i.id === item.id);
+          if (currentIndex > 0) {
+            onNavigate(items[currentIndex - 1]);
+          }
+          return;
+        }
+        if (e.key === KEYBOARD_SHORTCUTS.ARROW_RIGHT || e.key === KEYBOARD_SHORTCUTS.ARROW_DOWN) {
+          e.preventDefault();
+          const currentIndex = items.findIndex(i => i.id === item.id);
+          if (currentIndex < items.length - 1) {
+            onNavigate(items[currentIndex + 1]);
+          }
+          return;
+        }
+      }
     };
 
     const onClickOutside = (e) => {
@@ -190,7 +249,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onClickOutside);
     };
-  }, [isEditing, editedItem, onClose]);
+  }, [isEditing, editedItem, onClose, items, item, onNavigate]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
@@ -248,10 +307,12 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
           ) : (
             <div className="relative">
               <ViewDetails 
-                item={item} 
+                item={editedItem} 
                 hexToRgba={hexToRgba} 
                 highlightColor={highlightColor} 
                 hideRating={true}
+                onFetchCover={handleFetchCover}
+                isFetchingCover={isFetchingCover}
               />
             </div>
           )}

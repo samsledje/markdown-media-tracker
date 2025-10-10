@@ -311,6 +311,7 @@ export const exportCSV = (items = []) => {
     URL.revokeObjectURL(url);
   } catch (err) {
     console.error('Error exporting CSV', err);
-    toast('Error exporting CSV. See console for details.', { type: 'error' });
+    const errorMsg = err.message || 'Unknown error';
+    toast(`Error exporting CSV: ${errorMsg}`, { type: 'error' });
   }
 };

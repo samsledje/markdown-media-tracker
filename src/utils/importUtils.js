@@ -1,7 +1,7 @@
 import { parseCSV, detectCSVFormat, mapGoodreadsRow, mapLetterboxdRow, mapGenericRow } from './csvUtils.js';
 import { isDuplicate, normalizeForCompare, normalizeISBNForCompare, sanitizeDisplayString } from './commonUtils.js';
-import { getBookByISBN } from '../services/openLibraryService.js';
-import { getMovieByTitleYear } from '../services/omdbService.js';
+import { getBookByISBN, OpenLibraryError } from '../services/openLibraryService.js';
+import { getMovieByTitleYear, OMDBError } from '../services/omdbService.js';
 import JSZip from 'jszip';
 
 /**
@@ -25,9 +25,10 @@ const detectLetterboxdStatusFromFilename = (filename = '') => {
  * @param {string} filename - original filename
  * @param {string|null} omdbApiKey - optional API key (not used, service reads config)
  * @param {Function} onProgress - progress bridge callback (receives {processed,added,total})
+ * @param {object} options - additional options including skipOmdb flag
  * @returns {Promise<object>} enriched mapped row suitable for saving
  */
-const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onProgress = null) => {
+const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onProgress = null, options = {}) => {
   const title = row.title || row.Name || '';
   const year = row.year || '';
 
@@ -51,18 +52,25 @@ const processLetterboxdRow = async (row, filename = '', omdbApiKey = null, onPro
     try { onProgress(); } catch (e) { /* swallow */ }
   }
 
-  try {
-    const omdb = await getMovieByTitleYear(title, year);
-    if (omdb) {
-      row.director = row.director || omdb.director || '';
-      row.actors = row.actors && row.actors.length ? row.actors : (omdb.actors || []);
-      row.coverUrl = row.coverUrl || omdb.coverUrl || '';
-      row.plot = row.plot || omdb.plot || '';
-      row.year = row.year || omdb.year || '';
+  // Skip OMDB enrichment if requested (e.g., after quota exceeded)
+  if (!options.skipOmdb) {
+    try {
+      const omdb = await getMovieByTitleYear(title, year);
+      if (omdb) {
+        row.director = row.director || omdb.director || '';
+        row.actors = row.actors && row.actors.length ? row.actors : (omdb.actors || []);
+        row.coverUrl = row.coverUrl || omdb.coverUrl || '';
+        row.plot = row.plot || omdb.plot || '';
+        row.year = row.year || omdb.year || '';
+      }
+    } catch (err) {
+      // If this is an OMDB API error (quota/auth), rethrow it so import can pause
+      if (err instanceof OMDBError && (err.type === 'QUOTA_EXCEEDED' || err.type === 'AUTH_FAILED' || err.type === 'INVALID_KEY')) {
+        throw err;
+      }
+      // For other errors, gracefully fallback: keep spreadsheet values only
+      console.warn('[Import][Letterboxd] OMDb lookup failed for', title, year, err);
     }
-  } catch (err) {
-    // Graceful fallback: keep spreadsheet values only
-    console.warn('[Import][Letterboxd] OMDb lookup failed for', title, year, err);
   }
 
   // Call progress bridge after OMDb fetch
@@ -108,18 +116,12 @@ const findMatchingMovie = (existingItems = [], mappedRow = {}) => {
  * Accepts numbers or numeric strings like '3.5' and returns an integer.
  */
 const normalizeRating = (r) => {
-  console.debug("NormalizeRating input:", r);
   if (r === null || r === undefined || r === '') return 0;
   const n = Number(r);
   if (Number.isNaN(n)) {
-    console.debug('[Import][Rating] normalizeRating: input not numeric', { input: r });
     return 0;
   }
-  const rounded = Math.round(n);
-  if (rounded === 0 && n !== 0) {
-    console.debug('[Import][Rating] normalizeRating: rounded to 0 unexpectedly', { input: r, parsed: n });
-  }
-  return rounded;
+  return Math.round(n);
 };
 
 /**
@@ -182,10 +184,17 @@ const createFileFromContent = (content, filename) => {
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total, currentFile }
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary)
  * @returns {Promise<{added:number, format:string, filesProcessed:string[]}>} Results summary
  */
-export const processZipImport = async (zipFile, existingItems, saveItem, onProgress) => {
+export const processZipImport = async (zipFile, existingItems, saveItem, onProgress, signal = null, onAPIError = null) => {
   if (!zipFile) return { added: 0, format: 'unknown', filesProcessed: [] };
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
+  }
 
   console.log('Processing Letterboxd zip file:', zipFile.name);
   
@@ -214,6 +223,12 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
     const processingOrder = ['watched.csv', 'watchlist.csv', 'ratings.csv', 'reviews.csv', 'films.csv'];
     
     for (const expectedFile of processingOrder) {
+      // Check if import was aborted
+      if (signal && signal.aborted) {
+        console.log('[Import][Zip] Aborted during file processing');
+        throw new DOMException('Import was cancelled', 'AbortError');
+      }
+
       const csvFile = csvFiles.find(f => f.name === expectedFile);
       if (!csvFile) continue;
 
@@ -244,7 +259,6 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
         // later files see the most recent version.
         const existingIndex = itemsAddedInThisFile.findIndex(it => computeKey(it) === itemKey);
         if (existingIndex !== -1) {
-          console.debug('[Import][Zip] updating itemsAddedInThisFile for', item.title, itemKey);
           itemsAddedInThisFile[existingIndex] = { ...itemsAddedInThisFile[existingIndex], ...item };
         } else {
           // If it's not present in itemsAddedInThisFile, check if it already existed
@@ -253,11 +267,9 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
           // entry in currentItems so subsequent files can find the updated values.
           const curIndex = currentItems.findIndex(it => computeKey(it) === itemKey);
           if (curIndex === -1) {
-            console.debug('[Import][Zip] adding new item to itemsAddedInThisFile', item.title, itemKey);
             itemsAddedInThisFile.push({ ...item });
           } else {
             // Merge latest fields into the existing currentItems entry
-            console.debug('[Import][Zip] merging update into currentItems for', item.title, itemKey);
             currentItems[curIndex] = { ...currentItems[curIndex], ...item };
           }
         }
@@ -276,7 +288,7 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
       };
 
       try {
-  const result = await processCSVImport(file, currentItems, trackingSaveItem, fileProgressWrapper, currentItems);
+  const result = await processCSVImport(file, currentItems, trackingSaveItem, fileProgressWrapper, currentItems, signal, onAPIError);
         totalAdded += result.added;
         filesProcessed.push(csvFile.name);
         
@@ -310,10 +322,18 @@ export const processZipImport = async (zipFile, existingItems, saveItem, onProgr
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total }
+ * @param {object} [zipCurrentItems] - Optional current items for zip imports
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary), returns { continue: bool, skipEnrichment: bool }
  * @returns {Promise<{added:number, format:string}>} Number of items imported and detected format
  */
-export const processCSVImport = async (file, existingItems, saveItem, onProgress, zipCurrentItems = null) => {
+export const processCSVImport = async (file, existingItems, saveItem, onProgress, zipCurrentItems = null, signal = null, onAPIError = null) => {
   if (!file) return 0;
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
+  }
 
   // When called from a zip import, zipCurrentItems will be passed and contains
   // the up-to-date list of items (existing + those added earlier in the zip).
@@ -338,6 +358,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     let added = 0;
     const total = mapped.length;
     let processed = 0;
+    let skipEnrichment = false; // Flag to skip API enrichment (OMDB/OpenLibrary) after user chooses to continue without it
 
     // Build a dedupe set from existingItems so we can detect duplicates quickly
     // For books use title|author, for movies use title|director
@@ -355,14 +376,61 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       return keys;
     }).flat());
 
-  console.debug('[Import][Dedup] Built dedupeSet with', dedupeSet.size, 'keys from', itemsForMatching.length, 'items');
-
     // Report initial progress
     if (typeof onProgress === 'function') onProgress({ processed, added, total });
 
     // console log length of mapped
     console.log("Mapped rows count:", mapped.length);
+    
+    // Queue for items ready to be saved (enriched and deduplicated)
+    const saveQueue = [];
+    const SAVE_BATCH_SIZE = 10; // Save 10 items concurrently
+    
+    // Helper to flush the save queue
+    const flushSaveQueue = async () => {
+      if (saveQueue.length === 0) return;
+      
+      const itemsToSave = [...saveQueue];
+      saveQueue.length = 0; // Clear the queue
+      
+      console.log(`[Import] Flushing save queue with ${itemsToSave.length} items`);
+      
+      // Save all items in parallel
+      const savePromises = itemsToSave.map(async ({ item, dedupeKeys }) => {
+        try {
+          await saveItem(item);
+          // Add to dedupe set after successful save
+          dedupeKeys.forEach(key => dedupeSet.add(key));
+          return { success: true, item };
+        } catch (err) {
+          console.error('Error saving imported item', item, err);
+          return { success: false, item, error: err };
+        }
+      });
+      
+      const results = await Promise.allSettled(savePromises);
+      
+      // Count successful saves
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          added++;
+        }
+      });
+      
+      // Report progress after batch
+      if (typeof onProgress === 'function') {
+        onProgress({ processed, added, total });
+      }
+    };
+    
     for (const rawRow of mapped) {
+      // Check if import was aborted
+      if (signal && signal.aborted) {
+        console.log('[Import] Aborted during processing');
+        // Flush any pending saves before aborting
+        await flushSaveQueue();
+        throw new DOMException('Import was cancelled', 'AbortError');
+      }
 
       // For Letterboxd, enrich row first so we can dedupe by director
       let m = rawRow;
@@ -374,11 +442,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
           }
         };
         try {
-          m = await processLetterboxdRow(rawRow, file.name, null, progressBridge);
-          console.debug("Processed Letterboxd row:", m.title);
+          m = await processLetterboxdRow(rawRow, file.name, null, progressBridge, { skipOmdb: skipEnrichment });
         } catch (e) {
-          console.warn('[Import] Failed to process Letterboxd row');
-          m = rawRow; // fallback to raw mapping
+          // Handle OMDB errors specially
+          if (e instanceof OMDBError && (e.type === 'QUOTA_EXCEEDED' || e.type === 'AUTH_FAILED' || e.type === 'INVALID_KEY')) {
+            console.warn('[Import] OMDB API error:', e.message);
+            
+            // Ask user what to do via callback
+            if (typeof onAPIError === 'function') {
+              const decision = await onAPIError(e);
+              if (!decision || !decision.continue) {
+                // User chose to stop import
+                throw new DOMException('Import cancelled due to API error', 'AbortError');
+              }
+              if (decision.skipEnrichment) {
+                // User chose to continue without API enrichment
+                skipEnrichment = true;
+              }
+            } else {
+              // No callback provided, skip enrichment for remaining items
+              skipEnrichment = true;
+            }
+            
+            // Process the row again without OMDB
+            m = await processLetterboxdRow(rawRow, file.name, null, progressBridge, { skipOmdb: true });
+          } else {
+            console.warn('[Import] Failed to process Letterboxd row:', e);
+            m = rawRow; // fallback to raw mapping
+          }
         }
       }
 
@@ -391,19 +482,11 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   const isFilmsFile = format === 'letterboxd' && (lowerName.includes('films.csv') || lowerName === 'films.csv' || lowerName.includes('films'));
       if (isRatingsFile || isReviewsFile || isFilmsFile) {
         const existing = findMatchingMovie(itemsForMatching, m);
-        console.log('[Import][Letterboxd] Looking for existing match for', file.name, ':', m.title, existing ? 'FOUND' : 'not found');
-        console.log('[Import][Letterboxd] itemsForMatching count:', itemsForMatching.length);
-        console.log('[Import][Letterboxd] Movie details - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
-        if (itemsForMatching.length > 0) {
-          console.log('[Import][Letterboxd] Sample existing movies:', itemsForMatching.filter(it => it.type === 'movie').slice(0, 3).map(it => ({title: it.title, director: it.director, year: it.year})));
-        }
         if (existing) {
           if (isRatingsFile) {
             // prefer m.rating, fallback to m.Rating, then existing
             const raw = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') ? m.rating : ((m.Rating !== undefined && m.Rating !== null && String(m.Rating).trim() !== '') ? m.Rating : (existing.rating || 0));
-            const nr = normalizeRating(raw);
-            console.debug('[Import][Rating] updating existing rating', { title: existing.title, raw, normalized: nr });
-            existing.rating = nr;
+            existing.rating = normalizeRating(raw);
           }
           if (isReviewsFile) {
             existing.review = (m.review !== undefined && m.review !== null && String(m.review).trim() !== '') ? m.review : existing.review || '';
@@ -411,9 +494,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
             const hasRating = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') || (m.Rating !== undefined && m.Rating !== null && String(m.Rating).trim() !== '');
             if (hasRating) {
               const raw = (m.rating !== undefined && m.rating !== null && String(m.rating).trim() !== '') ? m.rating : m.Rating;
-              const nr = normalizeRating(raw);
-              console.debug('[Import][Rating] reviews.csv contains rating, updating existing rating', { title: existing.title, raw, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(raw);
             }
             // merge tags if present on reviews.csv
             const incomingTags = Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
@@ -428,36 +509,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
             existing.tags = Array.isArray(existing.tags) ? existing.tags : (existing.tags ? String(existing.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
             existing.tags = Array.from(new Set([...(existing.tags || []), 'liked']));
           }
-          try {
-            // Ensure the filename is preserved to avoid creating duplicates
-            if (!existing.filename && itemsForMatching) {
-              const originalItem = itemsForMatching.find(orig => 
-                orig.title === existing.title && 
-                orig.type === existing.type && 
-                orig.director === existing.director
-              );
-              if (originalItem && originalItem.filename) {
-                existing.filename = originalItem.filename;
-              }
+          // Ensure the filename is preserved to avoid creating duplicates
+          if (!existing.filename && itemsForMatching) {
+            const originalItem = itemsForMatching.find(orig => 
+              orig.title === existing.title && 
+              orig.type === existing.type && 
+              orig.director === existing.director
+            );
+            if (originalItem && originalItem.filename) {
+              existing.filename = originalItem.filename;
             }
-            
-            await saveItem(existing);
-            // Count this as an 'added' match (we updated an existing item)
-            added++;
-            
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-          } catch (e) {
-            console.error('[Import] Failed to save updated item for ratings/reviews import', existing.title, e);
+          }
+          
+          // Prepare dedupe keys
+          const t = normalizeForCompare(existing.title||'');
+          const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+          const i = normalizeISBNForCompare(existing.isbn||'');
+          const dedupeKeys = [`${t}|${second}`];
+          if (i) dedupeKeys.push(`isbn:${i}`);
+          if (existing.type === 'movie') {
+            dedupeKeys.push(`${t}|`);
+          }
+          
+          // Add to save queue instead of saving immediately
+          saveQueue.push({ item: existing, dedupeKeys });
+          
+          // Flush queue if it reaches batch size
+          if (saveQueue.length >= SAVE_BATCH_SIZE) {
+            await flushSaveQueue();
           }
           // mark as processed (not added)
           processed++;
@@ -465,12 +544,9 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
           // skip the normal add flow for this row
           continue;
         }
-        console.log('[Import][Letterboxd] No existing match found for', m.title, 'in file', file.name);
-        console.log('[Import][Letterboxd] Movie details for fallthrough - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
         // if no existing item found, fall through to normal import behavior (create new)
         // EXCEPTION: For films.csv, we should NEVER create new movies - only update existing ones
         if (isFilmsFile) {
-          console.log('[Import][Films] Skipping', m.title, 'from films.csv - no existing movie found to add liked tag to');
           processed++;
           if (typeof onProgress === 'function') onProgress({ processed, added, total });
           continue; // Skip this entry entirely
@@ -487,13 +563,7 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       // For movies, also check for title-only matches (important for films.csv which may lack director info)
       const titleOnlyKey = m.type === 'movie' ? `${t}|` : null;
       
-      console.log('[Import][Dedup] Checking:', m.title, 'from file:', file.name);
-      console.log('[Import][Dedup] Movie details - Title:', m.title, 'Director:', m.director, 'Year:', m.year);
-      console.log('[Import][Dedup] Keys - main:', key, 'titleOnly:', titleOnlyKey);
-      console.log('[Import][Dedup] dedupeSet has main key:', dedupeSet.has(key), 'titleOnly key:', titleOnlyKey ? dedupeSet.has(titleOnlyKey) : 'N/A');
-      
   if ((isbnKey && dedupeSet.has(isbnKey)) || dedupeSet.has(key) || (titleOnlyKey && dedupeSet.has(titleOnlyKey)) || isDuplicate(itemsForMatching, m)) {
-        console.log('[Import][Dedup] SKIPPING duplicate:', m.title, 'from file:', file.name);
         // mark as processed even if skipped
         processed++;
         if (typeof onProgress === 'function') onProgress({ processed, added, total });
@@ -501,23 +571,35 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
       }
 
       try {
-
-        // Debug: log the mapped row to confirm upstream ISBN parsing
-        try {
-          console.debug('[Import] mapped row before enrichment:', m);
-        } catch (e) {
-          // ignore
-        }
-
         // If this is a Goodreads import and an ISBN exists, try to enrich missing fields
         let olData = null;
-        if (format === 'goodreads' && m.isbn) {
+        if (format === 'goodreads' && m.isbn && !skipEnrichment) {
           try {
-            console.log('[Open Library] Looking up Open Library data for ISBN', m.isbn);
             olData = await getBookByISBN(m.isbn);
           } catch (err) {
-            // ignore Open Library errors and proceed with spreadsheet data
-            console.warn('[Open Library] lookup failed for ISBN', m.isbn, err);
+            // Handle Open Library API errors specially
+            if (err instanceof OpenLibraryError && (err.type === 'NETWORK' || err.type === 'SERVICE_DOWN')) {
+              console.warn('[Import] Open Library API error:', err.message);
+              
+              // Ask user what to do via callback
+              if (typeof onAPIError === 'function') {
+                const decision = await onAPIError(err);
+                if (!decision || !decision.continue) {
+                  // User chose to stop import
+                  throw new DOMException('Import cancelled due to Open Library error', 'AbortError');
+                }
+                if (decision.skipEnrichment) {
+                  // User chose to continue without Open Library enrichment
+                  skipEnrichment = true;
+                }
+              } else {
+                // No callback provided, skip enrichment for remaining items
+                skipEnrichment = true;
+              }
+            } else {
+              // For other errors (book not found, etc), just proceed with spreadsheet data
+              console.warn('[Open Library] lookup failed for ISBN', m.isbn, err);
+            }
             olData = null;
           }
         }
@@ -551,43 +633,39 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
   if (format === 'letterboxd' && (lowerName.includes('ratings.csv') || lowerName === 'ratings.csv')) {
           // rating update
           const existing = findMatchingMovie(itemsForMatching, m);
-          console.debug('[Import][Letterboxd] Secondary ratings check - itemsForMatching count:', itemsForMatching.length);
           if (existing) {
             {
               const raw = baseItem.rating || existing.rating || 0;
-              const nr = normalizeRating(raw);
-              console.debug('[Import][Rating] applying baseItem rating', { title: existing.title, raw, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(raw);
             }
-            try {
-              // Ensure the filename is preserved to avoid creating duplicates
-              if (!existing.filename && itemsForMatching) {
-                const originalItem = itemsForMatching.find(orig => 
-                  orig.title === existing.title && 
-                  orig.type === existing.type && 
-                  orig.director === existing.director
-                );
-                if (originalItem && originalItem.filename) {
-                  existing.filename = originalItem.filename;
-                }
+            // Ensure the filename is preserved to avoid creating duplicates
+            if (!existing.filename && itemsForMatching) {
+              const originalItem = itemsForMatching.find(orig => 
+                orig.title === existing.title && 
+                orig.type === existing.type && 
+                orig.director === existing.director
+              );
+              if (originalItem && originalItem.filename) {
+                existing.filename = originalItem.filename;
               }
-              
-              await saveItem(existing);
-              added++;
-              
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-            } catch (e) {
-              console.error('[Import] Failed to save updated rating for', existing.title, e);
+            }
+            
+            // Prepare dedupe keys
+            const t = normalizeForCompare(existing.title||'');
+            const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+            const i = normalizeISBNForCompare(existing.isbn||'');
+            const dedupeKeys = [`${t}|${second}`];
+            if (i) dedupeKeys.push(`isbn:${i}`);
+            if (existing.type === 'movie') {
+              dedupeKeys.push(`${t}|`);
+            }
+            
+            // Add to save queue instead of saving immediately
+            saveQueue.push({ item: existing, dedupeKeys });
+            
+            // Flush queue if it reaches batch size
+            if (saveQueue.length >= SAVE_BATCH_SIZE) {
+              await flushSaveQueue();
             }
             // count as processed but not added
             processed++;
@@ -599,13 +677,10 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
     if (format === 'letterboxd' && (lowerName.includes('reviews.csv') || lowerName === 'reviews.csv')) {
           // review update
           const existing = findMatchingMovie(itemsForMatching, m);
-          console.debug('[Import][Letterboxd] Secondary reviews check - itemsForMatching count:', itemsForMatching.length);
           if (existing) {
             existing.review = baseItem.review || existing.review || '';
             if (baseItem.rating) {
-              const nr = normalizeRating(baseItem.rating);
-              console.debug('[Import][Rating] overwriting existing rating with baseItem rating', { title: existing.title, raw: baseItem.rating, normalized: nr });
-              existing.rating = nr;
+              existing.rating = normalizeRating(baseItem.rating);
             }
             // Merge tags from the review CSV if present (avoid duplicates)
             const incomingTags = Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
@@ -614,35 +689,34 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
               const merged = new Set([...(existing.tags || []), ...incomingTags]);
               existing.tags = Array.from(merged);
             }
-            try {
-              // Ensure the filename is preserved to avoid creating duplicates
-              if (!existing.filename && itemsForMatching) {
-                const originalItem = itemsForMatching.find(orig => 
-                  orig.title === existing.title && 
-                  orig.type === existing.type && 
-                  orig.director === existing.director
-                );
-                if (originalItem && originalItem.filename) {
-                  existing.filename = originalItem.filename;
-                }
+            // Ensure the filename is preserved to avoid creating duplicates
+            if (!existing.filename && itemsForMatching) {
+              const originalItem = itemsForMatching.find(orig => 
+                orig.title === existing.title && 
+                orig.type === existing.type && 
+                orig.director === existing.director
+              );
+              if (originalItem && originalItem.filename) {
+                existing.filename = originalItem.filename;
               }
-              
-              await saveItem(existing);
-              added++;
-              
-              // Add to dedupe set to prevent duplicates later in this import
-              const t = normalizeForCompare(existing.title||'');
-              const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
-              const i = normalizeISBNForCompare(existing.isbn||'');
-              const key = `${t}|${second}`;
-              dedupeSet.add(key);
-              if (i) dedupeSet.add(`isbn:${i}`);
-              // For movies, also add title-only key
-              if (existing.type === 'movie') {
-                dedupeSet.add(`${t}|`);
-              }
-            } catch (e) {
-              console.error('[Import] Failed to save updated review for', existing.title, e);
+            }
+            
+            // Prepare dedupe keys
+            const t = normalizeForCompare(existing.title||'');
+            const second = existing.type === 'movie' ? normalizeForCompare(existing.director||'') : normalizeForCompare(existing.author||'');
+            const i = normalizeISBNForCompare(existing.isbn||'');
+            const dedupeKeys = [`${t}|${second}`];
+            if (i) dedupeKeys.push(`isbn:${i}`);
+            if (existing.type === 'movie') {
+              dedupeKeys.push(`${t}|`);
+            }
+            
+            // Add to save queue instead of saving immediately
+            saveQueue.push({ item: existing, dedupeKeys });
+            
+            // Flush queue if it reaches batch size
+            if (saveQueue.length >= SAVE_BATCH_SIZE) {
+              await flushSaveQueue();
             }
             // count as processed but not added
             processed++;
@@ -660,19 +734,26 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
 
         const itemToSave = baseItem;
 
-  console.log('[Import] Creating new item:', itemToSave.title, 'from file:', file.name, 'type:', itemToSave.type);
-  await saveItem(itemToSave);
-  added++;
-  // add to dedupe set to prevent duplicates later in this import
-  dedupeSet.add(key);
-  if (i) dedupeSet.add(`isbn:${i}`);
-  // For movies, also add title-only key
-  if (m.type === 'movie') {
-    dedupeSet.add(`${t}|`);
-  }
-  console.debug('[Import][Dedup] Added to dedupeSet:', key);
+        // Prepare dedupe keys
+        const dedupeKeys = [key];
+        if (i) dedupeKeys.push(`isbn:${i}`);
+        if (m.type === 'movie') {
+          dedupeKeys.push(`${t}|`);
+        }
+        
+        // Add to save queue instead of saving immediately
+        saveQueue.push({ item: itemToSave, dedupeKeys });
+        
+        // Flush queue if it reaches batch size
+        if (saveQueue.length >= SAVE_BATCH_SIZE) {
+          await flushSaveQueue();
+        }
       } catch (err) {
-        console.error('Error saving imported item', m, err);
+        // Re-throw AbortError to stop the import
+        if (err.name === 'AbortError') {
+          throw err;
+        }
+        console.error('Error processing imported item', m, err);
       }
       // increment processed count and report progress
       processed++;
@@ -685,11 +766,16 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
         }
       }
     }
+    
+    // Flush any remaining items in the save queue
+    await flushSaveQueue();
 
     return { added, format };
   } catch (err) {
     console.error('Error importing CSV', err);
-    throw new Error('Error importing CSV. See console for details.');
+    // Provide more specific error message
+    const errorMsg = err.message || 'Unknown error';
+    throw new Error(`Error importing CSV: ${errorMsg}`);
   }
 };
 
@@ -699,11 +785,18 @@ export const processCSVImport = async (file, existingItems, saveItem, onProgress
  * @param {object[]} existingItems - Existing items for duplicate detection
  * @param {Function} saveItem - Function to save individual items
  * @param {Function} [onProgress] - Optional callback(progress) called with { processed, added, total }
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the import
+ * @param {Function} [onAPIError] - Optional callback for API errors (OMDB/OpenLibrary)
  * @returns {Promise<{added:number, format:string, filesProcessed?:string[]}>} Import results
  */
-export const processImportFile = async (file, existingItems, saveItem, onProgress) => {
+export const processImportFile = async (file, existingItems, saveItem, onProgress, signal = null, onAPIError = null) => {
   if (!file) {
     throw new Error('No file provided');
+  }
+
+  // Check if import was aborted before starting
+  if (signal && signal.aborted) {
+    throw new DOMException('Import was cancelled', 'AbortError');
   }
 
   const fileName = file.name.toLowerCase();
@@ -712,10 +805,10 @@ export const processImportFile = async (file, existingItems, saveItem, onProgres
 
   if (isZip) {
     console.log('Detected zip file, processing as Letterboxd export');
-    return await processZipImport(file, existingItems, saveItem, onProgress);
+    return await processZipImport(file, existingItems, saveItem, onProgress, signal, onAPIError);
   } else if (isCsv) {
     console.log('Detected CSV file, processing as single CSV');
-    const result = await processCSVImport(file, existingItems, saveItem, onProgress);
+    const result = await processCSVImport(file, existingItems, saveItem, onProgress, null, signal, onAPIError);
     return {
       ...result,
       filesProcessed: [file.name]

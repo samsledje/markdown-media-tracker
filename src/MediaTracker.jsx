@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2 } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -20,6 +20,7 @@ import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
 import ObsidianBaseModal from './components/modals/ObsidianBaseModal.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import StorageIndicator from './components/StorageIndicator.jsx';
+import ItemCard from './components/cards/ItemCard.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
@@ -100,11 +101,23 @@ const MediaTracker = () => {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [exportSubmenuOpen, setExportSubmenuOpen] = useState(false);
+  const [settingsSubmenuOpen, setSettingsSubmenuOpen] = useState(false);
   // Import progress state
   const [isImporting, setIsImporting] = useState(false);
   const [importProcessed, setImportProcessed] = useState(0);
   const [importAdded, setImportAdded] = useState(0);
   const [importTotal, setImportTotal] = useState(0);
+  const [importCurrentFile, setImportCurrentFile] = useState('');
+  const [importOmdbError, setImportOmdbError] = useState(null);
+  const [importOmdbErrorResolver, setImportOmdbErrorResolver] = useState(null);
+  // Delete progress state
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [deleteTotal, setDeleteTotal] = useState(0);
+  // Batch edit progress state
+  const [isEditingBatch, setIsEditingBatch] = useState(false);
+  const [editProgress, setEditProgress] = useState(0);
+  const [editTotal, setEditTotal] = useState(0);
   const [searchResultItem, setSearchResultItem] = useState(null);
   const [storageError, setStorageError] = useState(null);
   const [availableStorageOptions, setAvailableStorageOptions] = useState([]);
@@ -116,13 +129,18 @@ const MediaTracker = () => {
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
   const storageIndicatorRef = useRef(null);
+  const landingPageRef = useRef(null);
   const exportSubmenuTimeoutRef = useRef(null);
   const exportContainerRef = useRef(null);
+  const settingsSubmenuTimeoutRef = useRef(null);
+  const settingsContainerRef = useRef(null);
+  const importAbortControllerRef = useRef(null);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
   const [dropdownStyle, setDropdownStyle] = useState({});
   const [exportSubmenuPosition, setExportSubmenuPosition] = useState('right');
+  const [settingsSubmenuPosition, setSettingsSubmenuPosition] = useState('right');
 
   // Custom hooks
   const {
@@ -130,6 +148,7 @@ const MediaTracker = () => {
     storageAdapter,
     storageInfo,
     isLoading,
+    loadProgress,
     undoStack,
     initializeStorage,
     loadItems,
@@ -175,13 +194,13 @@ const MediaTracker = () => {
 
   const {
     selectionMode,
-    selectedIds,
+    selectedIds, // Used directly for performance
     selectedCount,
     toggleSelectionMode,
     toggleItemSelection,
     selectAll,
     clearSelection,
-    isItemSelected,
+    isItemSelected, // Keep for non-rendering uses
     getSelectedItems
   } = useSelection();
 
@@ -229,6 +248,21 @@ const MediaTracker = () => {
     }, 100);
   };
 
+  // Settings submenu hover handlers
+  const handleSettingsSubmenuEnter = () => {
+    if (settingsSubmenuTimeoutRef.current) {
+      clearTimeout(settingsSubmenuTimeoutRef.current);
+    }
+    calculateSettingsSubmenuPosition();
+    setSettingsSubmenuOpen(true);
+  };
+
+  const handleSettingsSubmenuLeave = () => {
+    settingsSubmenuTimeoutRef.current = setTimeout(() => {
+      setSettingsSubmenuOpen(false);
+    }, 100);
+  };
+
   // Calculate optimal position for export submenu
   const calculateExportSubmenuPosition = () => {
     if (!exportContainerRef.current) return;
@@ -248,6 +282,28 @@ const MediaTracker = () => {
     } else {
       // Position to the right (default)
       setExportSubmenuPosition('right');
+    }
+  };
+
+  // Calculate optimal position for settings submenu
+  const calculateSettingsSubmenuPosition = () => {
+    if (!settingsContainerRef.current) return;
+    
+    const containerRect = settingsContainerRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const submenuWidth = 160; // min-w-[160px]
+    const spacing = 8; // ml-2/mr-2
+    const buffer = 16; // Extra buffer from screen edge
+    
+    // Check if submenu would overflow on the right
+    const rightEdge = containerRect.right + spacing + submenuWidth + buffer;
+    
+    if (rightEdge > viewportWidth) {
+      // Position to the left
+      setSettingsSubmenuPosition('left');
+    } else {
+      // Position to the right (default)
+      setSettingsSubmenuPosition('right');
     }
   };
 
@@ -271,8 +327,30 @@ const MediaTracker = () => {
     }
   };
 
-  // Handle item selection on card click
-  const handleItemClick = (item, e) => {
+  // Handle clearing Google Drive cache
+  const handleClearCache = async () => {
+    if (!storageAdapter || storageAdapter.getStorageType() !== 'googledrive') return;
+    
+    try {
+      await storageAdapter.clearCache();
+      toast('Cache cleared! Reloading fresh data...', { type: 'success' });
+      
+      // Reload items after clearing cache
+      setTimeout(() => {
+        loadItems();
+      }, 500);
+      
+      // Close menu
+      setMenuOpen(false);
+      setSettingsSubmenuOpen(false);
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      toast('Failed to clear cache', { type: 'error' });
+    }
+  };
+
+  // Handle item selection on card click (memoized to prevent re-renders)
+  const handleItemClick = useCallback((item, e) => {
     if (selectionMode) {
       toggleItemSelection(item.id);
     } else if (e.shiftKey) {
@@ -281,7 +359,21 @@ const MediaTracker = () => {
     } else {
       setSelectedItem(item);
     }
-  };
+  }, [selectionMode, toggleItemSelection, toggleSelectionMode]);
+
+  // Since toggleTagFilter and toggleStatusFilter are now memoized in useFilters,
+  // we can use them directly without wrapping. But for setters, we still need to wrap.
+  const handleSetFilterRating = useCallback((rating) => {
+    setFilterRating(rating);
+  }, [setFilterRating]);
+
+  const handleSetFilterRecent = useCallback((value) => {
+    setFilterRecent(value);
+  }, [setFilterRecent]);
+
+  const handleSetFilterType = useCallback((type) => {
+    setFilterType(type);
+  }, [setFilterType]);
 
   // Handle file import (CSV or ZIP)
   const handleImportFile = async (e) => {
@@ -294,21 +386,68 @@ const MediaTracker = () => {
       return;
     }
 
+    // Create an AbortController for this import
+    const abortController = new AbortController();
+    importAbortControllerRef.current = abortController;
+
     try {
       setIsImporting(true);
       setImportProcessed(0);
       setImportAdded(0);
       setImportTotal(0);
+      setImportCurrentFile('');
 
+      let lastProgressUpdate = Date.now();
+      const progressThrottleMs = 100; // Update UI at most every 100ms
+      
       const progressCb = ({ processed, added, total, currentFile, filesCompleted, totalFiles }) => {
-        setImportProcessed(processed);
-        setImportAdded(added);
-        setImportTotal(total);
-        // You can add additional state for current file progress if needed
+        const now = Date.now();
+        // Always update on first/last item, otherwise throttle
+        const isFirstOrLast = processed === 0 || processed === total;
+        
+        if (isFirstOrLast || now - lastProgressUpdate >= progressThrottleMs) {
+          setImportProcessed(processed);
+          setImportAdded(added);
+          setImportTotal(total);
+          if (currentFile) {
+            setImportCurrentFile(currentFile);
+          }
+          lastProgressUpdate = now;
+        }
       };
 
-      const result = await processImportFile(file, items, saveItem, progressCb);
+      // API error handler (OMDB/OpenLibrary) - pauses import and asks user what to do
+      const handleAPIError = async (error) => {
+        // If there's already an error showing, wait for it to be resolved first
+        if (importOmdbError) {
+          console.warn('[Import] API error occurred while another error modal is showing');
+          return { continue: false, skipEnrichment: false };
+        }
+        
+        return new Promise((resolve) => {
+          setImportOmdbError(error);
+          // Store the resolve function directly, not wrapped
+          setImportOmdbErrorResolver({ resolve });
+        });
+      };
+
+      // Create a batch-optimized saveItem that doesn't reload after each save
+      // We'll reload once at the end instead
+      const batchSaveItem = async (item) => {
+        if (!storageAdapter || !storageAdapter.isConnected()) {
+          throw new Error('Please connect to a storage location first');
+        }
+        // Just save without reloading
+        await storageAdapter.saveItem(item);
+      };
+
+      const result = await processImportFile(file, items, batchSaveItem, progressCb, abortController.signal, handleAPIError);
       const { added, format, filesProcessed } = result;
+      
+      // Reload items once at the end (much more efficient than reloading after each save)
+      if (added > 0) {
+        await loadItems();
+      }
       
       let message = `Imported ${added} items (detected format: ${format})`;
       if (filesProcessed && filesProcessed.length > 1) {
@@ -317,12 +456,29 @@ const MediaTracker = () => {
       
       toast(message, { type: 'success' });
     } catch (error) {
-      toast(error.message, { type: 'error' });
+      // Don't show error toast for user-initiated abort
+      if (error.name !== 'AbortError') {
+        toast(error.message, { type: 'error' });
+      } else {
+        console.log('[Import] Import cancelled by user');
+      }
     } finally {
       setIsImporting(false);
+      importAbortControllerRef.current = null;
+      setImportOmdbError(null);
+      setImportOmdbErrorResolver(null);
     }
 
     e.target.value = '';
+  };
+
+  // Handle user response to API error (OMDB/OpenLibrary) during import
+  const handleImportOmdbErrorResponse = (continueImport, skipEnrichment) => {
+    if (importOmdbErrorResolver && importOmdbErrorResolver.resolve) {
+      importOmdbErrorResolver.resolve({ continue: continueImport, skipEnrichment });
+      setImportOmdbError(null);
+      setImportOmdbErrorResolver(null);
+    }
   };
 
   // Handle batch operations
@@ -334,11 +490,53 @@ const MediaTracker = () => {
   const confirmBatchDelete = async () => {
     try {
       const selectedItems = getSelectedItems(filteredAndSortedItems);
-      await deleteItems(selectedItems);
+      const totalItems = selectedItems.length;
+      
+      // Set up progress tracking
+      setIsDeleting(true);
+      setDeleteProgress(0);
+      setDeleteTotal(totalItems);
+      
+      // Delete items one by one with progress tracking
+      if (!storageAdapter || !storageAdapter.isConnected()) {
+        throw new Error('Please connect to a storage location first');
+      }
+
+      let deletedCount = 0;
+      const undoInfos = [];
+      let lastProgressUpdate = 0;
+      const progressThrottle = 5; // Update progress every 10 items
+      
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        try {
+          // Delete without reloading after each one
+          const undoInfo = await storageAdapter.deleteItem(item);
+          undoInfos.push(undoInfo);
+          deletedCount++;
+          
+          // Throttle progress updates to reduce re-renders
+          if (i - lastProgressUpdate >= progressThrottle || i === selectedItems.length - 1) {
+            setDeleteProgress(i + 1);
+            lastProgressUpdate = i;
+          }
+        } catch (error) {
+          console.error('Error deleting item:', item.title, error);
+        }
+      }
+      
+      // Reload items only once at the end
+      if (deletedCount > 0) {
+        await loadItems();
+        toast(`Deleted ${deletedCount} item${deletedCount !== 1 ? 's' : ''}`, { type: 'success' });
+      }
+      
       clearSelection();
       setShowBatchDeleteConfirm(false);
+      setIsDeleting(false);
     } catch (error) {
       toast(error.message, { type: 'error' });
+      setIsDeleting(false);
     }
   };
 
@@ -348,12 +546,70 @@ const MediaTracker = () => {
 
   const handleBatchEdit = async (changes) => {
     try {
-      const updated = await applyBatchEdit(selectedIds, changes);
+      if (!storageAdapter || !storageAdapter.isConnected()) {
+        throw new Error('Please connect to a storage location first');
+      }
+
+      // Convert Set to Array if needed
+      const selectedIdsArray = Array.from(selectedIds);
+      
+      // Set up progress tracking
+      setIsEditingBatch(true);
+      setEditProgress(0);
+      setEditTotal(selectedIdsArray.length);
+
+      const updated = [];
+      let lastProgressUpdate = 0;
+      const progressThrottle = 10; // Update progress every 10 items
+      
+      for (let i = 0; i < selectedIdsArray.length; i++) {
+        const id = selectedIdsArray[i];
+        const item = items.find(it => it.id === id);
+        if (!item) continue;
+
+        const newItem = { ...item };
+
+        // Apply only fields present in changes (non-empty)
+        if (changes.type) newItem.type = changes.type;
+        if (changes.author) newItem.author = changes.author;
+        if (changes.director) newItem.director = changes.director;
+        if (changes.year) newItem.year = changes.year;
+        if (changes.rating !== null && changes.rating !== undefined) newItem.rating = changes.rating;
+        if (changes.addTags && changes.addTags.length) {
+          newItem.tags = Array.from(new Set([...(newItem.tags || []), ...changes.addTags]));
+        }
+        if (changes.removeTags && changes.removeTags.length) {
+          newItem.tags = (newItem.tags || []).filter(t => !changes.removeTags.includes(t));
+        }
+        if (changes.dateRead) newItem.dateRead = changes.dateRead;
+        if (changes.dateWatched) newItem.dateWatched = changes.dateWatched;
+        if (changes.status) newItem.status = changes.status;
+
+        try {
+          await storageAdapter.saveItem(newItem);
+          updated.push(newItem.id);
+          
+          // Throttle progress updates to reduce re-renders
+          if (i - lastProgressUpdate >= progressThrottle || i === selectedIdsArray.length - 1) {
+            setEditProgress(i + 1);
+            lastProgressUpdate = i;
+          }
+        } catch (error) {
+          console.error('Error updating item:', item.title, error);
+        }
+      }
+
+      if (updated.length > 0) {
+        await loadItems();
+      }
+
       setShowBatchEdit(false);
+      setIsEditingBatch(false);
       clearSelection();
-      toast(`Updated ${updated.length} items`, { type: 'success' });
+      toast(`Updated ${updated.length} item${updated.length !== 1 ? 's' : ''}`, { type: 'success' });
     } catch (error) {
       toast(error.message, { type: 'error' });
+      setIsEditingBatch(false);
     }
   };
 
@@ -401,7 +657,7 @@ const MediaTracker = () => {
   }, [showStorageSelector]);
 
   // Keyboard navigation setup
-  const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
+  const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({ // focusedId used directly for performance
     items: filteredAndSortedItems,
     cardSize,
     storageAdapter,
@@ -438,6 +694,7 @@ const MediaTracker = () => {
     onOpenItem: setSelectedItem,
     onCloseModals: closeModals,
     onCloseBatchDeleteModal: () => setShowBatchDeleteConfirm(false),
+    onConfirmBatchDelete: confirmBatchDelete,
     selectionMode,
     selectedCount,
     hasOpenModal: !!(selectedItem || isAdding || isSearching || showHelp || showBatchEdit || showBatchDeleteConfirm || showApiKeyManager || customizeOpen || searchResultItem || storageIndicatorOpen),
@@ -490,9 +747,25 @@ const MediaTracker = () => {
   // Handle storage disconnection
   const handleDisconnectStorage = async () => {
     try {
+      // Cancel any active import before disconnecting
+      if (importAbortControllerRef.current) {
+        console.log('[Storage] Cancelling active import before disconnecting storage');
+        importAbortControllerRef.current.abort();
+        importAbortControllerRef.current = null;
+        // Give the import a moment to clean up
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       await disconnectStorage();
       setShowStorageSelector(true);
       closeModals();
+      
+      // Scroll to storage selector after a brief delay to allow rendering
+      setTimeout(() => {
+        if (landingPageRef.current) {
+          landingPageRef.current.scrollToStorage();
+        }
+      }, 100);
     } catch (error) {
       setStorageError(error.message);
     }
@@ -755,13 +1028,47 @@ const MediaTracker = () => {
               )}
             </div>
 
-            <button
-              onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); }}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white"
+            <div 
+              ref={settingsContainerRef}
+              className="relative"
+              onMouseEnter={handleSettingsSubmenuEnter}
+              onMouseLeave={handleSettingsSubmenuLeave}
             >
-              <Key className="w-4 h-4" />
-              Manage API Keys
-            </button>
+              <button
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 text-white justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </div>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {settingsSubmenuOpen && (
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
+                  settingsSubmenuPosition === 'left' 
+                    ? 'right-full mr-2 slide-in-from-right-2' 
+                    : 'left-full ml-2 slide-in-from-left-2'
+                }`}>
+                  <button
+                    onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); setSettingsSubmenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <Key className="w-3 h-3" />
+                    API Keys
+                  </button>
+                  {storageAdapter?.getStorageType() === 'googledrive' && (
+                    <button
+                      onClick={handleClearCache}
+                      className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear Cache
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Undo Delete option intentionally removed from the menu */}
 
@@ -779,7 +1086,7 @@ const MediaTracker = () => {
       )}
 
       {/* Floating import progress (bottom-left) */}
-      {isImporting && (
+      {isImporting && !importOmdbError && (
         <div className="fixed left-4 bottom-4 z-50">
           <div className="w-80 bg-slate-800/80 border border-slate-700 rounded-lg p-3 shadow-lg">
             <div className="flex items-center justify-between mb-2">
@@ -796,13 +1103,93 @@ const MediaTracker = () => {
         </div>
       )}
 
+      {/* OMDB Error Modal during import */}
+      {importOmdbError && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {importOmdbError.name === 'OpenLibraryError' ? 'Open Library Issue Detected' : 'OMDb API Issue Detected'}
+                </h3>
+                <p className="text-sm text-slate-300 mb-1">
+                  {importOmdbError.message}
+                </p>
+                {importOmdbError.type === 'QUOTA_EXCEEDED' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Your daily API limit has been reached. Movies will be imported with basic information from the CSV file only.
+                  </p>
+                )}
+                {importOmdbError.type === 'AUTH_FAILED' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    There's an issue with your API key. Movies will be imported with basic information from the CSV file only.
+                  </p>
+                )}
+                {importOmdbError.type === 'NETWORK' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    {importOmdbError.name === 'OpenLibraryError' 
+                      ? 'Books will be imported with information from the CSV file only.' 
+                      : 'Movies will be imported with basic information from the CSV file only.'}
+                  </p>
+                )}
+                {importOmdbError.type === 'SERVICE_DOWN' && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Books will be imported with information from the CSV file only.
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
+              {importCurrentFile && (
+                <div className="mb-3 pb-2 border-b border-slate-700">
+                  <p className="text-xs text-slate-400 mb-1">Current file:</p>
+                  <p className="text-sm text-blue-400 font-mono">{importCurrentFile}</p>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mb-2">Import progress:</p>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-slate-200">{importAdded} / {importTotal} items</div>
+                <div className="flex-1 bg-slate-700 rounded h-2 overflow-hidden">
+                  <div className="bg-blue-500 h-2 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleImportOmdbErrorResponse(false, false)}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Cancel Import
+              </button>
+              <button
+                onClick={() => handleImportOmdbErrorResponse(true, true)}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Continue Without {importOmdbError.name === 'OpenLibraryError' ? 'Enrichment' : 'OMDb'}
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 text-center mt-3">
+              Continuing will import remaining {importOmdbError.name === 'OpenLibraryError' ? 'books' : 'movies'} using only CSV data
+            </p>
+          </div>
+        </div>
+      )}
+
       {showStorageSelector ? (
         <div className="flex-1">
           <LandingPage
+            ref={landingPageRef}
             onStorageSelect={handleStorageSelect}
             availableOptions={availableStorageOptions}
             error={storageError}
             isLoading={isLoading}
+            loadProgress={loadProgress}
           />
         </div>
       ) : (
@@ -844,7 +1231,7 @@ const MediaTracker = () => {
                 return (
                   <button
                     key={type}
-                    onClick={() => setFilterType(type)}
+                    onClick={() => handleSetFilterType(type)}
                     className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${
                       filterType === type
                         ? ''
@@ -873,8 +1260,8 @@ const MediaTracker = () => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="flex-1 sm:flex-none px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none text-sm min-h-[44px]"
               >
-                <option value="dateAdded">Date Added</option>
                 <option value="dateConsumed">Date Read/Watched</option>
+                <option value="dateAdded">Date Added</option>
                 <option value="status">Status</option>
                 <option value="title">Title</option>
                 <option value="author">Author / Director</option>
@@ -985,7 +1372,7 @@ const MediaTracker = () => {
                     {[1, 2, 3, 4, 5].map(r => (
                       <button
                         key={r}
-                        onClick={() => setFilterRating(r)}
+                        onClick={() => handleSetFilterRating(r)}
                         className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
                         style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
@@ -1008,7 +1395,7 @@ const MediaTracker = () => {
                     ].map(option => (
                       <button
                         key={option.value}
-                        onClick={() => setFilterRecent(option.value)}
+                        onClick={() => handleSetFilterRecent(option.value)}
                         className={`px-3 py-1 rounded-lg text-sm ${filterRecent === option.value ? '' : 'bg-slate-700/50'}`}
                         style={filterRecent === option.value ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                       >
@@ -1111,133 +1498,18 @@ const MediaTracker = () => {
                   cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
                   'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
                 }` }>
-                {filteredAndSortedItems.map((item, index) => (
-                  <div
+                {filteredAndSortedItems.map((item) => (
+                  <ItemCard
                     key={item.id}
-                    ref={(el) => registerCardRef(item.id, el)}
-                    onClick={(e) => handleItemClick(item, e)}
-                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full flex flex-col h-full ${
-                      isItemFocused(item.id) ? 'ring-2 ring-blue-500' :
-                      isItemSelected(item.id) ? 'ring-2 ring-yellow-500' :
-                      'border-slate-700 hover:border-slate-600'
-                    }`}
-                  >
-                    {/* Selection checkbox */}
-                    {selectionMode && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          isItemSelected(item.id) ? 'bg-yellow-500 border-yellow-500' : 'bg-slate-800 border-slate-400'
-                        }`}>
-                          {isItemSelected(item.id) && (
-                            <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Cover image container (reserved space when missing) */}
-                    <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-36' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden bg-slate-800/10`}>
-                      {item.coverUrl ? (
-                        <img
-                          src={item.coverUrl}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        // Empty placeholder to reserve space and keep alignment
-                        <div className="w-full h-full" aria-hidden="true" />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className={`p-3 flex-1 flex flex-col ${cardSize === 'tiny' ? 'pb-12' : 'pb-14'}`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold leading-tight mb-1 ${
-                            cardSize === 'tiny' ? 'text-xs' : cardSize === 'small' ? 'text-sm' : 'text-base'
-                          }`}>
-                            <span className="line-clamp-2">{item.title}</span>
-                          </h3>
-                          {(item.author || item.director) && (
-                            <p className={`text-slate-400 truncate ${
-                              cardSize === 'tiny' ? 'text-xs' : 'text-sm'
-                            }`}>
-                              {item.author || item.director}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 ml-2 flex items-center gap-2">
-                          {/* Type icon */}
-                          {item.type === 'book' ? (
-                            // Slightly smaller icons for tiny, mid-size for small, default larger for medium+
-                            <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
-                          ) : (
-                            <Film className={`text-purple-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Tags */}
-                      {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {item.tags.slice(0, 3).map((tag, i) => (
-                            <span
-                              key={i}
-                              className={`px-2 py-1 rounded-full ${cardSize === 'small' ? 'text-xs' : 'text-xs'}`}
-                              style={{ backgroundColor: hexToRgba(highlightColor, 0.12), color: 'white' }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {item.tags.length > 3 && (
-                            <span className="text-xs text-slate-500">+{item.tags.length - 3}</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Footer pinned to bottom (absolute) */}
-                      <div className={`absolute left-0 right-0 bottom-0 px-3 py-3 flex items-center justify-between bg-transparent`}>
-                        <div className="flex items-center gap-2">
-                          {/* Rating */}
-                          {item.rating > 0 && cardSize !== 'tiny' && (
-                            <div className="flex items-center gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
-                                    i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Year / Date */}
-                          {item.year && (
-                            <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
-                              {item.year}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Status badge */}
-                        {item.status && (
-                          <div
-                            className={`flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
-                              cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'
-                            }`}
-                            title={STATUS_LABELS[item.status]}
-                            style={{ backdropFilter: 'blur(4px)' }}
-                          >
-                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : cardSize === 'small' ? 'w-3 h-3' : 'w-4 h-4'}`)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    item={item}
+                    cardSize={cardSize}
+                    highlightColor={highlightColor}
+                    selectionMode={selectionMode}
+                    selectedIds={selectedIds}
+                    focusedId={focusedId}
+                    onItemClick={handleItemClick}
+                    registerCardRef={registerCardRef}
+                  />
                 ))}
                 </div>
               </div>
@@ -1374,6 +1646,9 @@ const MediaTracker = () => {
           onClose={() => setShowBatchEdit(false)}
           onApply={handleBatchEdit}
           selectedItems={getSelectedItems(filteredAndSortedItems)}
+          isProcessing={isEditingBatch}
+          progress={editProgress}
+          total={editTotal}
         />
       )}
 
@@ -1381,24 +1656,41 @@ const MediaTracker = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold mb-4">Delete Items</h3>
-            <p className="text-slate-300 mb-6">
-              Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelBatchDelete}
-                className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmBatchDelete}
-                className="px-4 py-2 rounded transition text-sm text-white"
-                style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
-              >
-                Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
-              </button>
-            </div>
+            
+            {!isDeleting ? (
+              <>
+                <p className="text-slate-300 mb-6">
+                  Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={cancelBatchDelete}
+                    className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 transition text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmBatchDelete}
+                    className="px-4 py-2 rounded transition text-sm text-white"
+                    style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
+                  >
+                    Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-300 mb-4">
+                  Deleting {deleteProgress} of {deleteTotal} items...
+                </p>
+                <div className="w-full bg-slate-700 rounded-full h-2.5 mb-4">
+                  <div
+                    className="bg-red-500 h-2.5 rounded-full transition-all duration-300"
+                    style={{ width: `${(deleteProgress / deleteTotal) * 100}%` }}
+                  ></div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1421,6 +1713,8 @@ const MediaTracker = () => {
           }}
           hexToRgba={hexToRgba}
           highlightColor={highlightColor}
+          items={filteredAndSortedItems}
+          onNavigate={setSelectedItem}
         />
       )}
 
@@ -1433,6 +1727,7 @@ const MediaTracker = () => {
             storageAdapter={storageAdapter}
             storageInfo={storageInfo}
             onSwitchStorage={handleDisconnectStorage}
+            onRefresh={() => loadItems()}
           />
         )}
         

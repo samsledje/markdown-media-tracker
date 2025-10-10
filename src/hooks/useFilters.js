@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { filterItems, sortItems, getAllTags, getAllStatuses } from '../utils/filterUtils.js';
 import { FILTER_TYPES, SORT_OPTIONS, SORT_ORDERS, RECENT_FILTER_OPTIONS } from '../constants/index.js';
 
@@ -10,7 +10,7 @@ import { FILTER_TYPES, SORT_OPTIONS, SORT_ORDERS, RECENT_FILTER_OPTIONS } from '
 export const useFilters = (items) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState(FILTER_TYPES.ALL);
-  const [sortBy, setSortBy] = useState(SORT_OPTIONS.DATE_ADDED);
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS.DATE_CONSUMED);
   const [sortOrder, setSortOrder] = useState(SORT_ORDERS.DESC);
   const [filterRating, setFilterRating] = useState(0);
   const [filterTags, setFilterTags] = useState([]);
@@ -40,51 +40,53 @@ export const useFilters = (items) => {
   /**
    * Toggle a tag in the filter list
    */
-  const toggleTagFilter = (tag) => {
+  const toggleTagFilter = useCallback((tag) => {
     setFilterTags(prev => 
       prev.includes(tag) 
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
-  };
+  }, []);
 
   /**
    * Toggle a status in the filter list
    */
-  const toggleStatusFilter = (status) => {
+  const toggleStatusFilter = useCallback((status) => {
     setFilterStatuses(prev => 
       prev.includes(status) 
         ? prev.filter(s => s !== status)
         : [...prev, status]
     );
-  };
+  }, []);
 
   /**
    * Clear all filters
    */
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchTerm('');
     setFilterType(FILTER_TYPES.ALL);
     setFilterRating(0);
     setFilterTags([]);
     setFilterStatuses([]);
     setFilterRecent(RECENT_FILTER_OPTIONS.ANY);
-  };  /**
+  }, []);
+
+  /**
    * Cycle through filter types
    */
-  const cycleFilterType = () => {
+  const cycleFilterType = useCallback(() => {
     const types = [FILTER_TYPES.ALL, FILTER_TYPES.BOOK, FILTER_TYPES.MOVIE];
     const currentIndex = types.indexOf(filterType);
     const nextIndex = (currentIndex + 1) % types.length;
     setFilterType(types[nextIndex]);
-  };
+  }, [filterType]);
 
   /**
    * Toggle sort order
    */
-  const toggleSortOrder = () => {
+  const toggleSortOrder = useCallback(() => {
     setSortOrder(prev => prev === SORT_ORDERS.ASC ? SORT_ORDERS.DESC : SORT_ORDERS.ASC);
-  };
+  }, []);
 
   /**
    * Check if any filters are active

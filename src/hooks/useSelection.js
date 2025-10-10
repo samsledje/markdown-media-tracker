@@ -65,7 +65,7 @@ export const useSelection = () => {
 
   return {
     selectionMode,
-    selectedIds,
+    selectedIds, // Export the Set directly for efficient lookups
     selectedCount: selectedIds.size,
     toggleSelectionMode,
     toggleItemSelection,

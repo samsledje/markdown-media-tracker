@@ -11,7 +11,7 @@ import { toast } from '../../services/toastService.js';
 /**
  * Modal for viewing and editing item details
  */
-const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor }) => {
+const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRgba, highlightColor, items = [], onNavigate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -214,6 +214,26 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         handleDelete();
         return;
       }
+
+      // Navigate to previous/next item (Arrow keys when not editing)
+      if (!isEditing && items.length > 0 && onNavigate) {
+        if (e.key === KEYBOARD_SHORTCUTS.ARROW_LEFT || e.key === KEYBOARD_SHORTCUTS.ARROW_UP) {
+          e.preventDefault();
+          const currentIndex = items.findIndex(i => i.id === item.id);
+          if (currentIndex > 0) {
+            onNavigate(items[currentIndex - 1]);
+          }
+          return;
+        }
+        if (e.key === KEYBOARD_SHORTCUTS.ARROW_RIGHT || e.key === KEYBOARD_SHORTCUTS.ARROW_DOWN) {
+          e.preventDefault();
+          const currentIndex = items.findIndex(i => i.id === item.id);
+          if (currentIndex < items.length - 1) {
+            onNavigate(items[currentIndex + 1]);
+          }
+          return;
+        }
+      }
     };
 
     const onClickOutside = (e) => {
@@ -229,7 +249,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onClickOutside);
     };
-  }, [isEditing, editedItem, onClose]);
+  }, [isEditing, editedItem, onClose, items, item, onNavigate]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">

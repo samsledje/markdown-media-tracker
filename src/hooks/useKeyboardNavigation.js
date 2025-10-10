@@ -350,7 +350,7 @@ export const useKeyboardNavigation = ({
 
   return {
     focusedIndex,
-    focusedId,
+    focusedId, // Export focusedId directly for efficient comparisons
     registerCardRef,
     isItemFocused,
     resetFocus

@@ -73,6 +73,17 @@ Choose this option to sync your library across devices:
   - Share access across devices
   - Files remain accessible through Google Drive web interface
 
+#### Performance Optimizations
+
+Google Drive storage includes several performance optimizations for handling large libraries:
+
+- **Smart Caching**: Items are cached locally using IndexedDB after first load. Subsequent loads only download new or modified files, dramatically reducing load times for large libraries (100+ items).
+- **Batch Processing**: Downloads 100 files concurrently using HTTP/2 multiplexing, taking full advantage of modern browser capabilities.
+- **Pagination Support**: Automatically handles folders with more than 1,000 items using Google Drive API pagination.
+- **Progress Reporting**: Real-time progress updates during initial loads show exactly how many items have been processed.
+- **Cache Invalidation**: Cache automatically updates when items are modified, deleted, or added, ensuring data consistency.
+- **Manual Cache Control**: Clear the cache manually via the Storage Indicator dropdown if needed to force a fresh download.
+
 ### Switching Storage
 
 You can switch between storage options at any time:
@@ -225,14 +236,56 @@ The app now includes a convenience action to create an Obsidian Base configurati
 
 After creating the file, you can open the same folder as a vault in Obsidian and use the Bases feature to view your library as a table or cards. The generated `.base` file defines a default set of views for All items, Books, and Movies and is safe to edit or replace later from within Obsidian.
 
+## Batch Operations
+
+The app supports efficient batch operations for managing multiple items at once:
+
+### Selection Mode
+
+Press **V** or click the selection icon to enter selection mode, where you can:
+
+- **Select Multiple Items**: Click items to toggle selection, or use **Ctrl/Cmd+A** to select all visible items
+- **Navigate While Selecting**: Use arrow keys or vim keys (H/J/K/L) to move between items, then press **Space** to toggle selection
+- **Visual Feedback**: Selected items are highlighted with a checkmark overlay
+
+### Batch Edit
+
+With items selected, click "Batch Edit" to apply changes to multiple items simultaneously:
+
+- **Supported Changes**: Type, author/director, year, rating, status, dates, and tags
+- **Add Tags**: Add new tags to all selected items (preserves existing tags)
+- **Remove Tags**: Remove specific tags from all selected items
+- **Progress Tracking**: Real-time progress indicator shows how many items have been updated
+- **Efficient Processing**: Changes are applied with throttled progress updates to minimize UI overhead
+- **Single Reload**: All changes are saved first, then the library reloads only once at the end
+
+### Batch Delete
+
+Delete multiple items at once:
+
+- **Confirmation Dialog**: Shows exactly how many items will be deleted before proceeding
+- **Progress Tracking**: Visual indicator during deletion process
+- **Efficient Processing**: Items are deleted sequentially with throttled progress updates
+- **Single Reload**: Library reloads only once after all deletions complete
+- **Safety Features**: Deleted items are moved to a `.trash` folder in Google Drive (can be manually restored from there)
+
+### Performance Notes
+
+Batch operations are optimized for large selections:
+
+- **Throttled Progress Updates**: Progress indicators update every 5-10 items instead of after each one, reducing UI re-renders
+- **Deferred Reloads**: The app only reloads the item list once after all operations complete
+- **Background Processing**: Operations continue even if you switch tabs (on supported browsers)
+- **Error Handling**: Individual item failures don't stop the entire batch operation
+
 ## Import & Export CSV
 
 - Export CSV: When you've selected a directory, click the "Export CSV" button in the header to download a CSV snapshot of your current library. Fields include title, type, author/director, year, rating, read/watched dates, tags, cover URL, and notes.
-- Import CSV: Click "Import CSV" and choose a CSV file exported from this app or a supported service. The app attempts to detect common formats (Goodreads for books, Letterboxd for movies) and will map columns to the internal item fields. Imported items are saved as individual `.md` files in the selected directory.
+- Import CSV: Click "Import CSV" and choose a CSV file exported from this app or a supported service. The app attempts to detect common formats (Goodreads for books, Letterboxd for movies) and will map columns to the internal item fields. Imported items are saved as individual `.md` files in the selected directory with optimized batch processing.
 - Goodreads: Export your "Bookshelf" CSV from Goodreads (My Books → Import/Export). The importer will look for columns like "Title", "Author", "My Rating", "My Review", and "Date Read" and map them to items.
 - Letterboxd: Export your CSV from Letterboxd (Settings → Data → Export). The importer will look for columns like "Name", "Year", "Your Rating", and "Date Watched" and map them to movie items.
 
-The importer uses simple heuristics and may not perfectly map every custom CSV. Review imported items and edit any missing details. Basic deduplication is performed by matching Title + Author; duplicates will be skipped. If your browser doesn't support the File System Access API, import will prompt you to select a directory first or use the `data/` folder as a fallback.
+The importer uses simple heuristics and may not perfectly map every custom CSV. Review imported items and edit any missing details. Basic deduplication is performed by matching Title + Author; duplicates will be skipped. Import operations use batch-optimized saving that prevents reloading after each individual item, significantly improving performance for large imports.
 
 
 ## Troubleshooting
@@ -251,6 +304,12 @@ The importer uses simple heuristics and may not perfectly map every custom CSV. 
   - Try using an incognito/private browsing window
   - Check that your Google account has Drive access enabled
   - Verify your internet connection
+
+- **Google Drive slow loads**: If initial loads are slow for large libraries (100+ items):
+  - **First load**: Initial loads download all files and can take time for large libraries. Progress is shown in real-time.
+  - **Subsequent loads**: Should be much faster due to caching. Only new/modified files are downloaded.
+  - **Clear cache**: If you suspect cache issues, use the Storage Indicator dropdown menu to "Clear Cache" and force a fresh download.
+  - **Network**: Ensure stable internet connection. The app downloads files in batches of 100 concurrently for optimal performance.
 
 ### API Issues
 

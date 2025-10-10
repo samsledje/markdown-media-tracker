@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings } from 'lucide-react';
 
@@ -20,6 +20,7 @@ import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
 import ObsidianBaseModal from './components/modals/ObsidianBaseModal.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import StorageIndicator from './components/StorageIndicator.jsx';
+import ItemCard from './components/cards/ItemCard.jsx';
 
 // Utils
 import { hexToRgba } from './utils/colorUtils.js';
@@ -128,6 +129,7 @@ const MediaTracker = () => {
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
   const storageIndicatorRef = useRef(null);
+  const landingPageRef = useRef(null);
   const exportSubmenuTimeoutRef = useRef(null);
   const exportContainerRef = useRef(null);
   const settingsSubmenuTimeoutRef = useRef(null);
@@ -192,13 +194,13 @@ const MediaTracker = () => {
 
   const {
     selectionMode,
-    selectedIds,
+    selectedIds, // Used directly for performance
     selectedCount,
     toggleSelectionMode,
     toggleItemSelection,
     selectAll,
     clearSelection,
-    isItemSelected,
+    isItemSelected, // Keep for non-rendering uses
     getSelectedItems
   } = useSelection();
 
@@ -347,8 +349,8 @@ const MediaTracker = () => {
     }
   };
 
-  // Handle item selection on card click
-  const handleItemClick = (item, e) => {
+  // Handle item selection on card click (memoized to prevent re-renders)
+  const handleItemClick = useCallback((item, e) => {
     if (selectionMode) {
       toggleItemSelection(item.id);
     } else if (e.shiftKey) {
@@ -357,7 +359,21 @@ const MediaTracker = () => {
     } else {
       setSelectedItem(item);
     }
-  };
+  }, [selectionMode, toggleItemSelection, toggleSelectionMode]);
+
+  // Since toggleTagFilter and toggleStatusFilter are now memoized in useFilters,
+  // we can use them directly without wrapping. But for setters, we still need to wrap.
+  const handleSetFilterRating = useCallback((rating) => {
+    setFilterRating(rating);
+  }, [setFilterRating]);
+
+  const handleSetFilterRecent = useCallback((value) => {
+    setFilterRecent(value);
+  }, [setFilterRecent]);
+
+  const handleSetFilterType = useCallback((type) => {
+    setFilterType(type);
+  }, [setFilterType]);
 
   // Handle file import (CSV or ZIP)
   const handleImportFile = async (e) => {
@@ -641,7 +657,7 @@ const MediaTracker = () => {
   }, [showStorageSelector]);
 
   // Keyboard navigation setup
-  const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({
+  const { focusedIndex, focusedId, registerCardRef, isItemFocused, resetFocus } = useKeyboardNavigation({ // focusedId used directly for performance
     items: filteredAndSortedItems,
     cardSize,
     storageAdapter,
@@ -743,6 +759,13 @@ const MediaTracker = () => {
       await disconnectStorage();
       setShowStorageSelector(true);
       closeModals();
+      
+      // Scroll to storage selector after a brief delay to allow rendering
+      setTimeout(() => {
+        if (landingPageRef.current) {
+          landingPageRef.current.scrollToStorage();
+        }
+      }, 100);
     } catch (error) {
       setStorageError(error.message);
     }
@@ -1161,6 +1184,7 @@ const MediaTracker = () => {
       {showStorageSelector ? (
         <div className="flex-1">
           <LandingPage
+            ref={landingPageRef}
             onStorageSelect={handleStorageSelect}
             availableOptions={availableStorageOptions}
             error={storageError}
@@ -1207,7 +1231,7 @@ const MediaTracker = () => {
                 return (
                   <button
                     key={type}
-                    onClick={() => setFilterType(type)}
+                    onClick={() => handleSetFilterType(type)}
                     className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${
                       filterType === type
                         ? ''
@@ -1236,8 +1260,8 @@ const MediaTracker = () => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="flex-1 sm:flex-none px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none text-sm min-h-[44px]"
               >
-                <option value="dateAdded">Date Added</option>
                 <option value="dateConsumed">Date Read/Watched</option>
+                <option value="dateAdded">Date Added</option>
                 <option value="status">Status</option>
                 <option value="title">Title</option>
                 <option value="author">Author / Director</option>
@@ -1348,7 +1372,7 @@ const MediaTracker = () => {
                     {[1, 2, 3, 4, 5].map(r => (
                       <button
                         key={r}
-                        onClick={() => setFilterRating(r)}
+                        onClick={() => handleSetFilterRating(r)}
                         className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
                         style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                         title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
@@ -1371,7 +1395,7 @@ const MediaTracker = () => {
                     ].map(option => (
                       <button
                         key={option.value}
-                        onClick={() => setFilterRecent(option.value)}
+                        onClick={() => handleSetFilterRecent(option.value)}
                         className={`px-3 py-1 rounded-lg text-sm ${filterRecent === option.value ? '' : 'bg-slate-700/50'}`}
                         style={filterRecent === option.value ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                       >
@@ -1474,133 +1498,18 @@ const MediaTracker = () => {
                   cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
                   'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
                 }` }>
-                {filteredAndSortedItems.map((item, index) => (
-                  <div
+                {filteredAndSortedItems.map((item) => (
+                  <ItemCard
                     key={item.id}
-                    ref={(el) => registerCardRef(item.id, el)}
-                    onClick={(e) => handleItemClick(item, e)}
-                    className={`bg-slate-800/30 border rounded-lg overflow-hidden cursor-pointer transition-all relative w-full flex flex-col h-full ${
-                      isItemFocused(item.id) ? 'ring-2 ring-blue-500' :
-                      isItemSelected(item.id) ? 'ring-2 ring-yellow-500' :
-                      'border-slate-700 hover:border-slate-600'
-                    }`}
-                  >
-                    {/* Selection checkbox */}
-                    {selectionMode && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          isItemSelected(item.id) ? 'bg-yellow-500 border-yellow-500' : 'bg-slate-800 border-slate-400'
-                        }`}>
-                          {isItemSelected(item.id) && (
-                            <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Cover image container (reserved space when missing) */}
-                    <div className={`${cardSize === 'tiny' ? 'h-24' : cardSize === 'small' ? 'h-36' : cardSize === 'large' ? 'h-48' : cardSize === 'xlarge' ? 'h-64' : 'h-40'} overflow-hidden bg-slate-800/10`}>
-                      {item.coverUrl ? (
-                        <img
-                          src={item.coverUrl}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        // Empty placeholder to reserve space and keep alignment
-                        <div className="w-full h-full" aria-hidden="true" />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className={`p-3 flex-1 flex flex-col ${cardSize === 'tiny' ? 'pb-12' : 'pb-14'}`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold leading-tight mb-1 ${
-                            cardSize === 'tiny' ? 'text-xs' : cardSize === 'small' ? 'text-sm' : 'text-base'
-                          }`}>
-                            <span className="line-clamp-2">{item.title}</span>
-                          </h3>
-                          {(item.author || item.director) && (
-                            <p className={`text-slate-400 truncate ${
-                              cardSize === 'tiny' ? 'text-xs' : 'text-sm'
-                            }`}>
-                              {item.author || item.director}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 ml-2 flex items-center gap-2">
-                          {/* Type icon */}
-                          {item.type === 'book' ? (
-                            // Slightly smaller icons for tiny, mid-size for small, default larger for medium+
-                            <Book className={`text-blue-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
-                          ) : (
-                            <Film className={`text-purple-400 ${cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'}`} />
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Tags */}
-                      {item.tags && item.tags.length > 0 && cardSize !== 'tiny' && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {item.tags.slice(0, 3).map((tag, i) => (
-                            <span
-                              key={i}
-                              className={`px-2 py-1 rounded-full ${cardSize === 'small' ? 'text-xs' : 'text-xs'}`}
-                              style={{ backgroundColor: hexToRgba(highlightColor, 0.12), color: 'white' }}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {item.tags.length > 3 && (
-                            <span className="text-xs text-slate-500">+{item.tags.length - 3}</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Footer pinned to bottom (absolute) */}
-                      <div className={`absolute left-0 right-0 bottom-0 px-3 py-3 flex items-center justify-between bg-transparent`}>
-                        <div className="flex items-center gap-2">
-                          {/* Rating */}
-                          {item.rating > 0 && cardSize !== 'tiny' && (
-                            <div className="flex items-center gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
-                                    i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Year / Date */}
-                          {item.year && (
-                            <div className={`text-slate-500 ${cardSize === 'tiny' ? 'text-xs' : 'text-sm'}`}>
-                              {item.year}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Status badge */}
-                        {item.status && (
-                          <div
-                            className={`flex items-center justify-center rounded-full ${getStatusColorClass(item.status)} bg-opacity-80 shadow-md ${
-                              cardSize === 'tiny' ? 'w-5 h-5' : cardSize === 'small' ? 'w-6 h-6' : 'w-7 h-7'
-                            }`}
-                            title={STATUS_LABELS[item.status]}
-                            style={{ backdropFilter: 'blur(4px)' }}
-                          >
-                            {getStatusIcon(item.status, `text-white ${cardSize === 'tiny' ? 'w-3 h-3' : cardSize === 'small' ? 'w-3 h-3' : 'w-4 h-4'}`)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    item={item}
+                    cardSize={cardSize}
+                    highlightColor={highlightColor}
+                    selectionMode={selectionMode}
+                    selectedIds={selectedIds}
+                    focusedId={focusedId}
+                    onItemClick={handleItemClick}
+                    registerCardRef={registerCardRef}
+                  />
                 ))}
                 </div>
               </div>
@@ -1804,6 +1713,8 @@ const MediaTracker = () => {
           }}
           hexToRgba={hexToRgba}
           highlightColor={highlightColor}
+          items={filteredAndSortedItems}
+          onNavigate={setSelectedItem}
         />
       )}
 

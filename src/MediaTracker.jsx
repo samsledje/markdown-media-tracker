@@ -317,12 +317,22 @@ const MediaTracker = () => {
       setImportTotal(0);
       setImportCurrentFile('');
 
+      let lastProgressUpdate = Date.now();
+      const progressThrottleMs = 100; // Update UI at most every 100ms
+      
       const progressCb = ({ processed, added, total, currentFile, filesCompleted, totalFiles }) => {
-        setImportProcessed(processed);
-        setImportAdded(added);
-        setImportTotal(total);
-        if (currentFile) {
-          setImportCurrentFile(currentFile);
+        const now = Date.now();
+        // Always update on first/last item, otherwise throttle
+        const isFirstOrLast = processed === 0 || processed === total;
+        
+        if (isFirstOrLast || now - lastProgressUpdate >= progressThrottleMs) {
+          setImportProcessed(processed);
+          setImportAdded(added);
+          setImportTotal(total);
+          if (currentFile) {
+            setImportCurrentFile(currentFile);
+          }
+          lastProgressUpdate = now;
         }
       };
 
@@ -414,6 +424,9 @@ const MediaTracker = () => {
 
       let deletedCount = 0;
       const undoInfos = [];
+      let lastProgressUpdate = 0;
+      const progressThrottle = 5; // Update progress every 10 items
+      
       for (let i = 0; i < selectedItems.length; i++) {
         const item = selectedItems[i];
         try {
@@ -421,7 +434,12 @@ const MediaTracker = () => {
           const undoInfo = await storageAdapter.deleteItem(item);
           undoInfos.push(undoInfo);
           deletedCount++;
-          setDeleteProgress(i + 1);
+          
+          // Throttle progress updates to reduce re-renders
+          if (i - lastProgressUpdate >= progressThrottle || i === selectedItems.length - 1) {
+            setDeleteProgress(i + 1);
+            lastProgressUpdate = i;
+          }
         } catch (error) {
           console.error('Error deleting item:', item.title, error);
         }
@@ -461,6 +479,9 @@ const MediaTracker = () => {
       setEditTotal(selectedIdsArray.length);
 
       const updated = [];
+      let lastProgressUpdate = 0;
+      const progressThrottle = 10; // Update progress every 10 items
+      
       for (let i = 0; i < selectedIdsArray.length; i++) {
         const id = selectedIdsArray[i];
         const item = items.find(it => it.id === id);
@@ -487,7 +508,12 @@ const MediaTracker = () => {
         try {
           await storageAdapter.saveItem(newItem);
           updated.push(newItem.id);
-          setEditProgress(i + 1);
+          
+          // Throttle progress updates to reduce re-renders
+          if (i - lastProgressUpdate >= progressThrottle || i === selectedIdsArray.length - 1) {
+            setEditProgress(i + 1);
+            lastProgressUpdate = i;
+          }
         } catch (error) {
           console.error('Error updating item:', item.title, error);
         }

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Rendering Test</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #cbd5e1;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background-color: rgba(51, 65, 85, 0.3);
+            border-radius: 8px;
+            padding: 24px;
+        }
+        h1 {
+            color: #e2e8f0;
+            margin-bottom: 24px;
+        }
+        .section-title {
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        /* Markdown styling */
+        .prose-review {
+            color: #cbd5e1;
+        }
+        .prose-review h1,
+        .prose-review h2,
+        .prose-review h3,
+        .prose-review h4,
+        .prose-review h5,
+        .prose-review h6 {
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            line-height: 1.3;
+        }
+        .prose-review h1 { font-size: 1.5em; }
+        .prose-review h2 { font-size: 1.3em; }
+        .prose-review h3 { font-size: 1.15em; }
+        .prose-review h4 { font-size: 1em; }
+        .prose-review p {
+            margin-bottom: 1em;
+            line-height: 1.6;
+        }
+        .prose-review a {
+            color: #818cf8;
+            text-decoration: underline;
+            text-decoration-color: rgba(129, 140, 248, 0.3);
+            transition: all 0.2s ease;
+        }
+        .prose-review a:hover {
+            color: #a5b4fc;
+            text-decoration-color: rgba(165, 180, 252, 0.5);
+        }
+        .prose-review strong {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+        .prose-review em {
+            font-style: italic;
+            color: #cbd5e1;
+        }
+        .prose-review code {
+            background-color: rgba(51, 65, 85, 0.5);
+            color: #f1f5f9;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-size: 0.9em;
+            font-family: 'Courier New', monospace;
+        }
+        .prose-review pre {
+            background-color: rgba(51, 65, 85, 0.5);
+            padding: 1em;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+        .prose-review pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .prose-review ul,
+        .prose-review ol {
+            margin-left: 1.5em;
+            margin-bottom: 1em;
+        }
+        .prose-review ul {
+            list-style-type: disc;
+        }
+        .prose-review ol {
+            list-style-type: decimal;
+        }
+        .prose-review li {
+            margin-bottom: 0.5em;
+            padding-left: 0.25em;
+        }
+        .prose-review blockquote {
+            border-left: 3px solid rgba(129, 140, 248, 0.5);
+            padding-left: 1em;
+            margin-left: 0;
+            margin-bottom: 1em;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .prose-review hr {
+            border: none;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            margin: 1.5em 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown Rendering Test</h1>
+    
+    <div class="container">
+        <div class="section-title">Review / Notes</div>
+        <div id="markdown-output" class="prose-review"></div>
+    </div>
+
+    <script type="module">
+        import { marked } from 'https://cdn.jsdelivr.net/npm/marked@latest/+esm';
+        import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@latest/+esm';
+
+        const markdownText = `## Review
+
+This is a **groundbreaking** film that revolutionized *action cinema*.
+
+### Key Points
+
+- Amazing visual effects
+- Deep philosophical themes  
+- Excellent performances
+
+> "There is no spoon."
+
+The film used innovative \`bullet-time\` photography.
+
+---
+
+**Overall**: A must-watch for any sci-fi fan!`;
+
+        // Configure marked
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+        });
+
+        // Convert and sanitize
+        const rawHtml = marked.parse(markdownText);
+        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+            ALLOWED_TAGS: [
+                'p', 'br', 'strong', 'em', 'u', 's', 'del', 'a', 'ul', 'ol', 'li',
+                'blockquote', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'
+            ],
+            ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class']
+        });
+
+        document.getElementById('markdown-output').innerHTML = cleanHtml;
+    </script>
+</body>
+</html>

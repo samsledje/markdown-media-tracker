@@ -1,4 +1,6 @@
 // Markdown parsing and generation utilities
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { STATUS_TYPES } from '../constants/index.js';
 
 /**
@@ -77,4 +79,34 @@ export const generateMarkdown = (item) => {
   yaml += '---\n\n';
   
   return yaml + (item.review || '');
+};
+
+/**
+ * Render markdown text to HTML safely
+ * @param {string} markdown - Markdown text to render
+ * @returns {string} Sanitized HTML string
+ */
+export const renderMarkdown = (markdown) => {
+  if (!markdown) return '';
+  
+  // Configure marked options
+  marked.setOptions({
+    breaks: true, // Convert line breaks to <br>
+    gfm: true, // Enable GitHub Flavored Markdown
+  });
+  
+  // Convert markdown to HTML
+  const rawHtml = marked.parse(markdown);
+  
+  // Sanitize HTML to prevent XSS attacks
+  const cleanHtml = DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'strong', 'em', 'u', 's', 'del', 'a', 'ul', 'ol', 'li',
+      'blockquote', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'
+    ],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class']
+  });
+  
+  return cleanHtml;
 };

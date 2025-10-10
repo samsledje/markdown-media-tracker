@@ -134,3 +134,135 @@ html {
 .hover\:scale-102:hover {
 	transform: scale(1.02);
 }
+
+/* Custom markdown styling for review text */
+.prose-review {
+	color: #cbd5e1; /* slate-300 */
+}
+
+.prose-review h1,
+.prose-review h2,
+.prose-review h3,
+.prose-review h4,
+.prose-review h5,
+.prose-review h6 {
+	color: #e2e8f0; /* slate-200 */
+	font-weight: 600;
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
+	line-height: 1.3;
+}
+
+.prose-review h1 { font-size: 1.5em; }
+.prose-review h2 { font-size: 1.3em; }
+.prose-review h3 { font-size: 1.15em; }
+.prose-review h4 { font-size: 1em; }
+
+.prose-review p {
+	margin-bottom: 1em;
+	line-height: 1.6;
+}
+
+.prose-review a {
+	color: #818cf8; /* indigo-400 */
+	text-decoration: underline;
+	text-decoration-color: rgba(129, 140, 248, 0.3);
+	transition: all 0.2s ease;
+}
+
+.prose-review a:hover {
+	color: #a5b4fc; /* indigo-300 */
+	text-decoration-color: rgba(165, 180, 252, 0.5);
+}
+
+.prose-review strong {
+	color: #e2e8f0; /* slate-200 */
+	font-weight: 600;
+}
+
+.prose-review em {
+	font-style: italic;
+	color: #cbd5e1; /* slate-300 */
+}
+
+.prose-review code {
+	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+	color: #f1f5f9; /* slate-100 */
+	padding: 0.2em 0.4em;
+	border-radius: 0.25rem;
+	font-size: 0.9em;
+	font-family: 'Courier New', monospace;
+}
+
+.prose-review pre {
+	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+	padding: 1em;
+	border-radius: 0.5rem;
+	overflow-x: auto;
+	margin: 1em 0;
+}
+
+.prose-review pre code {
+	background-color: transparent;
+	padding: 0;
+}
+
+.prose-review ul,
+.prose-review ol {
+	margin-left: 1.5em;
+	margin-bottom: 1em;
+}
+
+.prose-review ul {
+	list-style-type: disc;
+}
+
+.prose-review ol {
+	list-style-type: decimal;
+}
+
+.prose-review li {
+	margin-bottom: 0.5em;
+	padding-left: 0.25em;
+}
+
+.prose-review blockquote {
+	border-left: 3px solid rgba(129, 140, 248, 0.5); /* indigo-400 */
+	padding-left: 1em;
+	margin-left: 0;
+	margin-bottom: 1em;
+	color: #94a3b8; /* slate-400 */
+	font-style: italic;
+}
+
+.prose-review hr {
+	border: none;
+	border-top: 1px solid rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
+	margin: 1.5em 0;
+}
+
+.prose-review table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1em 0;
+}
+
+.prose-review th,
+.prose-review td {
+	border: 1px solid rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
+	padding: 0.5em;
+	text-align: left;
+}
+
+.prose-review th {
+	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+	font-weight: 600;
+	color: #e2e8f0; /* slate-200 */
+}
+
+.prose-review img {
+	max-width: 100%;
+	height: auto;
+	border-radius: 0.5rem;
+	margin: 1em 0;
+}

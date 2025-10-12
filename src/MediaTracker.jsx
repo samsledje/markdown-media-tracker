@@ -714,10 +714,21 @@ const MediaTracker = () => {
         const wasConnected = localStorage.getItem('googleDriveConnected');
         if (wasConnected === 'true') {
           try {
-            await initializeStorage('googledrive');
+            // Initialize the adapter
+            const adapter = await initializeStorage('googledrive');
+            
+            // Try to reconnect silently (without showing popup)
+            console.log('Attempting silent reconnection to Google Drive...');
+            await adapter.tryReconnect();
+            
+            // If successful, load items
+            await loadItems(adapter);
             setShowStorageSelector(false);
+            console.log('Successfully reconnected to Google Drive');
           } catch (error) {
-            console.error('Failed to reconnect to Google Drive:', error);
+            console.log('Silent reconnection failed, user will need to sign in again:', error.message);
+            // Don't show error toast - this is expected if the session expired
+            // User will see the storage selector and can reconnect manually
             localStorage.removeItem('googleDriveConnected');
             localStorage.removeItem('googleDriveFolderId');
           }

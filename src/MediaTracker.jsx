@@ -742,6 +742,7 @@ const MediaTracker = () => {
     };
 
     initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle storage selection

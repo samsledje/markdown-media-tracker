@@ -195,6 +195,13 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
   /**
    * Try to reconnect to Google Drive silently (without showing OAuth popup)
    * This uses the user's existing Google session cookies to get a new token
+   * 
+   * How it works:
+   * - Uses prompt: '' to attempt silent token acquisition
+   * - If user is still signed in to Google in their browser, this succeeds without UI
+   * - If user signed out of Google or session expired, this fails and user must sign in again
+   * - This provides seamless reconnection when user returns to app in same browser session
+   * 
    * @returns {Promise} Resolves if reconnection succeeds, rejects if silent auth fails
    */
   async tryReconnect() {

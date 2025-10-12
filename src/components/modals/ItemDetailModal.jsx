@@ -275,8 +275,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                  className={`p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white ${getColorForStatus(editedItem.status)}`}
                   title="Edit"
                 >
                   <Edit className="w-5 h-5" />
@@ -285,8 +284,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             ) : (
               <button
                 onClick={handleSave}
-                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                className={`p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white ${getColorForStatus(editedItem.status)}`}
                 title="Save"
               >
                 <Save className="w-5 h-5" />

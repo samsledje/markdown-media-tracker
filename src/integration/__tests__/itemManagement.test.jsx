@@ -109,17 +109,20 @@ describe('Item Management Integration Tests', () => {
   // Helper function to fill common book fields
   const fillBookFields = async (data) => {
     const titleInput = screen.getByPlaceholderText(/enter title/i);
+    await user.click(titleInput);
     await user.clear(titleInput);
     await user.type(titleInput, data.title, { delay: null });
 
     if (data.author) {
       const authorInput = screen.getByPlaceholderText(/enter author/i);
+      await user.click(authorInput);
       await user.clear(authorInput);
       await user.type(authorInput, data.author, { delay: null });
     }
 
     if (data.year) {
       const yearInput = screen.getByPlaceholderText(/enter year/i);
+      await user.click(yearInput);
       await user.clear(yearInput);
       await user.type(yearInput, data.year, { delay: null });
     }
@@ -140,17 +143,20 @@ describe('Item Management Integration Tests', () => {
   // Helper function to fill common movie fields
   const fillMovieFields = async (data) => {
     const titleInput = screen.getByPlaceholderText(/enter title/i);
+    await user.click(titleInput);
     await user.clear(titleInput);
     await user.type(titleInput, data.title, { delay: null });
 
     if (data.director) {
       const directorInput = screen.getByPlaceholderText(/enter director/i);
+      await user.click(directorInput);
       await user.clear(directorInput);
       await user.type(directorInput, data.director, { delay: null });
     }
 
     if (data.year) {
       const yearInput = screen.getByPlaceholderText(/enter year/i);
+      await user.click(yearInput);
       await user.clear(yearInput);
       await user.type(yearInput, data.year, { delay: null });
     }
@@ -201,15 +207,18 @@ describe('Item Management Integration Tests', () => {
 
       // Fill in book details using placeholders
       const titleInput = screen.getByPlaceholderText(/enter title/i);
+      await user.click(titleInput);
       await user.clear(titleInput);
       await user.type(titleInput, 'The Great Gatsby', { delay: null });
 
       const authorInput = screen.getByPlaceholderText(/enter author/i);
+      await user.click(authorInput);
       await user.clear(authorInput);
       await user.type(authorInput, 'F. Scott Fitzgerald', { delay: null });
 
       // Set year
       const yearInput = screen.getByPlaceholderText(/enter year/i);
+      await user.click(yearInput);
       await user.clear(yearInput);
       await user.type(yearInput, '1925', { delay: null });
 

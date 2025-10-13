@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Star, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
+import StarRating from '../StarRating.jsx';
+import { useHalfStars } from '../../hooks/useHalfStars.js';
 
 /**
  * Form component for editing item details
@@ -8,6 +10,7 @@ import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
 const EditForm = ({ item, onChange, fromSearch = false }) => {
   const [tagInput, setTagInput] = useState('');
   const [actorInput, setActorInput] = useState('');
+  const [halfStarsEnabled] = useHalfStars();
 
   const handleTypeChange = (newType) => {
     if (fromSearch) return;
@@ -228,32 +231,13 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
 
       <div>
         <label className="block text-sm font-medium mb-2">Rating</label>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map(rating => (
-            <button
-              key={rating}
-              onClick={() => {
-                // If clicking on the same star that's currently the rating, toggle to unrated (0)
-                if (item.rating === rating) {
-                  onChange({ ...item, rating: 0 });
-                } 
-                // Otherwise, set to the clicked rating
-                else {
-                  onChange({ ...item, rating });
-                }
-              }}
-              className="transition"
-            >
-              <Star
-                className={`w-8 h-8 ${
-                  rating <= (item.rating || 0)
-                    ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-slate-600'
-                }`}
-              />
-            </button>
-          ))}
-        </div>
+        <StarRating
+          rating={item.rating || 0}
+          onChange={(newRating) => onChange({ ...item, rating: newRating })}
+          interactive={true}
+          halfStarsEnabled={halfStarsEnabled}
+          size="w-8 h-8"
+        />
       </div>
 
       <div>

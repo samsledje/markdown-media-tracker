@@ -81,3 +81,30 @@ export const saveCardSize = (size) => {
     console.warn('Error saving card size:', error);
   }
 };
+
+/**
+ * Load half stars enabled setting from localStorage
+ * @returns {boolean} Half stars enabled
+ */
+export const loadHalfStarsEnabled = () => {
+  try {
+    const value = localStorage.getItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED);
+    // Default to true if not set
+    return value === null ? true : value === 'true';
+  } catch (error) {
+    console.warn('Error loading half stars setting:', error);
+    return true;
+  }
+};
+
+/**
+ * Save half stars enabled setting to localStorage
+ * @param {boolean} enabled - Half stars enabled
+ */
+export const saveHalfStarsEnabled = (enabled) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED, String(enabled));
+  } catch (error) {
+    console.warn('Error saving half stars setting:', error);
+  }
+};

@@ -9,6 +9,7 @@ import { useSelection } from './hooks/useSelection.js';
 import { useTheme } from './hooks/useTheme.js';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation.js';
 import { useOmdbApi } from './hooks/useOmdbApi.js';
+import { useHalfStars } from './hooks/useHalfStars.js';
 
 // Components
 import SearchModal from './components/modals/SearchModal.jsx';
@@ -214,6 +215,8 @@ const MediaTracker = () => {
   } = useTheme();
 
   const { omdbApiKey, updateApiKey } = useOmdbApi();
+
+  const [halfStarsEnabled] = useHalfStars();
 
   // Close modals and clear states
   const closeModals = () => {
@@ -1509,6 +1512,7 @@ const MediaTracker = () => {
                     focusedId={focusedId}
                     onItemClick={handleItemClick}
                     registerCardRef={registerCardRef}
+                    halfStarsEnabled={halfStarsEnabled}
                   />
                 ))}
                 </div>

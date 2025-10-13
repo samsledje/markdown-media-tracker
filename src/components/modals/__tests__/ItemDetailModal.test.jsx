@@ -170,15 +170,24 @@ describe('ItemDetailModal', () => {
       );
     });
 
-    it('should toggle rating to 0 when clicking current rating', async () => {
+    it('should cycle rating with half stars when clicking', async () => {
       const user = userEvent.setup();
       const itemWith3Stars = { ...sampleBook, rating: 3 };
       render(<ItemDetailModal {...defaultProps} item={itemWith3Stars} />);
       
-      // Click third star (current rating)
+      // Click third star (current rating) - should go to 2.5
       const stars = screen.getAllByRole('button').filter(btn => 
         btn.querySelector('svg.lucide-star')
       );
+      await user.click(stars[2]);
+      
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rating: 2.5
+        })
+      );
+      
+      // Click again - should go to 0
       await user.click(stars[2]);
       
       expect(mockOnQuickSave).toHaveBeenCalledWith(

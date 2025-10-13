@@ -111,20 +111,20 @@ describe('Item Management Integration Tests', () => {
     const titleInput = screen.getByPlaceholderText(/enter title/i);
     await user.click(titleInput);
     await user.clear(titleInput);
-    await user.type(titleInput, data.title, { delay: null });
+    await user.paste(data.title);
 
     if (data.author) {
       const authorInput = screen.getByPlaceholderText(/enter author/i);
       await user.click(authorInput);
       await user.clear(authorInput);
-      await user.type(authorInput, data.author, { delay: null });
+      await user.paste(data.author);
     }
 
     if (data.year) {
       const yearInput = screen.getByPlaceholderText(/enter year/i);
       await user.click(yearInput);
       await user.clear(yearInput);
-      await user.type(yearInput, data.year, { delay: null });
+      await user.paste(data.year);
     }
 
     if (data.status) {
@@ -145,20 +145,20 @@ describe('Item Management Integration Tests', () => {
     const titleInput = screen.getByPlaceholderText(/enter title/i);
     await user.click(titleInput);
     await user.clear(titleInput);
-    await user.type(titleInput, data.title, { delay: null });
+    await user.paste(data.title);
 
     if (data.director) {
       const directorInput = screen.getByPlaceholderText(/enter director/i);
       await user.click(directorInput);
       await user.clear(directorInput);
-      await user.type(directorInput, data.director, { delay: null });
+      await user.paste(data.director);
     }
 
     if (data.year) {
       const yearInput = screen.getByPlaceholderText(/enter year/i);
       await user.click(yearInput);
       await user.clear(yearInput);
-      await user.type(yearInput, data.year, { delay: null });
+      await user.paste(data.year);
     }
 
     if (data.status) {
@@ -209,18 +209,18 @@ describe('Item Management Integration Tests', () => {
       const titleInput = screen.getByPlaceholderText(/enter title/i);
       await user.click(titleInput);
       await user.clear(titleInput);
-      await user.type(titleInput, 'The Great Gatsby', { delay: null });
+      await user.paste('The Great Gatsby');
 
       const authorInput = screen.getByPlaceholderText(/enter author/i);
       await user.click(authorInput);
       await user.clear(authorInput);
-      await user.type(authorInput, 'F. Scott Fitzgerald', { delay: null });
+      await user.paste('F. Scott Fitzgerald');
 
       // Set year
       const yearInput = screen.getByPlaceholderText(/enter year/i);
       await user.click(yearInput);
       await user.clear(yearInput);
-      await user.type(yearInput, '1925', { delay: null });
+      await user.paste('1925');
 
       // Set status by clicking the button
       const readButton = screen.getByRole('button', { name: /^read$/i });
@@ -235,9 +235,10 @@ describe('Item Management Integration Tests', () => {
 
       // Add tags
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
-      await user.type(tagsInput, 'classic', { delay: null });
+      await user.click(tagsInput);
+      await user.paste('classic');
       await user.keyboard('{Enter}');
-      await user.type(tagsInput, 'fiction', { delay: null });
+      await user.paste('fiction');
       await user.keyboard('{Enter}');
 
       // Add notes
@@ -348,7 +349,8 @@ describe('Item Management Integration Tests', () => {
 
       // Search for a book
       const searchInput = screen.getByPlaceholderText(/search for books/i);
-      await user.type(searchInput, 'To Kill a Mockingbird', { delay: null });
+      await user.click(searchInput);
+      await user.paste('To Kill a Mockingbird');
 
       const searchSubmitButton = screen.getByRole('button', { name: /^search$/i });
       await user.click(searchSubmitButton);
@@ -455,8 +457,9 @@ describe('Item Management Integration Tests', () => {
 
       // Search for a movie
       const searchInput = screen.getByPlaceholderText(/search for movies/i);
+      await user.click(searchInput);
       await user.clear(searchInput);
-      await user.type(searchInput, 'The Matrix', { delay: null });
+      await user.paste('The Matrix');
 
       // Find and click the Search button (not the "Add new media" button)
       const searchButtons = screen.getAllByRole('button', { name: /search/i });
@@ -580,11 +583,14 @@ describe('Item Management Integration Tests', () => {
 
       // Add a tag
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
-      await user.type(tagsInput, 'must-read{Enter}', { delay: null });
+      await user.click(tagsInput);
+      await user.paste('must-read');
+      await user.keyboard('{Enter}');
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);
-      await user.type(notesInput, 'Excellent book about the American Dream', { delay: null });
+      await user.click(notesInput);
+      await user.paste('Excellent book about the American Dream');
 
       // Save changes
       const saveButton = screen.getByRole('button', { name: /save changes/i });

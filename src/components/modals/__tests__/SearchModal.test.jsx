@@ -160,7 +160,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -173,7 +174,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -191,7 +193,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       expect(screen.getByText('Searching...')).toBeInTheDocument();
@@ -223,7 +226,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -247,7 +251,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -265,7 +270,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'nonexistent');
+      await user.click(input);
+      await user.paste('nonexistent');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -282,7 +288,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'matrix');
+      await user.click(input);
+      await user.paste('matrix');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -297,7 +304,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'matrix');
+      await user.click(input);
+      await user.paste('matrix');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -317,7 +325,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'matrix');
+      await user.click(input);
+      await user.paste('matrix');
       await user.click(getButtonByText('Search'));
       
       expect(omdbService.searchMovies).not.toHaveBeenCalled();
@@ -339,7 +348,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -366,7 +376,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -392,7 +403,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -410,7 +422,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -441,7 +454,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'matrix');
+      await user.click(input);
+      await user.paste('matrix');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -470,7 +484,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -491,7 +506,8 @@ describe('SearchModal', () => {
       await user.click(getButtonByText('movie'));
       
       const input = screen.getByPlaceholderText('Search for movies...');
-      await user.type(input, 'matrix');
+      await user.click(input);
+      await user.paste('matrix');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -521,7 +537,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.keyboard('{Control>}{Enter}{/Control}');
       
       await waitFor(() => {
@@ -534,7 +551,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.keyboard('{Meta>}{Enter}{/Meta}');
       
       await waitFor(() => {
@@ -611,7 +629,8 @@ describe('SearchModal', () => {
       const { rerender } = render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -748,7 +767,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'gatsby');
+      await user.click(input);
+      await user.paste('gatsby');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -783,7 +803,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -811,7 +832,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -827,7 +849,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, 'test');
+      await user.click(input);
+      await user.paste('test');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {
@@ -843,7 +866,8 @@ describe('SearchModal', () => {
       render(<SearchModal onClose={mockOnClose} onSelect={mockOnSelect} />);
       
       const input = screen.getByPlaceholderText('Search for books...');
-      await user.type(input, '  gatsby  ');
+      await user.click(input);
+      await user.paste('  gatsby  ');
       await user.click(getButtonByText('Search'));
       
       await waitFor(() => {

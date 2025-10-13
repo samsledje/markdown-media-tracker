@@ -161,7 +161,8 @@ describe('BatchEditModal', () => {
       render(<BatchEditModal {...defaultProps} />);
       
       const authorInput = screen.getByPlaceholderText('Author');
-      await user.type(authorInput, 'New Author');
+      await user.click(authorInput);
+      await user.paste('New Author');
       
       expect(authorInput.value).toBe('New Author');
     });
@@ -171,7 +172,8 @@ describe('BatchEditModal', () => {
       render(<BatchEditModal {...defaultProps} />);
       
       const directorInput = screen.getByPlaceholderText('Director');
-      await user.type(directorInput, 'New Director');
+      await user.click(directorInput);
+      await user.paste('New Director');
       
       expect(directorInput.value).toBe('New Director');
     });
@@ -181,7 +183,8 @@ describe('BatchEditModal', () => {
       render(<BatchEditModal {...defaultProps} />);
       
       const yearInput = screen.getByPlaceholderText('Year');
-      await user.type(yearInput, '2025');
+      await user.click(yearInput);
+      await user.paste('2025');
       
       expect(yearInput.value).toBe('2025');
     });
@@ -212,7 +215,8 @@ describe('BatchEditModal', () => {
       
       const tagInputs = screen.getAllByPlaceholderText('tag1, tag2');
       const addTagsInput = tagInputs[0]; // First one is add tags
-      await user.type(addTagsInput, 'new-tag, another-tag');
+      await user.click(addTagsInput);
+      await user.paste('new-tag, another-tag');
       
       expect(addTagsInput.value).toBe('new-tag, another-tag');
     });
@@ -223,7 +227,8 @@ describe('BatchEditModal', () => {
       
       const tagInputs = screen.getAllByPlaceholderText('tag1, tag2');
       const removeTagsInput = tagInputs[1]; // Second one is remove tags
-      await user.type(removeTagsInput, 'old-tag');
+      await user.click(removeTagsInput);
+      await user.paste('old-tag');
       
       expect(removeTagsInput.value).toBe('old-tag');
     });
@@ -235,7 +240,8 @@ describe('BatchEditModal', () => {
       const dateInputs = container.querySelectorAll('input[type="date"]');
       const dateReadInput = dateInputs[0]; // First date input is date read
       
-      await user.type(dateReadInput, '2025-03-15');
+      await user.click(dateReadInput);
+      await user.paste('2025-03-15');
       expect(dateReadInput.value).toBe('2025-03-15');
     });
 
@@ -246,7 +252,8 @@ describe('BatchEditModal', () => {
       const dateInputs = container.querySelectorAll('input[type="date"]');
       const dateWatchedInput = dateInputs[1]; // Second date input is date watched
       
-      await user.type(dateWatchedInput, '2025-04-20');
+      await user.click(dateWatchedInput);
+      await user.paste('2025-04-20');
       expect(dateWatchedInput.value).toBe('2025-04-20');
     });
   });
@@ -308,7 +315,8 @@ describe('BatchEditModal', () => {
       await user.click(checkboxes[1]); // Enable author
       
       const authorInput = screen.getByPlaceholderText('Author');
-      await user.type(authorInput, 'Updated Author');
+      await user.click(authorInput);
+      await user.paste('Updated Author');
       
       const applyButton = screen.getByRole('button', { name: /apply/i });
       await user.click(applyButton);

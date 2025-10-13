@@ -236,10 +236,7 @@ describe('Item Management Integration Tests', () => {
       // Add tags
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
       await user.click(tagsInput);
-      await user.paste('classic');
-      await user.keyboard('{Enter}');
-      await user.paste('fiction');
-      await user.keyboard('{Enter}');
+      await user.type(tagsInput, 'classic{Enter}fiction{Enter}', { skipClick: true, delay: null });
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);
@@ -584,8 +581,7 @@ describe('Item Management Integration Tests', () => {
       // Add a tag
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
       await user.click(tagsInput);
-      await user.paste('must-read');
-      await user.keyboard('{Enter}');
+      await user.type(tagsInput, 'must-read{Enter}', { skipClick: true, delay: null });
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);

@@ -238,11 +238,16 @@ describe('Item Management Integration Tests', () => {
       await user.click(tagsInput);
       await user.paste('classic');
       await user.keyboard('{Enter}');
+      // Wait for the first tag to appear
       await waitFor(() => {
-        expect(tagsInput.value).toBe('');
+        expect(screen.getByText('classic')).toBeInTheDocument();
       });
       await user.paste('fiction');
       await user.keyboard('{Enter}');
+      // Wait for the second tag to appear
+      await waitFor(() => {
+        expect(screen.getByText('fiction')).toBeInTheDocument();
+      });
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);
@@ -589,6 +594,10 @@ describe('Item Management Integration Tests', () => {
       await user.click(tagsInput);
       await user.paste('must-read');
       await user.keyboard('{Enter}');
+      // Wait for the tag to appear
+      await waitFor(() => {
+        expect(screen.getByText('must-read')).toBeInTheDocument();
+      });
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);

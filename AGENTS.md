@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions for Markdown Media Tracker
+# LLM Coding Agent Instructions for Markdown Media Tracker
 
 ## Project Overview
 
@@ -70,6 +70,7 @@ Located in `src/hooks/`:
 ### Utils
 
 All utility functions should be pure (no side effects):
+
 - `colorUtils.js`: Theme color manipulation
 - `markdownUtils.js`: YAML frontmatter parsing/generation
 - `csvUtils.js`: CSV import/export functionality
@@ -79,6 +80,10 @@ All utility functions should be pure (no side effects):
 - `commonUtils.js`: Shared utility functions
 
 ## Development Guidelines
+
+### Pull Requeests
+
+- All pull requests should be to the `dev` branch, which will be used as a staging and testing area.
 
 ### Code Style
 
@@ -263,6 +268,7 @@ Optional notes about the item go here.
 ### CSV Export Format
 
 Standard format includes:
+
 - `title`, `type` (book/movie), `author`/`director`, `year`, `rating`
 - `status`, `date_read`/`date_watched`, `date_added`
 - `tags` (semicolon-separated), `cover`, `notes`
@@ -355,6 +361,7 @@ export const config = {
 Both storage backends implement the `StorageAdapter` abstract base class:
 
 **Required Methods:**
+
 - `initialize()`: Setup connection
 - `isConnected()`: Check connection status
 - `getStorageInfo()`: Return storage location identifier
@@ -369,6 +376,7 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 - `readFile(filename)`: Read file content
 
 **Implementation Notes:**
+
 - Both adapters convert between Markdown files and JavaScript objects
 - Use `parseMarkdown()` and `generateMarkdown()` from `markdownUtils.js`
 - Items have a unique `id` field (filename without extension)
@@ -399,6 +407,7 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 ### Large Libraries (100+ items)
 
 **Google Drive Optimizations:**
+
 - First load: Downloads all files, shows progress
 - Subsequent loads: Only downloads new/modified files (using cache)
 - Cache stored in IndexedDB (`driveCache.js`)
@@ -406,11 +415,13 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 - User can manually clear cache via Storage Indicator menu
 
 **Batch Operations:**
+
 - Throttled progress updates (every 5-10 items, not every item)
 - Deferred UI reloads (reload once after all operations complete)
 - Avoid unnecessary re-renders during bulk operations
 
 **Import Operations:**
+
 - CSV imports use batch-optimized saving
 - Prevent reloading after each individual item
 - Show real-time progress indicator

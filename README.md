@@ -2,6 +2,12 @@
 
 # Markdown Media Tracker
 
+[![CI Status](https://github.com/samsledje/markdown-media-tracker/workflows/Test%20Suite/badge.svg)](https://github.com/samsledje/markdown-media-tracker/actions)
+[![codecov](https://codecov.io/gh/samsledje/markdown-media-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/samsledje/markdown-media-tracker)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Pages](https://img.shields.io/badge/demo-live-brightgreen)](https://samsledje.github.io/markdown-media-tracker/)
+
+
 A small, local-first app for tracking books and movies saved as Markdown files with YAML frontmatter. Built with React + Vite with flexible storage options — use local directories or sync with Google Drive.
 
 ## Why Markdown Media Tracker?

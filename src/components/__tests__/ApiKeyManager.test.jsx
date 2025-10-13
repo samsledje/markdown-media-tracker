@@ -104,7 +104,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, 'new-api-key-123');
+      await user.click(input);
+      await user.paste('new-api-key-123');
       await user.click(saveButton);
 
       expect(config.saveConfig).toHaveBeenCalledWith({ omdbApiKey: 'new-api-key-123' });
@@ -120,7 +121,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, '  api-key-with-spaces  ');
+      await user.click(input);
+      await user.paste('  api-key-with-spaces  ');
       await user.click(saveButton);
 
       expect(config.saveConfig).toHaveBeenCalledWith({ omdbApiKey: 'api-key-with-spaces' });
@@ -136,7 +138,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, 'new-key');
+      await user.click(input);
+      await user.paste('new-key');
       await user.click(saveButton);
 
       // After saving with a key, panel should hide (component shows "Manage API Key" button)
@@ -159,7 +162,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, 'callback-test-key');
+      await user.click(input);
+      await user.paste('callback-test-key');
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -179,7 +183,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, 'new-key');
+      await user.click(input);
+      await user.paste('new-key');
       await user.click(saveButton);
 
       // After save, simulate hasApiKey returning true
@@ -210,7 +215,8 @@ describe('ApiKeyManager', () => {
       const input = screen.getByPlaceholderText('Enter your OMDB API key');
       const saveButton = screen.getByRole('button', { name: /save/i });
 
-      await user.type(input, 'test-key');
+      await user.click(input);
+      await user.paste('test-key');
 
       await waitFor(() => {
         expect(saveButton).not.toBeDisabled();

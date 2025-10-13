@@ -216,7 +216,7 @@ const MediaTracker = () => {
 
   const { omdbApiKey, updateApiKey } = useOmdbApi();
 
-  const [halfStarsEnabled] = useHalfStars();
+  const [halfStarsEnabled, setHalfStarsEnabled] = useHalfStars();
 
   // Close modals and clear states
   const closeModals = () => {
@@ -1617,6 +1617,30 @@ const MediaTracker = () => {
                     title="Custom highlight color"
                   />
                 </div>
+              </div>
+
+              {/* Half Stars Setting */}
+              <div>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <div className="text-sm font-medium mb-1">Half Star Ratings</div>
+                    <div className="text-xs text-slate-400">Allow ratings like 3.5 stars instead of whole numbers only</div>
+                  </div>
+                  <div className="ml-4">
+                    <button
+                      onClick={() => setHalfStarsEnabled(!halfStarsEnabled)}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        halfStarsEnabled ? 'bg-blue-600' : 'bg-slate-600'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                          halfStarsEnabled ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </label>
               </div>
             </div>
           </div>

@@ -169,17 +169,22 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     return `Google Drive - ${folderName} folder`;
   }
 
-  async selectStorage() {
+  async selectStorage(options = {}) {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
+    // Default to showing the popup (prompt: 'select_account')
+    // For silent reconnection, pass { silent: true }
+    const prompt = options.silent ? '' : 'select_account';
+
     return new Promise((resolve, reject) => {
-      console.log('Starting Google Sign-In with Identity Services...');
+      console.log('Starting Google Sign-In with Identity Services...', options.silent ? '(silent)' : '(with popup)');
       
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: this.CLIENT_ID,
         scope: this.SCOPES,
+        prompt: prompt,
         callback: async (tokenResponse) => {
           try {
             console.log('Token received:', !!tokenResponse.access_token);
@@ -228,6 +233,35 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
       // Request access token
       client.requestAccessToken();
     });
+  }
+
+  /**
+   * Try to reconnect to Google Drive silently (without showing OAuth popup)
+   * This uses the user's existing Google session cookies to get a new token
+   * 
+   * How it works:
+   * - Uses prompt: '' to attempt silent token acquisition
+   * - If user is still signed in to Google in their browser, this succeeds without UI
+   * - If user signed out of Google or session expired, this fails and user must sign in again
+   * - This provides seamless reconnection when user returns to app in same browser session
+   * 
+   * @returns {Promise} Resolves if reconnection succeeds, rejects if silent auth fails
+   */
+  async tryReconnect() {
+    console.log('Attempting silent reconnection to Google Drive...');
+    
+    try {
+      // Use silent mode which won't show any UI
+      const result = await this.selectStorage({ silent: true });
+      console.log('Silent reconnection successful');
+      return result;
+    } catch (error) {
+      console.log('Silent reconnection failed:', error.message);
+      // Clear the connection flags since silent reconnection failed
+      localStorage.removeItem('googleDriveConnected');
+      localStorage.removeItem('googleDriveFolderId');
+      throw error;
+    }
   }
 
   async disconnect() {

@@ -710,31 +710,56 @@ const MediaTracker = () => {
         const options = await getAvailableStorageOptions();
         setAvailableStorageOptions(options);
         
-        // Check if user was previously connected to Google Drive
-        const wasConnected = localStorage.getItem('googleDriveConnected');
-        if (wasConnected === 'true') {
+        // Check if user was previously connected to File System
+        const wasFileSystemConnected = localStorage.getItem('fileSystemConnected');
+        if (wasFileSystemConnected === 'true') {
           try {
             // Initialize the adapter
-            const adapter = await initializeStorage('googledrive');
+            const adapter = await initializeStorage('filesystem');
             
-            // Try to reconnect silently (without showing popup)
-            console.log('Attempting silent reconnection to Google Drive...');
+            // Try to reconnect (retrieve stored handle and verify permissions)
+            console.log('Attempting to restore File System connection...');
             await adapter.tryReconnect();
             
             // If successful, load items
             await loadItems(adapter);
             setShowStorageSelector(false);
-            console.log('Successfully reconnected to Google Drive');
+            console.log('Successfully reconnected to File System');
           } catch (error) {
-            console.log('Silent reconnection failed, user will need to sign in again:', error.message);
-            // Don't show error toast - this is expected if the session expired
+            console.log('File System reconnection failed, user will need to select directory again:', error.message);
+            // Don't show error toast - this is expected if permissions were revoked
             // User will see the storage selector and can reconnect manually
-            localStorage.removeItem('googleDriveConnected');
-            localStorage.removeItem('googleDriveFolderId');
+            localStorage.removeItem('fileSystemConnected');
+            localStorage.removeItem('fileSystemDirectoryName');
           }
-        } else if (options.find(opt => opt.type === 'filesystem' && opt.supported)) {
-          // If filesystem is supported but no previous connection, still show selector
-          setShowStorageSelector(true);
+        }
+        // Check if user was previously connected to Google Drive
+        else {
+          const wasGoogleDriveConnected = localStorage.getItem('googleDriveConnected');
+          if (wasGoogleDriveConnected === 'true') {
+            try {
+              // Initialize the adapter
+              const adapter = await initializeStorage('googledrive');
+              
+              // Try to reconnect silently (without showing popup)
+              console.log('Attempting silent reconnection to Google Drive...');
+              await adapter.tryReconnect();
+              
+              // If successful, load items
+              await loadItems(adapter);
+              setShowStorageSelector(false);
+              console.log('Successfully reconnected to Google Drive');
+            } catch (error) {
+              console.log('Silent reconnection failed, user will need to sign in again:', error.message);
+              // Don't show error toast - this is expected if the session expired
+              // User will see the storage selector and can reconnect manually
+              localStorage.removeItem('googleDriveConnected');
+              localStorage.removeItem('googleDriveFolderId');
+            }
+          } else if (options.find(opt => opt.type === 'filesystem' && opt.supported)) {
+            // If filesystem is supported but no previous connection, still show selector
+            setShowStorageSelector(true);
+          }
         }
       } catch (error) {
         setStorageError(error.message);

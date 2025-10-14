@@ -71,69 +71,7 @@ export class FileSystemStorage extends StorageAdapter {
     }
   }
 
-  /**
-   * Try to reconnect to previously selected directory
-   * This retrieves the stored handle from IndexedDB and verifies permissions
-   * 
-   * How it works:
-   * - Retrieves FileSystemDirectoryHandle from IndexedDB
-   * - Verifies that the handle is still valid and permissions are granted
-   * - Does NOT prompt user for permissions (requires existing "granted" state)
-   * - If successful, restores the connection without showing directory picker
-   * 
-   * Note: Unlike Google Drive which can silently re-authenticate, File System Access API
-   * permissions may be revoked when the browser is closed (browser-dependent behavior).
-   * If permissions were revoked, user must manually reconnect.
-   * 
-   * @returns {Promise} Resolves if reconnection succeeds, rejects if it fails
-   */
-  async tryReconnect() {
-    console.log('[FileSystem] Attempting to restore previous connection...');
-    
-    try {
-      // Retrieve stored handle from IndexedDB
-      const handle = await fileSystemCache.getDirectoryHandle();
-      
-      if (!handle) {
-        throw new Error('No stored directory handle found');
-      }
-      
-      // Verify that we still have permission to access this directory
-      // Pass false to NOT request permission (would require user gesture)
-      const hasPermission = await fileSystemCache.verifyHandlePermission(handle, false);
-      
-      if (!hasPermission) {
-        console.log('[FileSystem] Permissions not granted for stored directory');
-        throw new Error('Permissions not granted - please reconnect');
-      }
-      
-      // Restore connection
-      this.directoryHandle = handle;
-      this.trashHandle = null;
-      
-      console.log('[FileSystem] Successfully reconnected to:', handle.name);
-      
-      return {
-        handle: handle,
-        name: handle.name
-      };
-    } catch (error) {
-      console.log('[FileSystem] Reconnection failed:', error.message);
-      
-      // Clear the connection flags since reconnection failed
-      localStorage.removeItem('fileSystemConnected');
-      localStorage.removeItem('fileSystemDirectoryName');
-      
-      // Also clear the stored handle
-      try {
-        await fileSystemCache.clearDirectoryHandle();
-      } catch (clearError) {
-        console.error('[FileSystem] Failed to clear stored handle:', clearError);
-      }
-      
-      throw error;
-    }
-  }
+  // ...existing code...
 
   async disconnect() {
     this.directoryHandle = null;

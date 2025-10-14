@@ -35,7 +35,10 @@ export class FileSystemStorage extends StorageAdapter {
 
   getStorageInfo() {
     if (!this.directoryHandle) return null;
-    return `Local Directory: ${this.directoryHandle.name}`;
+    return {
+      account: null,
+      folder: this.directoryHandle.name
+    };
   }
 
   async selectStorage() {

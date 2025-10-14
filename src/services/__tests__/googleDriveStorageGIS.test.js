@@ -142,7 +142,7 @@ describe('GoogleDriveStorageGIS', () => {
       storage.mediaTrackerFolderId = 'folder-id';
       
       const info = storage.getStorageInfo();
-      expect(info).toBe('Google Drive - MediaTracker folder');
+      expect(info).toEqual({ account: null, folder: 'MediaTracker' });
     });
 
     it('should use custom folder name from config', () => {
@@ -153,7 +153,7 @@ describe('GoogleDriveStorageGIS', () => {
       storage.mediaTrackerFolderId = 'folder-id';
       
       const info = storage.getStorageInfo();
-      expect(info).toBe('Google Drive - CustomFolder folder');
+      expect(info).toEqual({ account: null, folder: 'CustomFolder' });
     });
   });
 
@@ -400,8 +400,7 @@ describe('GoogleDriveStorageGIS', () => {
       storage.mediaTrackerFolderId = 'folder-id';
       
       const info = storage.getStorageInfo();
-      // When config returns null, it falls back to 'MediaTracker' but actual implementation may vary
-      expect(info).toContain('Google Drive');
+      expect(info).toEqual({ account: null, folder: 'MediaTracker' });
     });
 
     it('should handle empty string folder name from config', () => {
@@ -412,8 +411,7 @@ describe('GoogleDriveStorageGIS', () => {
       storage.mediaTrackerFolderId = 'folder-id';
       
       const info = storage.getStorageInfo();
-      // When config returns empty string, behavior may vary
-      expect(info).toContain('Google Drive');
+      expect(info).toEqual({ account: null, folder: 'MediaTracker' });
     });
   });
 

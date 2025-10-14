@@ -20,7 +20,7 @@ export class MockFileSystemStorage {
   }
 
   getStorageInfo() {
-    return this.directoryHandle?.name || 'Mock Directory';
+    return { account: null, folder: this.directoryHandle?.name || 'Mock Directory' };
   }
 
   getStorageType() {
@@ -144,7 +144,7 @@ export class MockGoogleDriveStorage extends MockFileSystemStorage {
   }
 
   getStorageInfo() {
-    return `Google Drive: ${this.folderName}`;
+    return { account: 'mock@example.com', folder: this.folderName };
   }
 
   getStorageType() {

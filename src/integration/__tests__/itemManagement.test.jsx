@@ -26,7 +26,7 @@ const mockStorage = {
   isConnected: vi.fn(() => true),
   initialize: vi.fn(),
   getStorageType: vi.fn(() => 'filesystem'),
-  getStorageInfo: vi.fn(() => ({ type: 'filesystem', location: 'Test Directory' })),
+  getStorageInfo: vi.fn(() => ({ account: null, folder: 'Test Directory' })),
   selectStorage: vi.fn(() => Promise.resolve({ name: 'Test Directory' })),
   loadItems: vi.fn((progressCallback) => {
     if (progressCallback) {

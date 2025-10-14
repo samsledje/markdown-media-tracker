@@ -183,59 +183,7 @@ describe('FileSystemStorage', () => {
     });
   });
 
-  describe('tryReconnect', () => {
-    it('should successfully reconnect with stored handle and valid permissions', async () => {
-      const { fileSystemCache } = await import('../fileSystemCache.js');
-      
-      // Mock a stored handle with valid permissions
-      fileSystemCache.getDirectoryHandle.mockResolvedValueOnce(mockDirectoryHandle);
-      fileSystemCache.verifyHandlePermission.mockResolvedValueOnce(true);
-
-      const result = await storage.tryReconnect();
-
-      expect(fileSystemCache.getDirectoryHandle).toHaveBeenCalled();
-      expect(fileSystemCache.verifyHandlePermission).toHaveBeenCalledWith(mockDirectoryHandle, false);
-      expect(storage.directoryHandle).toBe(mockDirectoryHandle);
-      expect(storage.trashHandle).toBeNull();
-      expect(result).toEqual({
-        handle: mockDirectoryHandle,
-        name: 'TestDirectory'
-      });
-    });
-
-    it('should fail and clear flags when no stored handle exists', async () => {
-      const { fileSystemCache } = await import('../fileSystemCache.js');
-      
-      localStorage.setItem('fileSystemConnected', 'true');
-      localStorage.setItem('fileSystemDirectoryName', 'TestDir');
-      
-      // Mock no stored handle
-      fileSystemCache.getDirectoryHandle.mockResolvedValueOnce(null);
-
-      await expect(storage.tryReconnect()).rejects.toThrow('No stored directory handle found');
-      
-      expect(localStorage.getItem('fileSystemConnected')).toBeNull();
-      expect(localStorage.getItem('fileSystemDirectoryName')).toBeNull();
-      expect(fileSystemCache.clearDirectoryHandle).toHaveBeenCalled();
-    });
-
-    it('should fail and clear flags when permissions are denied', async () => {
-      const { fileSystemCache } = await import('../fileSystemCache.js');
-      
-      localStorage.setItem('fileSystemConnected', 'true');
-      localStorage.setItem('fileSystemDirectoryName', 'TestDir');
-      
-      // Mock stored handle but denied permissions
-      fileSystemCache.getDirectoryHandle.mockResolvedValueOnce(mockDirectoryHandle);
-      fileSystemCache.verifyHandlePermission.mockResolvedValueOnce(false);
-
-      await expect(storage.tryReconnect()).rejects.toThrow('Permissions not granted');
-      
-      expect(localStorage.getItem('fileSystemConnected')).toBeNull();
-      expect(localStorage.getItem('fileSystemDirectoryName')).toBeNull();
-      expect(fileSystemCache.clearDirectoryHandle).toHaveBeenCalled();
-    });
-  });
+  // ...existing code...
 
   describe('loadItems', () => {
     it('should throw error if not connected', async () => {

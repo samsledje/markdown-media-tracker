@@ -1,5 +1,6 @@
 import { StorageAdapter } from './storageAdapter.js';
 import { parseMarkdown, generateMarkdown } from '../utils/markdownUtils.js';
+import { fileSystemCache } from './fileSystemCache.js';
 
 /**
  * File System Access API Storage Adapter
@@ -34,7 +35,10 @@ export class FileSystemStorage extends StorageAdapter {
 
   getStorageInfo() {
     if (!this.directoryHandle) return null;
-    return `Local Directory: ${this.directoryHandle.name}`;
+    return {
+      account: null,
+      folder: this.directoryHandle.name
+    };
   }
 
   async selectStorage() {
@@ -45,6 +49,17 @@ export class FileSystemStorage extends StorageAdapter {
       
       this.directoryHandle = handle;
       this.trashHandle = null; // Reset trash handle, will be created when needed
+      
+      // Store handle in IndexedDB for persistence
+      try {
+        await fileSystemCache.storeDirectoryHandle(handle);
+        localStorage.setItem('fileSystemConnected', 'true');
+        localStorage.setItem('fileSystemDirectoryName', handle.name);
+        console.log('[FileSystem] Connection persisted');
+      } catch (cacheError) {
+        console.error('[FileSystem] Failed to persist connection:', cacheError);
+        // Continue anyway - connection works even if persistence fails
+      }
       
       return {
         handle: handle,
@@ -59,9 +74,21 @@ export class FileSystemStorage extends StorageAdapter {
     }
   }
 
+  // ...existing code...
+
   async disconnect() {
     this.directoryHandle = null;
     this.trashHandle = null;
+    
+    // Clear persisted connection
+    try {
+      await fileSystemCache.clearDirectoryHandle();
+      localStorage.removeItem('fileSystemConnected');
+      localStorage.removeItem('fileSystemDirectoryName');
+      console.log('[FileSystem] Connection cleared');
+    } catch (error) {
+      console.error('[FileSystem] Failed to clear persisted connection:', error);
+    }
   }
 
   async loadItems(onProgress = null) {

@@ -15,6 +15,7 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     this.accessToken = null;
     this.mediaTrackerFolderId = null;
     this.trashFolderId = null;
+    this.userEmail = null;
     
     // Google API configuration
     this.CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -73,6 +74,14 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
       });
 
       this.isInitialized = true;
+      
+      // Restore user email from localStorage if available
+      const savedEmail = localStorage.getItem('googleDriveUserEmail');
+      if (savedEmail) {
+        this.userEmail = savedEmail;
+        console.log('Restored user email from localStorage:', this.userEmail);
+      }
+      
       console.log('Google Identity Services initialization complete');
       return true;
     } catch (error) {
@@ -123,6 +132,29 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     });
   }
 
+  async _fetchUserInfo() {
+    try {
+      const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch user info:', response.status, response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.user && data.user.emailAddress) {
+        this.userEmail = data.user.emailAddress;
+      }
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      // Don't throw - user email is optional
+    }
+  }
+
   isConnected() {
     return this.isInitialized && this.isSignedIn && !!this.accessToken && !!this.mediaTrackerFolderId;
   }
@@ -131,20 +163,28 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     if (!this.isConnected()) return null;
     
     const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
-    return `Google Drive - ${folderName} folder`;
+    return {
+      account: this.userEmail,
+      folder: folderName
+    };
   }
 
-  async selectStorage() {
+  async selectStorage(options = {}) {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
+    // Default to showing the popup (prompt: 'select_account')
+    // For silent reconnection, pass { silent: true }
+    const prompt = options.silent ? '' : 'select_account';
+
     return new Promise((resolve, reject) => {
-      console.log('Starting Google Sign-In with Identity Services...');
+      console.log('Starting Google Sign-In with Identity Services...', options.silent ? '(silent)' : '(with popup)');
       
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: this.CLIENT_ID,
         scope: this.SCOPES,
+        prompt: prompt,
         callback: async (tokenResponse) => {
           try {
             console.log('Token received:', !!tokenResponse.access_token);
@@ -154,12 +194,20 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
             // Set the access token for gapi client
             window.gapi.client.setToken({ access_token: this.accessToken });
 
+            // Fetch user info
+            console.log('Fetching user information...');
+            await this._fetchUserInfo();
+            console.log('User email:', this.userEmail);
+
             console.log('Starting folder initialization...');
             await this._initializeFolders();
             console.log('Folder initialization complete. MediaTracker folder ID:', this.mediaTrackerFolderId);
             
             localStorage.setItem('googleDriveConnected', 'true');
             localStorage.setItem('googleDriveFolderId', this.mediaTrackerFolderId);
+            if (this.userEmail) {
+              localStorage.setItem('googleDriveUserEmail', this.userEmail);
+            }
             
             const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
             console.log('Google Drive connection successful, resolving...');
@@ -187,6 +235,35 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     });
   }
 
+  /**
+   * Try to reconnect to Google Drive silently (without showing OAuth popup)
+   * This uses the user's existing Google session cookies to get a new token
+   * 
+   * How it works:
+   * - Uses prompt: '' to attempt silent token acquisition
+   * - If user is still signed in to Google in their browser, this succeeds without UI
+   * - If user signed out of Google or session expired, this fails and user must sign in again
+   * - This provides seamless reconnection when user returns to app in same browser session
+   * 
+   * @returns {Promise} Resolves if reconnection succeeds, rejects if silent auth fails
+   */
+  async tryReconnect() {
+    console.log('Attempting silent reconnection to Google Drive...');
+    
+    try {
+      // Use silent mode which won't show any UI
+      const result = await this.selectStorage({ silent: true });
+      console.log('Silent reconnection successful');
+      return result;
+    } catch (error) {
+      console.log('Silent reconnection failed:', error.message);
+      // Clear the connection flags since silent reconnection failed
+      localStorage.removeItem('googleDriveConnected');
+      localStorage.removeItem('googleDriveFolderId');
+      throw error;
+    }
+  }
+
   async disconnect() {
     if (this.accessToken) {
       window.google.accounts.oauth2.revoke(this.accessToken);
@@ -199,9 +276,11 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     this.accessToken = null;
     this.mediaTrackerFolderId = null;
     this.trashFolderId = null;
+    this.userEmail = null;
     
     localStorage.removeItem('googleDriveConnected');
     localStorage.removeItem('googleDriveFolderId');
+    localStorage.removeItem('googleDriveUserEmail');
   }
 
   /**

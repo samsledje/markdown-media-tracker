@@ -6,6 +6,7 @@ import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
 import { fetchCoverForItem } from '../../utils/coverUtils.js';
+import { getStatusColor } from '../../utils/colorUtils.js';
 import { toast } from '../../services/toastService.js';
 
 /**
@@ -137,16 +138,6 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
     }
   };
 
-  const getColorForStatus = (status) => {
-    const color = STATUS_COLORS[status];
-    switch (color) {
-      case 'blue': return 'bg-blue-500';
-      case 'yellow': return 'bg-yellow-500';
-      case 'green': return 'bg-green-500';
-      default: return 'bg-slate-700';
-    }
-  };
-
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
@@ -275,8 +266,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                  className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white"
+                  style={{ backgroundColor: 'var(--mt-highlight)' }}
                   title="Edit"
                 >
                   <Edit className="w-5 h-5" />
@@ -285,8 +276,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             ) : (
               <button
                 onClick={handleSave}
-                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white"
+                style={{ backgroundColor: 'var(--mt-highlight)' }}
                 title="Save"
               >
                 <Save className="w-5 h-5" />
@@ -345,7 +336,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
           {!isEditing && editedItem && editedItem.status && (
             <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
               <div className="relative flex items-center gap-2">
-                <div className={`flex items-center justify-center rounded-full p-2 text-white ${getColorForStatus(editedItem.status)} shadow-lg w-10 h-10`} title={STATUS_LABELS[editedItem.status]}>
+                <div className="flex items-center justify-center rounded-full p-2 text-white shadow-lg w-10 h-10" style={{ backgroundColor: getStatusColor(editedItem.status) }} title={STATUS_LABELS[editedItem.status]}>
                   {getIconForStatus(editedItem.status, 'w-5 h-5')}
                 </div>
                 <div className="relative z-[100]">
@@ -365,7 +356,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                           onClick={() => handleQuickStatusChange(status)}
                           className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-700/50 ${editedItem.status === status ? 'bg-slate-700/60' : ''}`}
                         >
-                          <div className={`flex items-center justify-center rounded-full p-2 text-white ${getColorForStatus(status)}`}>
+                          <div className="flex items-center justify-center rounded-full p-2 text-white" style={{ backgroundColor: getStatusColor(status) }}>
                             {getIconForStatus(status, 'w-4 h-4')}
                           </div>
                           <div className="flex-1">

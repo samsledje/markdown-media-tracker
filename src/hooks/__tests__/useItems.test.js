@@ -95,7 +95,7 @@ describe('useItems', () => {
       });
       
       expect(result.current.items).toEqual(sampleItems);
-      expect(result.current.storageInfo).toBe('Mock Directory');
+      expect(result.current.storageInfo).toEqual({ account: null, folder: 'Mock Directory' });
       expect(result.current.loadProgress).toEqual({ processed: 4, total: 4 });
     });
 
@@ -468,7 +468,7 @@ describe('useItems', () => {
       
       expect(mockStorage.connected).toBe(true);
       expect(result.current.items).toEqual(sampleItems);
-      expect(result.current.storageInfo).toBe('TestDirectory'); // selectStorage sets name to TestDirectory
+      expect(result.current.storageInfo).toEqual({ account: null, folder: 'TestDirectory' }); // selectStorage sets name to TestDirectory
     });
 
     it('should create new adapter if type differs', async () => {

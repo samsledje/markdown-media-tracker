@@ -163,10 +163,10 @@ export class GoogleDriveStorageGIS extends StorageAdapter {
     if (!this.isConnected()) return null;
     
     const folderName = getConfig('googleDriveFolderName') || 'MediaTracker';
-    if (this.userEmail) {
-      return `${this.userEmail} - ${folderName} folder`;
-    }
-    return `Google Drive - ${folderName} folder`;
+    return {
+      account: this.userEmail,
+      folder: folderName
+    };
   }
 
   async selectStorage(options = {}) {

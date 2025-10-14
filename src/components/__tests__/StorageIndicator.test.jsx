@@ -16,7 +16,7 @@ describe('StorageIndicator', () => {
     mockStorageAdapter = {
       isConnected: vi.fn(() => true),
       getStorageType: vi.fn(() => 'filesystem'),
-      getStorageInfo: vi.fn(() => ({ type: 'filesystem', location: '/path/to/folder' }))
+      getStorageInfo: vi.fn(() => ({ account: null, folder: '/path/to/folder' }))
     };
   });
 
@@ -171,7 +171,7 @@ describe('StorageIndicator', () => {
       render(
         <StorageIndicator 
           storageAdapter={mockStorageAdapter} 
-          storageInfo="/path/to/folder"
+          storageInfo={{ account: null, folder: '/path/to/folder' }}
           onSwitchStorage={onSwitchStorage}
         />
       );
@@ -190,7 +190,7 @@ describe('StorageIndicator', () => {
       render(
         <StorageIndicator 
           storageAdapter={mockStorageAdapter} 
-          storageInfo="MarkdownMediaTracker"
+          storageInfo={{ account: 'test@example.com', folder: 'MarkdownMediaTracker' }}
           onSwitchStorage={onSwitchStorage}
         />
       );
@@ -199,6 +199,7 @@ describe('StorageIndicator', () => {
       await user.click(button);
 
       expect(screen.getByText('Google Drive')).toBeInTheDocument();
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
       expect(screen.getByText('MarkdownMediaTracker')).toBeInTheDocument();
       expect(screen.getByText('Cloud Storage')).toBeInTheDocument();
     });

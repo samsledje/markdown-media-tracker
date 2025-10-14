@@ -128,7 +128,7 @@ describe('FileSystemStorage', () => {
 
     it('should return directory name when connected', () => {
       storage.directoryHandle = mockDirectoryHandle;
-      expect(storage.getStorageInfo()).toBe('Local Directory: TestDirectory');
+      expect(storage.getStorageInfo()).toEqual({ account: null, folder: 'TestDirectory' });
     });
   });
 

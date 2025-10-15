@@ -128,3 +128,11 @@ export const sanitizeDisplayString = (val) => {
     return String(val).trim();
   }
 };
+
+/**
+ * Check if the current screen size is mobile (width < 640px)
+ * @returns {boolean} True if on mobile screen size
+ */
+export const isMobileScreen = () => {
+  return window.innerWidth < 640;
+};

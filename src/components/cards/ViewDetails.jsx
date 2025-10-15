@@ -1,6 +1,8 @@
 import React from 'react';
-import { Book, Film, Star, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image } from 'lucide-react';
+import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image } from 'lucide-react';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
+import StarRating from '../StarRating.jsx';
+import { useHalfStars } from '../../hooks/useHalfStars.js';
 import { renderMarkdown } from '../../utils/markdownUtils.js';
 
 /**
@@ -45,6 +47,7 @@ const getStatusColorClass = (status) => {
  * Component for displaying item details in read-only view
  */
 const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false }) => {
+  const [halfStarsEnabled] = useHalfStars();
   return (
     <div className="space-y-4">
       {item.coverUrl ? (
@@ -102,7 +105,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
         </div>
       </div>
 
-      {item.actors && item.actors.length > 0 && (
+      {item.type === 'movie' && item.actors && item.actors.length > 0 && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Cast</div>
           <div className="flex flex-wrap gap-2">
@@ -146,21 +149,15 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
         </div>
       )}
 
-      {item.rating && !hideRating && (
+      {item.rating > 0 && !hideRating && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Rating</div>
-          <div className="flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-6 h-6 ${
-                  i < item.rating
-                    ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-slate-600'
-                }`}
-              />
-            ))}
-          </div>
+          <StarRating
+            rating={item.rating}
+            interactive={false}
+            halfStarsEnabled={halfStarsEnabled}
+            size="w-6 h-6"
+          />
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, ChevronDown, Edit, Trash2, Star } from 'lucide-react';
+import { X, Save, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
 import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
@@ -8,6 +8,8 @@ import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-reac
 import { fetchCoverForItem } from '../../utils/coverUtils.js';
 import { getStatusColor } from '../../utils/colorUtils.js';
 import { toast } from '../../services/toastService.js';
+import StarRating from '../StarRating.jsx';
+import { useHalfStars } from '../../hooks/useHalfStars.js';
 
 /**
  * Modal for viewing and editing item details
@@ -17,6 +19,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFetchingCover, setIsFetchingCover] = useState(false);
+  const [halfStarsEnabled] = useHalfStars();
   
   // Ensure item has a status when creating editedItem
   const [editedItem, setEditedItem] = useState(() => {
@@ -72,9 +75,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   };
 
   const handleQuickRatingChange = (newRating) => {
-    // If clicking on the same star that's currently the rating, toggle to unrated (0)
-    const finalRating = editedItem.rating === newRating ? 0 : newRating;
-    const updated = { ...editedItem, rating: finalRating };
+    const updated = { ...editedItem, rating: newRating };
     setEditedItem(updated);
     // Persist change via onQuickSave if provided, otherwise use onSave
     if (typeof onQuickSave === 'function') {
@@ -312,23 +313,13 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
           {!isEditing && (
             <div className="mt-6">
               <label className="block text-sm font-medium mb-2">Rating</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(rating => (
-                  <button
-                    key={rating}
-                    onClick={() => handleQuickRatingChange(rating)}
-                    className="transition"
-                  >
-                    <Star
-                      className={`w-8 h-8 ${
-                        rating <= (editedItem.rating || 0)
-                          ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-slate-600'
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
+              <StarRating
+                rating={editedItem.rating ? editedItem.rating : undefined}
+                onChange={handleQuickRatingChange}
+                interactive={true}
+                halfStarsEnabled={halfStarsEnabled}
+                size="w-8 h-8"
+              />
             </div>
           )}
           

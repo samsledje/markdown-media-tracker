@@ -6,6 +6,8 @@ import {
   saveThemeColors,
   loadCardSize,
   saveCardSize,
+  loadHalfStarsEnabled,
+  saveHalfStarsEnabled,
 } from '../../services/configService.js';
 import { LOCAL_STORAGE_KEYS, DEFAULT_THEME, CARD_SIZES } from '../../constants/index.js';
 
@@ -167,6 +169,68 @@ describe('configService', () => {
       });
       
       expect(() => saveCardSize(CARD_SIZES.LARGE)).not.toThrow();
+      spy.mockRestore();
+    });
+  });
+
+  describe('loadHalfStarsEnabled', () => {
+    it('should load half stars setting from localStorage', () => {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED, 'true');
+      
+      const result = loadHalfStarsEnabled();
+      
+      expect(result).toBe(true);
+    });
+
+    it('should return true by default if not set', () => {
+      const result = loadHalfStarsEnabled();
+      
+      expect(result).toBe(true);
+    });
+
+    it('should return false when set to false', () => {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED, 'false');
+      
+      const result = loadHalfStarsEnabled();
+      
+      expect(result).toBe(false);
+    });
+
+    it('should handle errors gracefully', () => {
+      const spy = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('Storage error');
+      });
+      
+      const result = loadHalfStarsEnabled();
+      
+      expect(result).toBe(true);
+      spy.mockRestore();
+    });
+  });
+
+  describe('saveHalfStarsEnabled', () => {
+    it('should save half stars setting to localStorage', () => {
+      saveHalfStarsEnabled(false);
+      
+      const result = localStorage.getItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED);
+      
+      expect(result).toBe('false');
+    });
+
+    it('should save true value correctly', () => {
+      saveHalfStarsEnabled(true);
+      
+      const result = localStorage.getItem(LOCAL_STORAGE_KEYS.HALF_STARS_ENABLED);
+      
+      expect(result).toBe('true');
+    });
+
+    it('should handle errors gracefully', () => {
+      const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('Storage error');
+      });
+      
+      expect(() => saveHalfStarsEnabled(true)).not.toThrow();
       spy.mockRestore();
     });
   });

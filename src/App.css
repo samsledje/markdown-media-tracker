@@ -50,3 +50,17 @@
 
 /* (slider styles removed) */
 
+/* Ensure the search bar is not covered by the floating menu on mobile */
+@media (max-width: 768px) {
+  .floating-menu {
+    position: fixed;
+    bottom: 10px; /* Position above the bottom of the screen */
+    width: 100%;
+    z-index: 1000; /* Ensure it stays on top */
+  }
+
+  .search-bar {
+    margin-top: 60px; /* Add spacing to ensure visibility */
+  }
+}
+

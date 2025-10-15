@@ -655,6 +655,26 @@ const MediaTracker = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [exportSubmenuOpen]);
 
+  // Add a useEffect to adjust menu positioning on mobile devices
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) { // Mobile breakpoint
+        setDropdownStyle((prevStyle) => ({
+          ...prevStyle,
+          top: 'auto', // Ensure it doesn't overlap the search bar
+          bottom: '10px', // Position above the bottom of the screen
+        }));
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Call on mount
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   // Scroll-to-top handler for header activation (click/tap)
   const handleHeaderActivate = (e) => {
     if (e) e.preventDefault();
@@ -1339,7 +1359,7 @@ const MediaTracker = () => {
           />
         </div>
       ) : (
-        <div className="flex-1 max-w-7xl mx-auto px-4 py-4 sm:py-6">
+        <div className="flex-1 max-w-7xl mx-auto px-4 py-4 sm:py-6 pt-20 sm:pt-16">
           {/* Search and Type Filters */}
           <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:gap-4">
             <div className="flex-1 relative">

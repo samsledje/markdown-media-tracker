@@ -137,7 +137,8 @@ export const LOCAL_STORAGE_KEYS = {
   CARD_SIZE: 'cardSize',
   THEME_PRIMARY: 'themePrimary', 
   THEME_HIGHLIGHT: 'themeHighlight',
-  OMDB_API_KEY: 'omdbApiKey'
+  OMDB_API_KEY: 'omdbApiKey',
+  HALF_STARS_ENABLED: 'halfStarsEnabled'
 };
 
 export const CSS_VARIABLES = {

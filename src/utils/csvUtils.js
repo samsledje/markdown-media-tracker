@@ -186,7 +186,7 @@ export const detectCSVFormat = (headers = []) => {
  */
 export const mapGoodreadsRow = (r) => {
   const tags = (r['My Tags'] || r['Tags'] || r['Bookshelves'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-  const rating = r['My Rating'] ? parseInt(r['My Rating'], 10) : (r['Rating'] ? parseInt(r['Rating'], 10) : 0);
+  const rating = r['My Rating'] ? parseFloat(r['My Rating']) : (r['Rating'] ? parseFloat(r['Rating']) : 0);
   const status = mapGoodreadsShelfToStatus(r['Exclusive Shelf'] || r['Shelf'] || '');
   
   // Prefer the `ISBN` column when available; fallback to `ISBN13`.
@@ -217,7 +217,7 @@ export const mapGoodreadsRow = (r) => {
 export const mapLetterboxdRow = (r) => {
   const tags = (r['Tags'] || r['tags'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
   const rawRating = r['Your Rating'] || r['Rating'] || r['star_rating'] || '';
-  const rating = rawRating ? Math.round(parseFloat(rawRating)) : 0;
+  const rating = rawRating ? Math.round(parseFloat(rawRating) * 2) / 2 : 0;
   const status = mapLetterboxdWatchedToStatus(r['Watched'] || r['watched'] || '');
   
   return {

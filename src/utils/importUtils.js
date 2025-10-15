@@ -112,8 +112,8 @@ const findMatchingMovie = (existingItems = [], mappedRow = {}) => {
 };
 
 /**
- * Normalize rating values to whole integers (round to nearest integer)
- * Accepts numbers or numeric strings like '3.5' and returns an integer.
+ * Normalize rating values to nearest half star (0, 0.5, 1, 1.5, ..., 5)
+ * Accepts numbers or numeric strings like '3.5' and returns a number rounded to nearest 0.5.
  */
 const normalizeRating = (r) => {
   if (r === null || r === undefined || r === '') return 0;
@@ -121,7 +121,8 @@ const normalizeRating = (r) => {
   if (Number.isNaN(n)) {
     return 0;
   }
-  return Math.round(n);
+  // Round to nearest half star: multiply by 2, round, divide by 2
+  return Math.round(n * 2) / 2;
 };
 
 /**

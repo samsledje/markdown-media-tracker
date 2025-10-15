@@ -86,11 +86,9 @@ const TagInput = ({ value, onChange, onAdd, existingTags = [], allTags = [], pla
   const handleSelectSuggestion = (tag) => {
     onChange({ target: { value: tag } });
     // Immediately add the tag
-    setTimeout(() => {
-      onAdd();
-      setShowSuggestions(false);
-      setFocusedIndex(-1);
-    }, 0);
+    onAdd(tag);
+    setShowSuggestions(false);
+    setFocusedIndex(-1);
   };
 
   return (

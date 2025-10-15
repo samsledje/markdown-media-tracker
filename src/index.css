@@ -3,9 +3,8 @@
 @tailwind utilities;
 
 /* Global background and overscroll fixes to avoid white gaps when scrolling */
-html, body, #root {
+html, body {
 	height: 100%;
-	min-height: 100%;
 }
 
 /* Apply the same background as the app container to the page so overscroll doesn't reveal white.
@@ -22,6 +21,7 @@ body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	-webkit-overflow-scrolling: touch;
+	overflow-y: auto;
 	/* Ensure minimum 16px font size on mobile */
 	font-size: 16px;
 	line-height: 1.6;
@@ -29,7 +29,7 @@ body {
 
 /* Ensure the root app element expands to full height so the background is continuous */
 #root {
-	min-height: 100vh;
+	min-height: 100%;
 }
 
 /* Mobile responsive typography */

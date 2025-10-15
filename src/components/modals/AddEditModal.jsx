@@ -7,7 +7,7 @@ import { toast } from '../../services/toastService.js';
 /**
  * Modal for adding new items
  */
-const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
+const AddEditModal = ({ onClose, onSave, initialItem = null, allTags = [] }) => {
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
@@ -123,22 +123,8 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
 
   // Auto-focus the first focusable element when modal opens
   useEffect(() => {
-    const modal = modalRef.current;
-    if (!modal) return;
-
-    const focusableElements = modal.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    
-    if (focusableElements.length > 0) {
-      // Focus the first input field if available, otherwise the first focusable element
-      const firstInput = modal.querySelector('input, select, textarea');
-      if (firstInput) {
-        firstInput.focus();
-      } else {
-        focusableElements[0].focus();
-      }
-    }
+    // Removed auto-focus to prevent keyboard popup on mobile
+    // Focus will be managed by individual form components if needed
   }, []);
 
   return (
@@ -158,7 +144,7 @@ const AddEditModal = ({ onClose, onSave, initialItem = null }) => {
         </div>
         
         <div className="p-4 sm:p-6 pb-6">
-          <EditForm item={item} onChange={setItem} fromSearch={fromSearch} />
+          <EditForm item={item} onChange={setItem} fromSearch={fromSearch} allTags={allTags} />
           <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
               onClick={onClose}

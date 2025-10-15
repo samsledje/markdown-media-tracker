@@ -87,6 +87,11 @@ export const useItems = () => {
       setIsLoading(true);
       await storageAdapter.saveItem(item);
       
+      // Ensure the item has an id (derived from filename for new items)
+      if (!item.id && item.filename) {
+        item.id = item.filename.replace('.md', '');
+      }
+      
       // Update local state instead of reloading entire directory
       setItems(prevItems => {
         const existingIndex = prevItems.findIndex(i => i.id === item.id);

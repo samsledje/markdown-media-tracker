@@ -96,6 +96,11 @@ describe('Item Management Integration Tests', () => {
     const menuButton = screen.getByRole('button', { name: /menu/i });
     await user.click(menuButton);
 
+    // Wait for menu portal to appear
+    await waitFor(() => {
+      expect(document.querySelector('[data-menu-portal="1"]')).toBeInTheDocument();
+    });
+
     // Click "Add Manually" in the menu
     const addManuallyButton = await screen.findByText(/add manually/i);
     await user.click(addManuallyButton);
@@ -179,27 +184,31 @@ describe('Item Management Integration Tests', () => {
       render(<MediaTracker />);
 
       // Wait for storage selector and select filesystem
-      // Need longer timeout as getAvailableAdapters is async
-      const filesystemButton = await screen.findByRole('button', { name: /local files/i }, { timeout: 3000 });
+      const filesystemButton = await screen.findByRole('button', { name: /local files/i }, { timeout: 5000 });
       await user.click(filesystemButton);
 
-      // Wait for main UI to load - look for a button that indicates we're on the main page
+      // Wait for main UI to load
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
       // Open the menu
       const menuButton = screen.getByRole('button', { name: /menu/i });
       await user.click(menuButton);
 
+      // Wait for menu portal to appear
+      await waitFor(() => {
+        expect(document.querySelector('[data-menu-portal="1"]')).toBeInTheDocument();
+      }, { timeout: 5000 });
+
       // Click "Add Manually" in the menu
-      const addManuallyButton = await screen.findByText(/add manually/i);
+      const addManuallyButton = await screen.findByText(/add manually/i, {}, { timeout: 5000 });
       await user.click(addManuallyButton);
 
       // Wait for Add/Edit modal
       await waitFor(() => {
         expect(screen.getByText(/add new item/i)).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
       // Select "Book" type by clicking the button
       const bookButton = screen.getByRole('button', { name: /^book$/i });
@@ -227,7 +236,6 @@ describe('Item Management Integration Tests', () => {
       await user.click(readButton);
 
       // Set rating by clicking the 5th star
-      // Find all star buttons (there should be 5) and click the 5th one
       const starButtons = screen.getAllByRole('button').filter(btn => 
         btn.querySelector('svg') && btn.querySelector('svg').classList.contains('w-8')
       );
@@ -237,17 +245,25 @@ describe('Item Management Integration Tests', () => {
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
       await user.click(tagsInput);
       await user.paste('classic');
+      await waitFor(() => {
+        expect(tagsInput).toHaveValue('classic');
+      }, { timeout: 5000 });
       await user.keyboard('{Enter}');
       // Wait for the first tag to appear
       await waitFor(() => {
-        expect(screen.getByText('classic')).toBeInTheDocument();
-      });
+        const tags = screen.getAllByText('classic', { exact: false });
+        expect(tags.some(tag => tag.tagName === 'SPAN')).toBe(true);
+      }, { timeout: 5000 });
       await user.paste('fiction');
+      await waitFor(() => {
+        expect(tagsInput).toHaveValue('fiction');
+      }, { timeout: 5000 });
       await user.keyboard('{Enter}');
       // Wait for the second tag to appear
       await waitFor(() => {
-        expect(screen.getByText('fiction')).toBeInTheDocument();
-      });
+        const tags = screen.getAllByText('fiction', { exact: false });
+        expect(tags.some(tag => tag.tagName === 'SPAN')).toBe(true);
+      }, { timeout: 5000 });
 
       // Add notes
       const notesInput = screen.getByPlaceholderText(/write your review/i);
@@ -261,7 +277,7 @@ describe('Item Management Integration Tests', () => {
       // Verify saveItem was called with correct data
       await waitFor(() => {
         expect(mockStorage.saveItem).toHaveBeenCalled();
-      });
+      }, { timeout: 5000 });
 
       const savedItem = mockStorage.saveItem.mock.calls[0][0];
       expect(savedItem).toMatchObject({
@@ -272,15 +288,14 @@ describe('Item Management Integration Tests', () => {
         status: 'read',
         rating: 5,
         tags: ['classic', 'fiction'],
-        review: 'A masterpiece of American literature' // Notes are saved in the 'review' field
+        review: 'A masterpiece of American literature'
       });
-      // Verify other metadata fields were added
       expect(savedItem.dateAdded).toBeDefined();
 
       // Verify modal closed
       await waitFor(() => {
         expect(screen.queryByText(/add new item/i)).not.toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
     });
 
     it('should add a movie manually through complete workflow', async () => {

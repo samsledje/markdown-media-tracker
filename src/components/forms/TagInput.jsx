@@ -28,6 +28,11 @@ const TagInput = ({ value, onChange, onAdd, existingTags = [], allTags = [], pla
     setFocusedIndex(-1);
   }, [suggestions.length]);
 
+  // Reset focused index when input value changes (user is typing)
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [value]);
+
   // Handle click outside to close suggestions
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -68,8 +73,10 @@ const TagInput = ({ value, onChange, onAdd, existingTags = [], allTags = [], pla
       case 'Enter':
         e.preventDefault();
         if (focusedIndex >= 0 && focusedIndex < suggestions.length) {
+          // User explicitly focused a suggestion, select it
           handleSelectSuggestion(suggestions[focusedIndex]);
         } else {
+          // No suggestion focused, add what's currently typed
           onAdd();
         }
         break;

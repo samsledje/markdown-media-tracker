@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
+import TagInput from './TagInput.jsx';
 import StarRating from '../StarRating.jsx';
 import { useHalfStars } from '../../hooks/useHalfStars.js';
 import { getStatusColor } from '../../utils/colorUtils.js';
@@ -8,7 +9,7 @@ import { getStatusColor } from '../../utils/colorUtils.js';
 /**
  * Form component for editing item details
  */
-const EditForm = ({ item, onChange, fromSearch = false }) => {
+const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
   const [tagInput, setTagInput] = useState('');
   const [actorInput, setActorInput] = useState('');
   const [halfStarsEnabled] = useHalfStars();
@@ -21,9 +22,10 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
     onChange({ ...item, type: newType, status: newStatus });
   };
 
-  const addTag = () => {
-    if (tagInput.trim() && !item.tags.includes(tagInput.trim())) {
-      onChange({ ...item, tags: [...item.tags, tagInput.trim()] });
+  const addTag = (tagToAdd) => {
+    const tag = tagToAdd || tagInput.trim();
+    if (tag && !item.tags.includes(tag)) {
+      onChange({ ...item, tags: [...item.tags, tag] });
       setTagInput('');
     }
   };
@@ -244,12 +246,12 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
       <div>
         <label className="block text-sm font-medium mb-2">Tags</label>
         <div className="flex gap-2 mb-2">
-          <input
-            type="text"
+          <TagInput
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && (addTag(), e.preventDefault())}
-            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
+            onAdd={addTag}
+            existingTags={item.tags}
+            allTags={allTags}
             placeholder="Add tag"
           />
           <button

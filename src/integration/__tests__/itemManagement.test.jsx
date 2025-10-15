@@ -96,6 +96,11 @@ describe('Item Management Integration Tests', () => {
     const menuButton = screen.getByRole('button', { name: /menu/i });
     await user.click(menuButton);
 
+    // Wait for menu portal to appear
+    await waitFor(() => {
+      expect(document.querySelector('[data-menu-portal="1"]')).toBeInTheDocument();
+    });
+
     // Click "Add Manually" in the menu
     const addManuallyButton = await screen.findByText(/add manually/i);
     await user.click(addManuallyButton);
@@ -192,6 +197,11 @@ describe('Item Management Integration Tests', () => {
       const menuButton = screen.getByRole('button', { name: /menu/i });
       await user.click(menuButton);
 
+      // Wait for menu portal to appear
+      await waitFor(() => {
+        expect(document.querySelector('[data-menu-portal="1"]')).toBeInTheDocument();
+      });
+
       // Click "Add Manually" in the menu
       const addManuallyButton = await screen.findByText(/add manually/i);
       await user.click(addManuallyButton);
@@ -237,12 +247,20 @@ describe('Item Management Integration Tests', () => {
       const tagsInput = screen.getByPlaceholderText(/add tag/i);
       await user.click(tagsInput);
       await user.paste('classic');
+      // Wait for input value to be set
+      await waitFor(() => {
+        expect(tagsInput).toHaveValue('classic');
+      });
       await user.keyboard('{Enter}');
       // Wait for the first tag to appear
       await waitFor(() => {
         expect(screen.getByText('classic')).toBeInTheDocument();
       });
       await user.paste('fiction');
+      // Wait for input value to be set
+      await waitFor(() => {
+        expect(tagsInput).toHaveValue('fiction');
+      });
       await user.keyboard('{Enter}');
       // Wait for the second tag to appear
       await waitFor(() => {

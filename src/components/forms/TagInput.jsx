@@ -49,7 +49,8 @@ const TagInput = ({ value, onChange, onAdd, existingTags = [], allTags = [], pla
   }, []);
 
   const handleKeyDown = (e) => {
-    if (!showSuggestions || suggestions.length === 0) {
+    // If there are no suggestions available, always add the typed text
+    if (suggestions.length === 0) {
       if (e.key === 'Enter') {
         e.preventDefault();
         onAdd();
@@ -57,6 +58,7 @@ const TagInput = ({ value, onChange, onAdd, existingTags = [], allTags = [], pla
       return;
     }
 
+    // If suggestions are available, handle navigation
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();

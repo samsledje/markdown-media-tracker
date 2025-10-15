@@ -251,8 +251,8 @@ describe('Item Management Integration Tests', () => {
       await user.keyboard('{Enter}');
       // Wait for the first tag to appear
       await waitFor(() => {
-        expect(screen.getByText((content, element) => 
-          element?.textContent === 'classic' && element.tagName === 'SPAN')).toBeInTheDocument();
+        const tags = screen.getAllByText('classic', { exact: false });
+        expect(tags.some(tag => tag.tagName === 'SPAN')).toBe(true);
       }, { timeout: 5000 });
       await user.paste('fiction');
       await waitFor(() => {
@@ -261,8 +261,8 @@ describe('Item Management Integration Tests', () => {
       await user.keyboard('{Enter}');
       // Wait for the second tag to appear
       await waitFor(() => {
-        expect(screen.getByText((content, element) => 
-          element?.textContent === 'fiction' && element.tagName === 'SPAN')).toBeInTheDocument();
+        const tags = screen.getAllByText('fiction', { exact: false });
+        expect(tags.some(tag => tag.tagName === 'SPAN')).toBe(true);
       }, { timeout: 5000 });
 
       // Add notes

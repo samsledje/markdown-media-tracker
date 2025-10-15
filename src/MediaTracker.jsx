@@ -136,6 +136,8 @@ const MediaTracker = () => {
   const settingsSubmenuTimeoutRef = useRef(null);
   const settingsContainerRef = useRef(null);
   const importAbortControllerRef = useRef(null);
+  const headerRef = useRef(null);
+  const touchMovedRef = useRef(false);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
@@ -652,6 +654,38 @@ const MediaTracker = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [exportSubmenuOpen]);
 
+  // Scroll-to-top handler for header activation (click/tap)
+  const handleHeaderActivate = (e) => {
+    if (e) e.preventDefault();
+    // If this was a touch interaction and user was scrolling, ignore
+    if (e && e.type && e.type.startsWith('touch') && touchMovedRef.current) return;
+
+    // Try multiple strategies for maximum compatibility
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+    try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) {}
+    try { document.body && (document.body.scrollTop = 0); } catch (_) {}
+    const scrollingEl = document.scrollingElement;
+    if (scrollingEl && typeof scrollingEl.scrollTo === 'function') {
+      try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+    }
+  };
+
+  const handleHeaderTouchStart = () => { touchMovedRef.current = false; };
+  const handleHeaderTouchMove = () => { touchMovedRef.current = true; };
+
+  // Track header height to offset content when header is fixed
+  const [headerHeight, setHeaderHeight] = useState(0);
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight || 0);
+      }
+    };
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => window.removeEventListener('resize', updateHeaderHeight);
+  }, []);
+
   // Scroll to top when storage is selected (transitions from landing page to main app)
   useEffect(() => {
     if (!showStorageSelector) {
@@ -959,7 +993,17 @@ const MediaTracker = () => {
       }}
     >
       {!showStorageSelector && (
-        <header className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
+        <header
+          ref={headerRef}
+          onClick={handleHeaderActivate}
+          onPointerUp={handleHeaderActivate}
+          onTouchStart={handleHeaderTouchStart}
+          onTouchMove={handleHeaderTouchMove}
+          onTouchEnd={handleHeaderActivate}
+          aria-label="Scroll to top"
+          title="Scroll to top"
+          className="fixed top-0 left-0 right-0 z-40 bg-slate-800/50 backdrop-blur border-b border-slate-700 cursor-pointer"
+        >
           <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
@@ -971,7 +1015,7 @@ const MediaTracker = () => {
                 {!storageAdapter || !storageAdapter.isConnected() ? null : (
                   <>
                     <button
-                      onClick={() => setIsSearching(true)}
+                      onClick={(e) => { e.stopPropagation(); setIsSearching(true); }}
                       className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition min-h-[44px]"
                       style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                       title="Search"
@@ -982,7 +1026,7 @@ const MediaTracker = () => {
 
                     <div className="relative" ref={menuRef}>
                       <button
-                        onClick={() => setMenuOpen(!menuOpen)}
+                        onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
                         aria-expanded={menuOpen}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700 min-h-[44px]"
                         title="More actions"
@@ -999,6 +1043,11 @@ const MediaTracker = () => {
             </div>
           </div>
         </header>
+      )}
+
+      {/* Spacer to offset fixed header height */}
+      {!showStorageSelector && headerHeight > 0 && (
+        <div style={{ height: headerHeight }} />
       )}
 
       {menuOpen && menuPos && createPortal(

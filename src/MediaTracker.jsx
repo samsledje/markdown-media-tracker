@@ -9,6 +9,7 @@ import { useSelection } from './hooks/useSelection.js';
 import { useTheme } from './hooks/useTheme.js';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation.js';
 import { useOmdbApi } from './hooks/useOmdbApi.js';
+import { useHalfStars } from './hooks/useHalfStars.js';
 
 // Components
 import SearchModal from './components/modals/SearchModal.jsx';
@@ -214,6 +215,8 @@ const MediaTracker = () => {
   } = useTheme();
 
   const { omdbApiKey, updateApiKey } = useOmdbApi();
+
+  const [halfStarsEnabled, setHalfStarsEnabled] = useHalfStars();
 
   // Close modals and clear states
   const closeModals = () => {
@@ -710,20 +713,56 @@ const MediaTracker = () => {
         const options = await getAvailableStorageOptions();
         setAvailableStorageOptions(options);
         
-        // Check if user was previously connected to Google Drive
-        const wasConnected = localStorage.getItem('googleDriveConnected');
-        if (wasConnected === 'true') {
+        // Check if user was previously connected to File System
+        const wasFileSystemConnected = localStorage.getItem('fileSystemConnected');
+        if (wasFileSystemConnected === 'true') {
           try {
-            await initializeStorage('googledrive');
+            // Initialize the adapter
+            const adapter = await initializeStorage('filesystem');
+            
+            // Try to reconnect (retrieve stored handle and verify permissions)
+            console.log('Attempting to restore File System connection...');
+            await adapter.tryReconnect();
+            
+            // If successful, load items
+            await loadItems(adapter);
             setShowStorageSelector(false);
+            console.log('Successfully reconnected to File System');
           } catch (error) {
-            console.error('Failed to reconnect to Google Drive:', error);
-            localStorage.removeItem('googleDriveConnected');
-            localStorage.removeItem('googleDriveFolderId');
+            console.log('File System reconnection failed, user will need to select directory again:', error.message);
+            // Don't show error toast - this is expected if permissions were revoked
+            // User will see the storage selector and can reconnect manually
+            localStorage.removeItem('fileSystemConnected');
+            localStorage.removeItem('fileSystemDirectoryName');
           }
-        } else if (options.find(opt => opt.type === 'filesystem' && opt.supported)) {
-          // If filesystem is supported but no previous connection, still show selector
-          setShowStorageSelector(true);
+        }
+        // Check if user was previously connected to Google Drive
+        else {
+          const wasGoogleDriveConnected = localStorage.getItem('googleDriveConnected');
+          if (wasGoogleDriveConnected === 'true') {
+            try {
+              // Initialize the adapter
+              const adapter = await initializeStorage('googledrive');
+              
+              // Try to reconnect silently (without showing popup)
+              console.log('Attempting silent reconnection to Google Drive...');
+              await adapter.tryReconnect();
+              
+              // If successful, load items
+              await loadItems(adapter);
+              setShowStorageSelector(false);
+              console.log('Successfully reconnected to Google Drive');
+            } catch (error) {
+              console.log('Silent reconnection failed, user will need to sign in again:', error.message);
+              // Don't show error toast - this is expected if the session expired
+              // User will see the storage selector and can reconnect manually
+              localStorage.removeItem('googleDriveConnected');
+              localStorage.removeItem('googleDriveFolderId');
+            }
+          } else if (options.find(opt => opt.type === 'filesystem' && opt.supported)) {
+            // If filesystem is supported but no previous connection, still show selector
+            setShowStorageSelector(true);
+          }
         }
       } catch (error) {
         setStorageError(error.message);
@@ -731,6 +770,7 @@ const MediaTracker = () => {
     };
 
     initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle storage selection
@@ -1045,7 +1085,7 @@ const MediaTracker = () => {
               </button>
 
               {settingsSubmenuOpen && (
-                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[180px] max-w-[220px] z-50 animate-in duration-150 ${
                   settingsSubmenuPosition === 'left' 
                     ? 'right-full mr-2 slide-in-from-right-2' 
                     : 'left-full ml-2 slide-in-from-left-2'
@@ -1066,6 +1106,23 @@ const MediaTracker = () => {
                       Clear Cache
                     </button>
                   )}
+                  <div className="w-full px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors">
+                    <label className="flex items-center justify-between cursor-pointer w-full">
+                      <span>
+                        <span className="text-sm font-medium">Half Star Ratings</span>
+                      </span>
+                      <button
+                        onClick={() => setHalfStarsEnabled(!halfStarsEnabled)}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${halfStarsEnabled ? 'bg-blue-600' : 'bg-slate-600'}`}
+                        tabIndex={0}
+                        aria-label="Toggle half star ratings"
+                      >
+                        <div
+                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${halfStarsEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -1509,6 +1566,7 @@ const MediaTracker = () => {
                     focusedId={focusedId}
                     onItemClick={handleItemClick}
                     registerCardRef={registerCardRef}
+                    halfStarsEnabled={halfStarsEnabled}
                   />
                 ))}
                 </div>
@@ -1614,6 +1672,9 @@ const MediaTracker = () => {
                   />
                 </div>
               </div>
+
+              {/* Half Stars Setting */}
+              {/* Removed half-star toggle from customize panel */}
             </div>
           </div>
         </div>
@@ -1675,7 +1736,7 @@ const MediaTracker = () => {
                     style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
                   >
                     Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
-                  </button>
+                  </button> 
                 </div>
               </>
             ) : (

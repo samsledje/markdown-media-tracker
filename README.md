@@ -78,6 +78,8 @@ Choose this option to store files directly on your device:
   - Full control over file location
   - Compatible with Obsidian and other markdown tools
 
+**Connection Persistence**: The app remembers your selected directory and automatically reconnects when you refresh the page or reopen the tab. However, browsers may revoke File System Access permissions when the browser is completely closed, depending on your browser's security settings. If this happens, you'll simply need to select your directory again—all your files remain safely in place.
+
 ### Google Drive Storage
 
 Choose this option to sync your library across devices:
@@ -95,6 +97,8 @@ Choose this option to sync your library across devices:
   - Automatic cloud backup
   - Share access across devices
   - Files remain accessible through Google Drive web interface
+
+**Connection Persistence**: Your Google Drive connection persists across browser sessions. The app automatically reconnects when you return, even after closing the browser completely.
 
 #### Performance Optimizations
 

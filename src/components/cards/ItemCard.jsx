@@ -53,7 +53,8 @@ const ItemCard = memo(({
   selectedIds,
   focusedId,
   onItemClick,
-  registerCardRef
+  registerCardRef,
+  halfStarsEnabled = true
 }) => {
   // Do direct comparisons instead of function calls for performance
   const isSelected = selectedIds && selectedIds.has(item.id);
@@ -63,6 +64,17 @@ const ItemCard = memo(({
   const handleClick = useCallback((e) => {
     onItemClick(item, e);
   }, [item, onItemClick]);
+
+  // Helper to determine star fill state
+  const getStarFill = useCallback((starIndex, rating) => {
+    const starValue = starIndex + 1;
+    if (rating >= starValue) {
+      return 'full';
+    } else if (halfStarsEnabled && rating >= starValue - 0.5) {
+      return 'half';
+    }
+    return 'empty';
+  }, [halfStarsEnabled]);
 
   return (
     <div
@@ -159,14 +171,30 @@ const ItemCard = memo(({
             {/* Rating */}
             {item.rating > 0 && cardSize !== 'tiny' && (
               <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`${cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3'} ${
-                      i < item.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
-                    }`}
-                  />
-                ))}
+                {[...Array(5)].map((_, i) => {
+                  const fillState = getStarFill(i, item.rating);
+                  const sizeClass = cardSize === 'tiny' ? 'w-2 h-2' : 'w-3 h-3';
+                  
+                  if (fillState === 'half') {
+                    return (
+                      <div key={i} className={`relative inline-block ${sizeClass}`}>
+                        <Star className={`${sizeClass} text-slate-600 absolute top-0 left-0`} />
+                        <div className="absolute top-0 left-0 overflow-hidden" style={{ width: '50%', height: '100%' }}>
+                          <Star className={`${sizeClass} text-yellow-400 fill-yellow-400`} />
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <Star
+                      key={i}
+                      className={`${sizeClass} ${
+                        fillState === 'full' ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'
+                      }`}
+                    />
+                  );
+                })}
               </div>
             )}
 

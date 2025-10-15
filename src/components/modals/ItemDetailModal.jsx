@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, ChevronDown, Edit, Trash2, Star } from 'lucide-react';
+import { X, Save, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
 import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
 import { fetchCoverForItem } from '../../utils/coverUtils.js';
+import { getStatusColor } from '../../utils/colorUtils.js';
 import { toast } from '../../services/toastService.js';
+import StarRating from '../StarRating.jsx';
+import { useHalfStars } from '../../hooks/useHalfStars.js';
 
 /**
  * Modal for viewing and editing item details
@@ -16,6 +19,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFetchingCover, setIsFetchingCover] = useState(false);
+  const [halfStarsEnabled] = useHalfStars();
   
   // Ensure item has a status when creating editedItem
   const [editedItem, setEditedItem] = useState(() => {
@@ -71,9 +75,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   };
 
   const handleQuickRatingChange = (newRating) => {
-    // If clicking on the same star that's currently the rating, toggle to unrated (0)
-    const finalRating = editedItem.rating === newRating ? 0 : newRating;
-    const updated = { ...editedItem, rating: finalRating };
+    const updated = { ...editedItem, rating: newRating };
     setEditedItem(updated);
     // Persist change via onQuickSave if provided, otherwise use onSave
     if (typeof onQuickSave === 'function') {
@@ -134,16 +136,6 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         return <Layers className={className} />;
       default:
         return <Bookmark className={className} />;
-    }
-  };
-
-  const getColorForStatus = (status) => {
-    const color = STATUS_COLORS[status];
-    switch (color) {
-      case 'blue': return 'bg-blue-500';
-      case 'yellow': return 'bg-yellow-500';
-      case 'green': return 'bg-green-500';
-      default: return 'bg-slate-700';
     }
   };
 
@@ -275,8 +267,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                  className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white"
+                  style={{ backgroundColor: 'var(--mt-highlight)' }}
                   title="Edit"
                 >
                   <Edit className="w-5 h-5" />
@@ -285,8 +277,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             ) : (
               <button
                 onClick={handleSave}
-                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
-                style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
+                className="p-2 sm:p-1 rounded transition min-h-[44px] min-w-[44px] sm:min-h-auto sm:min-w-auto flex items-center justify-center text-white"
+                style={{ backgroundColor: 'var(--mt-highlight)' }}
                 title="Save"
               >
                 <Save className="w-5 h-5" />
@@ -321,23 +313,13 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
           {!isEditing && (
             <div className="mt-6">
               <label className="block text-sm font-medium mb-2">Rating</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(rating => (
-                  <button
-                    key={rating}
-                    onClick={() => handleQuickRatingChange(rating)}
-                    className="transition"
-                  >
-                    <Star
-                      className={`w-8 h-8 ${
-                        rating <= (editedItem.rating || 0)
-                          ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-slate-600'
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
+              <StarRating
+                rating={editedItem.rating ? editedItem.rating : undefined}
+                onChange={handleQuickRatingChange}
+                interactive={true}
+                halfStarsEnabled={halfStarsEnabled}
+                size="w-8 h-8"
+              />
             </div>
           )}
           
@@ -345,7 +327,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
           {!isEditing && editedItem && editedItem.status && (
             <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
               <div className="relative flex items-center gap-2">
-                <div className={`flex items-center justify-center rounded-full p-2 text-white ${getColorForStatus(editedItem.status)} shadow-lg w-10 h-10`} title={STATUS_LABELS[editedItem.status]}>
+                <div className="flex items-center justify-center rounded-full p-2 text-white shadow-lg w-10 h-10" style={{ backgroundColor: getStatusColor(editedItem.status) }} title={STATUS_LABELS[editedItem.status]}>
                   {getIconForStatus(editedItem.status, 'w-5 h-5')}
                 </div>
                 <div className="relative z-[100]">
@@ -365,7 +347,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                           onClick={() => handleQuickStatusChange(status)}
                           className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-700/50 ${editedItem.status === status ? 'bg-slate-700/60' : ''}`}
                         >
-                          <div className={`flex items-center justify-center rounded-full p-2 text-white ${getColorForStatus(status)}`}>
+                          <div className="flex items-center justify-center rounded-full p-2 text-white" style={{ backgroundColor: getStatusColor(status) }}>
                             {getIconForStatus(status, 'w-4 h-4')}
                           </div>
                           <div className="flex-1">

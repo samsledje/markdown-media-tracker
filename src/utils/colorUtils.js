@@ -1,5 +1,7 @@
 // Color utility functions
 
+import { STATUS_COLORS } from '../constants/index.js';
+
 /**
  * Convert hex color to rgba format
  * @param {string} hex - Hex color string (with or without #)
@@ -163,6 +165,25 @@ const adjustInDirection = (textColor, backgroundColor, targetRatio, shouldLighte
   }
   
   return rgbToHex(bestRgb);
+};
+
+/**
+ * Get hex color for status
+ * @param {string} status - Status key (e.g., 'to-read', 'reading', 'read', etc.)
+ * @returns {string} Hex color string
+ */
+export const getStatusColor = (status) => {
+  const colorType = STATUS_COLORS[status];
+  switch (colorType) {
+    case 'blue':
+      return '#3b82f6'; // blue-500
+    case 'yellow':
+      return '#eab308'; // yellow-500
+    case 'green':
+      return '#22c55e'; // green-500
+    default:
+      return '#3b82f6'; // blue-500
+  }
 };
 
 /**

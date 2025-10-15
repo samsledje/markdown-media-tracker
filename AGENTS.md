@@ -81,10 +81,6 @@ All utility functions should be pure (no side effects):
 
 ## Development Guidelines
 
-### Pull Requeests
-
-- All pull requests should be to the `dev` branch, which will be used as a staging and testing area.
-
 ### Code Style
 
 - Use 2-space indentation
@@ -387,9 +383,16 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 
 - Uses File System Access API (`showDirectoryPicker`)
 - Only supported in Chromium browsers on desktop
-- Stores `FileSystemDirectoryHandle` in memory (not serializable)
+- Stores `FileSystemDirectoryHandle` in IndexedDB (`fileSystemCache.js`) for persistence
 - Direct file system access (fast, no network latency)
 - Browser permission model handles security
+- **Connection Persistence**: 
+  - Handle stored in IndexedDB, connection flags in localStorage
+  - `tryReconnect()` method attempts to restore connection on page load
+  - Uses `queryPermission()` to check if permissions are still granted
+  - **Limitation**: Browsers may revoke permissions when completely closed (browser-dependent behavior)
+  - Cannot use `requestPermission()` during automatic reconnection (requires user gesture)
+  - If permissions lost, user must manually reconnect—files remain safe in directory
 
 ### GoogleDriveStorageGIS
 

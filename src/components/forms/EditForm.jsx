@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
 import TagInput from './TagInput.jsx';
 import StarRating from '../StarRating.jsx';
 import { useHalfStars } from '../../hooks/useHalfStars.js';
 import { getStatusColor } from '../../utils/colorUtils.js';
-import { isMobileScreen } from '../../utils/commonUtils.js';
 
 /**
  * Form component for editing item details
@@ -14,19 +13,44 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
   const [tagInput, setTagInput] = useState('');
   const [actorInput, setActorInput] = useState('');
   const [halfStarsEnabled] = useHalfStars();
+  const formRef = useRef(null);
 
-  // Prevent auto-focusing on mobile devices to avoid keyboard popup
+  // Prevent auto-focusing when edit mode opens (mobile keyboard issue)
   useEffect(() => {
-    if (isMobileScreen()) {
-      // Small delay to ensure any auto-focus has happened, then blur it
-      const timer = setTimeout(() => {
-        const activeElement = document.activeElement;
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-          activeElement.blur();
+    // Only apply focus prevention on mobile devices where keyboard popup is an issue
+    const isMobile = window.innerWidth < 768; // Tailwind's md breakpoint
+    
+    if (!isMobile) return;
+    
+    let cleanupFunctions = [];
+    
+    // Prevent focus on all inputs within this form for the first 100ms
+    if (formRef.current) {
+      const inputs = formRef.current.querySelectorAll('input, textarea');
+      const preventFocus = (e) => {
+        // Only prevent if this is likely an auto-focus (not from user interaction)
+        if (!e.isTrusted) {
+          e.preventDefault();
+          e.target.blur();
         }
-      }, 100);
-      return () => clearTimeout(timer);
+      };
+      
+      inputs.forEach(input => {
+        input.addEventListener('focus', preventFocus, { capture: true, once: true });
+        cleanupFunctions.push(() => input.removeEventListener('focus', preventFocus, { capture: true }));
+      });
     }
+    
+    // Remove the focus prevention after 100ms
+    const timer = setTimeout(() => {
+      cleanupFunctions.forEach(cleanup => cleanup());
+      cleanupFunctions = [];
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      cleanupFunctions.forEach(cleanup => cleanup());
+    };
   }, []);
 
   const handleTypeChange = (newType) => {
@@ -61,7 +85,7 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div ref={formRef} className="space-y-4 sm:space-y-6">
       <div>
         <label className="block text-sm font-medium mb-2">Type</label>
         <div className="flex gap-2">

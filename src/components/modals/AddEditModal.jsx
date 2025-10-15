@@ -123,22 +123,8 @@ const AddEditModal = ({ onClose, onSave, initialItem = null, allTags = [] }) => 
 
   // Auto-focus the first focusable element when modal opens
   useEffect(() => {
-    const modal = modalRef.current;
-    if (!modal) return;
-
-    const focusableElements = modal.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    
-    if (focusableElements.length > 0) {
-      // Focus the first input field if available, otherwise the first focusable element
-      const firstInput = modal.querySelector('input, select, textarea');
-      if (firstInput) {
-        firstInput.focus();
-      } else {
-        focusableElements[0].focus();
-      }
-    }
+    // Removed auto-focus to prevent keyboard popup on mobile
+    // Focus will be managed by individual form components if needed
   }, []);
 
   return (

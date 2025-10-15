@@ -62,7 +62,7 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
   };
 
   const addTag = (tagToAdd) => {
-    const tag = tagToAdd || tagInput.trim();
+    const tag = typeof tagToAdd === 'string' ? tagToAdd.trim() : tagInput.trim();
     if (tag && !item.tags.includes(tag)) {
       onChange({ ...item, tags: [...item.tags, tag] });
       setTagInput('');

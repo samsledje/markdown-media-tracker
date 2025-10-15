@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FileSystemStorage } from '../fileSystemStorage.js';
 
+// Mock fileSystemCache
+vi.mock('../fileSystemCache.js', () => ({
+  fileSystemCache: {
+    storeDirectoryHandle: vi.fn(() => Promise.resolve()),
+    getDirectoryHandle: vi.fn(() => Promise.resolve(null)),
+    clearDirectoryHandle: vi.fn(() => Promise.resolve()),
+    verifyHandlePermission: vi.fn(() => Promise.resolve(true))
+  }
+}));
+
 // Mock markdownUtils
 vi.mock('../../utils/markdownUtils.js', () => ({
   parseMarkdown: vi.fn((content) => ({
@@ -118,7 +128,7 @@ describe('FileSystemStorage', () => {
 
     it('should return directory name when connected', () => {
       storage.directoryHandle = mockDirectoryHandle;
-      expect(storage.getStorageInfo()).toBe('Local Directory: TestDirectory');
+      expect(storage.getStorageInfo()).toEqual({ account: null, folder: 'TestDirectory' });
     });
   });
 
@@ -172,6 +182,8 @@ describe('FileSystemStorage', () => {
       expect(storage.trashHandle).toBeNull();
     });
   });
+
+  // ...existing code...
 
   describe('loadItems', () => {
     it('should throw error if not connected', async () => {

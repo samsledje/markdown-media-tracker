@@ -3,6 +3,7 @@ import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle,
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import StarRating from '../StarRating.jsx';
 import { useHalfStars } from '../../hooks/useHalfStars.js';
+import { renderMarkdown } from '../../utils/markdownUtils.js';
 
 /**
  * Get the icon component for a given status
@@ -187,9 +188,10 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
       {item.review && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Review / Notes</div>
-          <div className="bg-slate-700/30 rounded-lg p-4 text-slate-300 whitespace-pre-wrap">
-            {item.review}
-          </div>
+          <div 
+            className="bg-slate-700/30 rounded-lg p-4 prose-review"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(item.review) }}
+          />
         </div>
       )}
 

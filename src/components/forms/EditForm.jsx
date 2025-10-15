@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { STATUS_TYPES, STATUS_LABELS } from '../../constants/index.js';
 import StarRating from '../StarRating.jsx';
 import { useHalfStars } from '../../hooks/useHalfStars.js';
+import { getStatusColor } from '../../utils/colorUtils.js';
 
 /**
  * Form component for editing item details
@@ -85,8 +86,8 @@ const EditForm = ({ item, onChange, fromSearch = false }) => {
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-transparent hover:border-slate-500'
                 }`}
                 style={isSelected ? { 
-                  backgroundColor: 'var(--mt-highlight)',
-                  borderColor: 'var(--mt-highlight)'
+                  backgroundColor: getStatusColor(status),
+                  borderColor: getStatusColor(status)
                 } : {}}
               >
                 {STATUS_LABELS[status]}

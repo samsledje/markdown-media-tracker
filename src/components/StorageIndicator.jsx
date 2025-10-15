@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
-import { Cloud, FolderOpen, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { Cloud, FolderOpen, Folder, User, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 
 /**
  * Compact Storage Indicator Component
@@ -71,10 +71,12 @@ const StorageIndicator = forwardRef(({ storageAdapter, storageInfo, onSwitchStor
     return 'Local Files';
   };
 
-  const getDetailedInfo = () => {
-    if (!storageInfo) return 'No storage connected';
+  const getAccountAndFolder = () => {
+    if (!storageInfo) return { account: null, folder: 'No storage connected' };
     return storageInfo;
   };
+
+  const { account, folder } = getAccountAndFolder();
 
   return (
     <div className="relative">
@@ -122,10 +124,20 @@ const StorageIndicator = forwardRef(({ storageAdapter, storageInfo, onSwitchStor
             {/* Content */}
             <div className="p-4 space-y-3">
               {/* Storage info */}
+              {account && (
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">Account</div>
+                  <div className="text-sm text-slate-200 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span className="truncate">{account}</span>
+                  </div>
+                </div>
+              )}
               <div>
-                <div className="text-xs text-slate-400 mb-1">Location</div>
-                <div className="text-sm text-slate-200 break-all">
-                  {getDetailedInfo()}
+                <div className="text-xs text-slate-400 mb-1">{account ? 'Folder' : 'Location'}</div>
+                <div className="text-sm text-slate-200 flex items-center gap-2">
+                  <Folder className="w-4 h-4" />
+                  <span className="truncate">{folder}</span>
                 </div>
               </div>
 

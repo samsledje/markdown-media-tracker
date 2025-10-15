@@ -105,7 +105,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
         </div>
       </div>
 
-      {item.actors && item.actors.length > 0 && (
+      {item.type === 'movie' && item.actors && item.actors.length > 0 && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Cast</div>
           <div className="flex flex-wrap gap-2">
@@ -149,7 +149,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
         </div>
       )}
 
-      {item.rating && !hideRating && (
+      {item.rating > 0 && !hideRating && (
         <div>
           <div className="text-sm font-medium text-slate-400 mb-2">Rating</div>
           <StarRating

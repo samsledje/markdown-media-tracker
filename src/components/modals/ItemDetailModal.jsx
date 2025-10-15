@@ -314,7 +314,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             <div className="mt-6">
               <label className="block text-sm font-medium mb-2">Rating</label>
               <StarRating
-                rating={editedItem.rating || 0}
+                rating={editedItem.rating ? editedItem.rating : undefined}
                 onChange={handleQuickRatingChange}
                 interactive={true}
                 halfStarsEnabled={halfStarsEnabled}

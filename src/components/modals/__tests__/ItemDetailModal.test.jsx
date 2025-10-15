@@ -174,22 +174,25 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       const itemWith3Stars = { ...sampleBook, rating: 3 };
       render(<ItemDetailModal {...defaultProps} item={itemWith3Stars} />);
-      
-      // Click third star (current rating) - should go to 2.5
-      const stars = screen.getAllByRole('button').filter(btn => 
+
+      // Click third star left half (should go to 2.5)
+      const stars = screen.getAllByRole('button').filter(btn =>
         btn.querySelector('svg.lucide-star')
       );
-      await user.click(stars[2]);
-      
+      // Mock getBoundingClientRect for left-half click
+      stars[2].getBoundingClientRect = () => ({ left: 0, width: 40 });
+      await user.click(stars[2], { clientX: 0 });
+
       expect(mockOnQuickSave).toHaveBeenCalledWith(
         expect.objectContaining({
           rating: 2.5
         })
       );
-      
-      // Click again - should go to 0
-      await user.click(stars[2]);
-      
+
+      // Mock getBoundingClientRect for right-half click
+      stars[2].getBoundingClientRect = () => ({ left: 0, width: 40 });
+      await user.click(stars[2], { clientX: 30 });
+
       expect(mockOnQuickSave).toHaveBeenCalledWith(
         expect.objectContaining({
           rating: 0

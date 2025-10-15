@@ -1085,7 +1085,7 @@ const MediaTracker = () => {
               </button>
 
               {settingsSubmenuOpen && (
-                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[180px] max-w-[220px] z-50 animate-in duration-150 ${
                   settingsSubmenuPosition === 'left' 
                     ? 'right-full mr-2 slide-in-from-right-2' 
                     : 'left-full ml-2 slide-in-from-left-2'
@@ -1106,6 +1106,23 @@ const MediaTracker = () => {
                       Clear Cache
                     </button>
                   )}
+                  <div className="w-full px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors">
+                    <label className="flex items-center justify-between cursor-pointer w-full">
+                      <span>
+                        <span className="text-sm font-medium">Half Star Ratings</span>
+                      </span>
+                      <button
+                        onClick={() => setHalfStarsEnabled(!halfStarsEnabled)}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${halfStarsEnabled ? 'bg-blue-600' : 'bg-slate-600'}`}
+                        tabIndex={0}
+                        aria-label="Toggle half star ratings"
+                      >
+                        <div
+                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${halfStarsEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -1657,28 +1674,7 @@ const MediaTracker = () => {
               </div>
 
               {/* Half Stars Setting */}
-              <div>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <div className="text-sm font-medium mb-1">Half Star Ratings</div>
-                    <div className="text-xs text-slate-400">Allow ratings like 3.5 stars instead of whole numbers only</div>
-                  </div>
-                  <div className="ml-4">
-                    <button
-                      onClick={() => setHalfStarsEnabled(!halfStarsEnabled)}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        halfStarsEnabled ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                          halfStarsEnabled ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </label>
-              </div>
+              {/* Removed half-star toggle from customize panel */}
             </div>
           </div>
         </div>
@@ -1740,7 +1736,7 @@ const MediaTracker = () => {
                     style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
                   >
                     Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
-                  </button>
+                  </button> 
                 </div>
               </>
             ) : (

@@ -949,9 +949,17 @@ const MediaTracker = () => {
   };
 
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{ background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))' }}>
+    <div 
+      id="app-top"
+      className="min-h-screen text-white flex flex-col" 
+      style={{ 
+        background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))',
+        touchAction: 'pan-y',
+        WebkitOverflowScrolling: 'touch'
+      }}
+    >
       {!showStorageSelector && (
-        <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
+        <header className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
           <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
@@ -990,7 +998,7 @@ const MediaTracker = () => {
               </div>
             </div>
           </div>
-        </div>
+        </header>
       )}
 
       {menuOpen && menuPos && createPortal(

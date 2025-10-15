@@ -186,7 +186,7 @@ export const detectCSVFormat = (headers = []) => {
  */
 export const mapGoodreadsRow = (r) => {
   const tags = (r['My Tags'] || r['Tags'] || r['Bookshelves'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-  const rating = r['My Rating'] ? parseInt(r['My Rating'], 10) : (r['Rating'] ? parseInt(r['Rating'], 10) : 0);
+  const rating = r['My Rating'] ? parseFloat(r['My Rating']) : (r['Rating'] ? parseFloat(r['Rating']) : 0);
   const status = mapGoodreadsShelfToStatus(r['Exclusive Shelf'] || r['Shelf'] || '');
   
   // Prefer the `ISBN` column when available; fallback to `ISBN13`.

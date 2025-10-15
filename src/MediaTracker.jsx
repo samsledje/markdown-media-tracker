@@ -138,6 +138,7 @@ const MediaTracker = () => {
   const importAbortControllerRef = useRef(null);
   const headerRef = useRef(null);
   const touchMovedRef = useRef(false);
+  const touchStartedOnButtonRef = useRef(false);
 
   // Menu positioning
   const [menuPos, setMenuPos] = useState(null);
@@ -659,6 +660,20 @@ const MediaTracker = () => {
     if (e) e.preventDefault();
     // If this was a touch interaction and user was scrolling, ignore
     if (e && e.type && e.type.startsWith('touch') && touchMovedRef.current) return;
+    // If this was a touch interaction that started on a button, ignore
+    if (e && e.type && e.type.startsWith('touch') && touchStartedOnButtonRef.current) return;
+
+    // Don't scroll if the click/tap was on a button or interactive element (for non-touch events)
+    if (e && e.target && !e.type.startsWith('touch')) {
+      const target = e.target;
+      // Check if the target or any of its parents is a button or has interactive behavior
+      if (target.tagName === 'BUTTON' ||
+          target.closest('button') ||
+          target.getAttribute('role') === 'button' ||
+          target.closest('[role="button"]')) {
+        return;
+      }
+    }
 
     // Try multiple strategies for maximum compatibility
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
@@ -670,7 +685,15 @@ const MediaTracker = () => {
     }
   };
 
-  const handleHeaderTouchStart = () => { touchMovedRef.current = false; };
+  const handleHeaderTouchStart = (e) => { 
+    touchMovedRef.current = false;
+    // Check if touch started on a button or interactive element
+    const target = e.target;
+    touchStartedOnButtonRef.current = target.tagName === 'BUTTON' ||
+                                      target.closest('button') ||
+                                      target.getAttribute('role') === 'button' ||
+                                      target.closest('[role="button"]');
+  };
   const handleHeaderTouchMove = () => { touchMovedRef.current = true; };
 
   // Track header height to offset content when header is fixed
@@ -689,7 +712,14 @@ const MediaTracker = () => {
   // Scroll to top when storage is selected (transitions from landing page to main app)
   useEffect(() => {
     if (!showStorageSelector) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Try multiple strategies for maximum compatibility across desktop and mobile
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+      try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) {}
+      try { document.body && (document.body.scrollTop = 0); } catch (_) {}
+      const scrollingEl = document.scrollingElement;
+      if (scrollingEl && typeof scrollingEl.scrollTo === 'function') {
+        try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+      }
     }
   }, [showStorageSelector]);
 
@@ -1016,6 +1046,7 @@ const MediaTracker = () => {
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); setIsSearching(true); }}
+                      onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setIsSearching(true); }}
                       className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition min-h-[44px]"
                       style={{ backgroundColor: 'var(--mt-highlight)', color: 'white' }}
                       title="Search"
@@ -1027,6 +1058,7 @@ const MediaTracker = () => {
                     <div className="relative" ref={menuRef}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(!menuOpen); }}
                         aria-expanded={menuOpen}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg transition bg-slate-700/50 hover:bg-slate-700 min-h-[44px]"
                         title="More actions"

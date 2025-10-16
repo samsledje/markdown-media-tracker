@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { Book, Film, Star } from 'lucide-react';
 import { hexToRgba } from '../../utils/colorUtils.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
-import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, XCircle } from 'lucide-react';
 
 /**
  * Get the icon component for a given status
@@ -20,6 +20,8 @@ const getStatusIcon = (status, className = '') => {
       return <CheckCircle className={className} />;
     case 'play-circle':
       return <PlayCircle className={className} />;
+    case 'x-circle':
+      return <XCircle className={className} />;
     default:
       return <Bookmark className={className} />;
   }
@@ -37,6 +39,8 @@ const getStatusColorClass = (status) => {
       return 'bg-yellow-500';
     case 'green':
       return 'bg-green-500';
+    case 'red':
+      return 'bg-red-500';
     default:
       return 'bg-blue-500';
   }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings } from 'lucide-react';
+import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings, XCircle } from 'lucide-react';
 
 // Hooks
 import { useItems } from './hooks/useItems.js';
@@ -51,6 +51,8 @@ const getStatusIcon = (status, className = '') => {
       return <CheckCircle className={className} />;
     case 'play-circle':
       return <PlayCircle className={className} />;
+    case 'x-circle':
+      return <XCircle className={className} />;
     default:
       return <Bookmark className={className} />;
   }
@@ -68,6 +70,8 @@ const getStatusColorClass = (status) => {
       return 'bg-yellow-500';
     case 'green':
       return 'bg-green-500';
+    case 'red':
+      return 'bg-red-500';
     default:
       return 'bg-blue-500';
   }

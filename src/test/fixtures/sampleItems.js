@@ -60,11 +60,41 @@ export const sampleMovieWatchlist = {
   dateAdded: '2024-03-05',
 };
 
+export const sampleBookDNF = {
+  id: 'test-book-dnf',
+  title: 'Ulysses',
+  author: 'James Joyce',
+  type: 'book',
+  status: 'dnf',
+  rating: 0,
+  genre: 'Modernist Literature',
+  year: '1922',
+  tags: ['challenging', 'modernist'],
+  notes: 'Started reading but found it too difficult.',
+  dateAdded: '2024-01-01',
+};
+
+export const sampleMovieDNF = {
+  id: 'test-movie-dnf',
+  title: 'The Room',
+  director: 'Tommy Wiseau',
+  type: 'movie',
+  status: 'dnf',
+  rating: 0,
+  genre: 'Drama',
+  year: '2003',
+  tags: ['cult', 'so-bad-its-good'],
+  notes: 'Couldn\'t finish watching due to... reasons.',
+  dateAdded: '2024-02-01',
+};
+
 export const sampleItems = [
   sampleBook,
   sampleMovie,
   sampleBookUnrated,
   sampleMovieWatchlist,
+  sampleBookDNF,
+  sampleMovieDNF,
 ];
 
 export const sampleMarkdownWithFrontmatter = `---

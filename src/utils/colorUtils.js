@@ -34,6 +34,8 @@ export const getStatusColor = (status) => {
       return '#eab308'; // yellow-500
     case 'green':
       return '#22c55e'; // green-500
+    case 'red':
+      return '#ef4444'; // red-500
     default:
       return '#3b82f6'; // blue-500
   }

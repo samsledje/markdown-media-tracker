@@ -539,6 +539,7 @@ describe('BatchEditModal', () => {
       expect(options).toContain('to-watch');
       expect(options).toContain('watching');
       expect(options).toContain('watched');
+      expect(options).toContain('dnf');
     });
 
     it('should handle empty string values for optional fields', async () => {

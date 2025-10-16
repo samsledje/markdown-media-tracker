@@ -237,10 +237,14 @@ const BatchEditModal = ({ onClose, onApply, selectedItems = [], isProcessing = f
                   className="ml-auto px-2 py-1 bg-slate-700 border border-slate-600 rounded"
                 >
                   <option value="">(select)</option>
-                  {Object.values(STATUS_TYPES.BOOK).map(statusValue => (
-                    <option key={statusValue} value={statusValue}>{STATUS_LABELS[statusValue]}</option>
-                  ))}
-                  {Object.values(STATUS_TYPES.MOVIE).map(statusValue => (
+                  {[...new Set([...Object.values(STATUS_TYPES.BOOK), ...Object.values(STATUS_TYPES.MOVIE)])]
+                    .sort((a, b) => {
+                      // Put DNF at the end
+                      if (a === 'dnf') return 1;
+                      if (b === 'dnf') return -1;
+                      return 0; // Keep original order for others
+                    })
+                    .map(statusValue => (
                     <option key={statusValue} value={statusValue}>{STATUS_LABELS[statusValue]}</option>
                   ))}
                 </select>

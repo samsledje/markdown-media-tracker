@@ -114,7 +114,7 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
 
       <div>
         <label className="block text-sm font-medium mb-2">Status</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           {(item.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)).map(status => {
             const isSelected = item.status === status;
             return (

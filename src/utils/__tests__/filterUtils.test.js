@@ -51,12 +51,34 @@ describe('filterUtils', () => {
       tags: ['sci-fi', 'thriller'],
       dateAdded: '2024-03-05',
     },
+    {
+      id: '5',
+      title: 'Book I Didn\'t Finish',
+      author: 'Test Author',
+      type: 'book',
+      status: 'dnf',
+      rating: 0,
+      year: '2023',
+      tags: ['unfinished'],
+      dateAdded: '2024-03-10',
+    },
+    {
+      id: '6',
+      title: 'Movie I Didn\'t Finish',
+      director: 'Test Director',
+      type: 'movie',
+      status: 'dnf',
+      rating: 0,
+      year: '2023',
+      tags: ['unfinished'],
+      dateAdded: '2024-03-15',
+    },
   ];
 
   describe('filterItems', () => {
     it('should return all items when no filters applied', () => {
       const result = filterItems(sampleItems, {});
-      expect(result).toHaveLength(4);
+      expect(result).toHaveLength(6);
     });
 
     it('should filter by search term in title', () => {
@@ -91,13 +113,13 @@ describe('filterUtils', () => {
 
     it('should filter by type - books only', () => {
       const result = filterItems(sampleItems, { filterType: 'book' });
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
       expect(result.every(item => item.type === 'book')).toBe(true);
     });
 
     it('should filter by type - movies only', () => {
       const result = filterItems(sampleItems, { filterType: 'movie' });
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
       expect(result.every(item => item.type === 'movie')).toBe(true);
     });
 
@@ -209,16 +231,22 @@ describe('filterUtils', () => {
   describe('sortItems', () => {
     it('should sort by title ascending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.TITLE, SORT_ORDERS.ASC);
-      expect(result[0].title).toBe('Inception');
-      expect(result[1].title).toBe('The Great Gatsby');
-      expect(result[2].title).toBe('The Matrix');
-      expect(result[3].title).toBe('To Kill a Mockingbird');
+      expect(result[0].title).toBe('Book I Didn\'t Finish');
+      expect(result[1].title).toBe('Inception');
+      expect(result[2].title).toBe('Movie I Didn\'t Finish');
+      expect(result[3].title).toBe('The Great Gatsby');
+      expect(result[4].title).toBe('The Matrix');
+      expect(result[5].title).toBe('To Kill a Mockingbird');
     });
 
     it('should sort by title descending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.TITLE, SORT_ORDERS.DESC);
       expect(result[0].title).toBe('To Kill a Mockingbird');
-      expect(result[3].title).toBe('Inception');
+      expect(result[1].title).toBe('The Matrix');
+      expect(result[2].title).toBe('The Great Gatsby');
+      expect(result[3].title).toBe('Movie I Didn\'t Finish');
+      expect(result[4].title).toBe('Inception');
+      expect(result[5].title).toBe('Book I Didn\'t Finish');
     });
 
     it('should sort by author ascending', () => {
@@ -231,19 +259,27 @@ describe('filterUtils', () => {
     it('should sort by year ascending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.YEAR, SORT_ORDERS.ASC);
       expect(result[0].year).toBe('1925');
+      expect(result[1].year).toBe('1960');
+      expect(result[2].year).toBe('1999');
       expect(result[3].year).toBe('2010');
+      expect(result[4].year).toBe('2023');
+      expect(result[5].year).toBe('2023');
     });
 
     it('should sort by year descending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.YEAR, SORT_ORDERS.DESC);
-      expect(result[0].year).toBe('2010');
-      expect(result[3].year).toBe('1925');
+      expect(result[0].year).toBe('2023');
+      expect(result[1].year).toBe('2023');
+      expect(result[2].year).toBe('2010');
+      expect(result[3].year).toBe('1999');
+      expect(result[4].year).toBe('1960');
+      expect(result[5].year).toBe('1925');
     });
 
     it('should sort by rating ascending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.RATING, SORT_ORDERS.ASC);
       expect(result[0].rating).toBe(0);
-      expect(result[2].rating).toBe(5);
+      expect(result[4].rating).toBe(5);
     });
 
     it('should sort by rating descending', () => {
@@ -260,8 +296,8 @@ describe('filterUtils', () => {
     it('should sort by date consumed ascending', () => {
       const result = sortItems(sampleItems, SORT_OPTIONS.DATE_CONSUMED, SORT_ORDERS.ASC);
       // Items without dates should come first (as 0)
-      expect(result[2].dateRead).toBe('2024-01-15');
-      expect(result[3].dateWatched).toBe('2024-02-15');
+      expect(result[4].dateRead).toBe('2024-01-15');
+      expect(result[5].dateWatched).toBe('2024-02-15');
     });
 
     it('should sort by status in predefined order', () => {
@@ -296,7 +332,7 @@ describe('filterUtils', () => {
   describe('getAllTags', () => {
     it('should return all unique tags sorted', () => {
       const result = getAllTags(sampleItems);
-      expect(result).toEqual(['action', 'classic', 'fiction', 'sci-fi', 'thriller']);
+      expect(result).toEqual(['action', 'classic', 'fiction', 'sci-fi', 'thriller', 'unfinished']);
     });
 
     it('should handle empty items array', () => {
@@ -339,6 +375,7 @@ describe('filterUtils', () => {
       expect(result).toContain('reading');
       expect(result).toContain('watched');
       expect(result).toContain('to-watch');
+      expect(result).toContain('dnf');
     });
 
     it('should return statuses in correct order', () => {

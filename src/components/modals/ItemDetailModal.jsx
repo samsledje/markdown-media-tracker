@@ -4,7 +4,7 @@ import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
 import { STATUS_TYPES, KEYBOARD_SHORTCUTS } from '../../constants/index.js';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
-import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers } from 'lucide-react';
+import { Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, XCircle } from 'lucide-react';
 import { fetchCoverForItem } from '../../utils/coverUtils.js';
 import { getStatusColor } from '../../utils/colorUtils.js';
 import { toast } from '../../services/toastService.js';
@@ -134,6 +134,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         return <PlayCircle className={className} />;
       case 'layers':
         return <Layers className={className} />;
+      case 'x-circle':
+        return <XCircle className={className} />;
       default:
         return <Bookmark className={className} />;
     }
@@ -176,6 +178,11 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_COMPLETED) {
           e.preventDefault();
           handleQuickStatusChange(statusOptions[2]); // Read/Watched
+          return;
+        }
+        if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_DNF) {
+          e.preventDefault();
+          handleQuickStatusChange(statusOptions[3]); // DNF
           return;
         }
       }
@@ -340,7 +347,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                   </button>
 
                   {showStatusMenu && (
-                    <div className="absolute right-0 bottom-full mb-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 z-[200] pointer-events-auto">
+                    <div className="absolute right-0 bottom-full mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 z-[200] pointer-events-auto">
                       {(editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)).map(status => (
                         <button
                           key={status}

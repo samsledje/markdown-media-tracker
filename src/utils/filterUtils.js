@@ -144,14 +144,15 @@ export const getAllTags = (items) => {
  * @returns {string[]} Array of unique statuses
  */
 export const getAllStatuses = (items) => {
-  // Define the desired order: book statuses first, then movie statuses
+  // Define the desired order: book statuses first, then movie statuses, with DNF at the end
   const orderedStatuses = [
     STATUS_TYPES.BOOK.TO_READ,
     STATUS_TYPES.BOOK.READING, 
     STATUS_TYPES.BOOK.READ,
     STATUS_TYPES.MOVIE.TO_WATCH,
     STATUS_TYPES.MOVIE.WATCHING,
-    STATUS_TYPES.MOVIE.WATCHED
+    STATUS_TYPES.MOVIE.WATCHED,
+    STATUS_TYPES.BOOK.DNF
   ];
   
   // More efficient: use object for O(1) lookup instead of Set

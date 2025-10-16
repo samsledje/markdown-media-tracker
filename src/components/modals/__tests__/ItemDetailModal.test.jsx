@@ -769,11 +769,161 @@ describe('ItemDetailModal', () => {
     it('should handle empty items array', async () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} items={[]} />);
-      
+
       // Navigation should not throw errors
       await user.keyboard('{ArrowRight}');
-      
+
       expect(mockOnNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Keyboard Shortcuts', () => {
+    it('should change status to "to-read/to-watch" with "u" key', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      // Focus the modal content area instead of trying to find by role
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      await user.keyboard('u');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'to-read' // Book status
+        })
+      );
+    });
+
+    it('should change status to "reading/watching" with "i" key', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      await user.keyboard('i');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'reading' // Book status
+        })
+      );
+    });
+
+    it('should change status to "completed" with "o" key', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      await user.keyboard('o');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'read' // Book status
+        })
+      );
+    });
+
+    it('should change status to "dnf" with "x" key', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      await user.keyboard('x');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'dnf'
+        })
+      );
+    });
+
+    it('should change movie status correctly with shortcuts', async () => {
+      const user = userEvent.setup();
+      const movieProps = { ...defaultProps, item: sampleMovie };
+      render(<ItemDetailModal {...movieProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      // Test DNF shortcut for movie
+      await user.keyboard('x');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'dnf'
+        })
+      );
+    });
+
+    it('should not trigger shortcuts when typing in inputs', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      // Switch to edit mode
+      const editButton = screen.getByTitle('Edit');
+      await user.click(editButton);
+
+      // Find an input field
+      const titleInput = screen.getByDisplayValue('The Great Gatsby');
+      await user.click(titleInput);
+
+      // Type 'x' in the input - should not trigger shortcut
+      await user.keyboard('x');
+
+      expect(mockOnQuickSave).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger shortcuts when editing', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      // Switch to edit mode
+      const editButton = screen.getByTitle('Edit');
+      await user.click(editButton);
+
+      // Try shortcut - should not work in edit mode
+      await user.keyboard('x');
+
+      expect(mockOnQuickSave).not.toHaveBeenCalled();
+    });
+
+    it('should handle rating shortcuts in view mode', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      // Test rating shortcut
+      await user.keyboard('3');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rating: 3
+        })
+      );
+    });
+
+    it('should clear rating with "0" key', async () => {
+      const user = userEvent.setup();
+      render(<ItemDetailModal {...defaultProps} />);
+
+      const modalContent = screen.getByRole('button', { name: /edit/i }).closest('.bg-slate-800');
+      modalContent.focus();
+
+      await user.keyboard('0');
+
+      expect(mockOnQuickSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rating: 0
+        })
+      );
     });
   });
 });

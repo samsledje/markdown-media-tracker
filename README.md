@@ -19,7 +19,7 @@ Your data stays yours. Choose local storage or Google Drive—no third-party ser
 Each item is a simple `.md` file with YAML frontmatter. Works seamlessly with Obsidian, Git, and your favorite text editor.
 
 **Rich Features**  
-Search Open Library and OMDb, import from Goodreads/Letterboxd, filter by rating and tags, and customize your view.
+Search Open Library and OMDb, import from Goodreads/Letterboxd, filter by rating, tags, and status (including DNF), and customize your view.
 
 **Keyboard-First**  
 Navigate your entire library without touching the mouse. Comprehensive shortcuts for power users who want speed.
@@ -176,6 +176,7 @@ The app includes comprehensive keyboard shortcuts for efficient navigation and c
 | **U** | Set status to "To Read/Watch" |
 | **I** | Set status to "Reading/Watching" (In Progress) |
 | **O** | Set status to "Read/Watched" (Completed) |
+| **X** | Set status to "Did Not Finish" (DNF) |
 | **0-5** | Set rating (0 = unrated, 1-5 = star rating) |
 | **Ctrl/Cmd+Enter** | Save changes (when editing) |
 | **Esc** | Close modal |

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image } from 'lucide-react';
+import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image, XCircle } from 'lucide-react';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import StarRating from '../StarRating.jsx';
 import { useHalfStars } from '../../hooks/useHalfStars.js';
@@ -21,6 +21,8 @@ const getStatusIcon = (status, className = '') => {
       return <CheckCircle className={className} />;
     case 'play-circle':
       return <PlayCircle className={className} />;
+    case 'x-circle':
+      return <XCircle className={className} />;
     default:
       return <Bookmark className={className} />;
   }
@@ -38,6 +40,8 @@ const getStatusColorClass = (status) => {
       return 'bg-yellow-500';
     case 'green':
       return 'bg-green-500';
+    case 'red':
+      return 'bg-red-500';
     default:
       return 'bg-blue-500';
   }

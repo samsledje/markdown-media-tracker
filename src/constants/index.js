@@ -18,12 +18,14 @@ export const STATUS_TYPES = {
   BOOK: {
     TO_READ: 'to-read',
     READING: 'reading', 
-    READ: 'read'
+    READ: 'read',
+    DNF: 'dnf'
   },
   MOVIE: {
     TO_WATCH: 'to-watch',
     WATCHING: 'watching',
-    WATCHED: 'watched'
+    WATCHED: 'watched',
+    DNF: 'dnf'
   }
 };
 
@@ -33,7 +35,8 @@ export const STATUS_LABELS = {
   'read': 'Read',
   'to-watch': 'To Watch', 
   'watching': 'Watching',
-  'watched': 'Watched'
+  'watched': 'Watched',
+  'dnf': 'Did Not Finish'
 };
 
 export const STATUS_ICONS = {
@@ -42,7 +45,8 @@ export const STATUS_ICONS = {
   'read': 'check-circle',
   'to-watch': 'layers',
   'watching': 'play-circle',
-  'watched': 'check-circle'
+  'watched': 'check-circle',
+  'dnf': 'x-circle'
 };
 
 export const STATUS_COLORS = {
@@ -51,7 +55,8 @@ export const STATUS_COLORS = {
   'read': 'green',
   'to-watch': 'blue',
   'watching': 'yellow',
-  'watched': 'green'
+  'watched': 'green',
+  'dnf': 'red'
 };
 
 export const SORT_OPTIONS = {
@@ -114,6 +119,7 @@ export const KEYBOARD_SHORTCUTS = {
   STATUS_TO_READ_WATCH: 'u',
   STATUS_IN_PROGRESS: 'i', 
   STATUS_COMPLETED: 'o',
+  STATUS_DNF: 'x',
   RATING_1: '1',
   RATING_2: '2',
   RATING_3: '3',

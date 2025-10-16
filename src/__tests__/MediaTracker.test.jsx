@@ -55,7 +55,8 @@ vi.mock('../constants/index.js', () => ({
     'watching': 'Watching',
     'watched': 'Watched',
     'want-to-read': 'Want to Read',
-    'want-to-watch': 'Want to Watch'
+    'want-to-watch': 'Want to Watch',
+    'dnf': 'Did Not Finish'
   },
   STATUS_ICONS: {
     'reading': 'book-open',
@@ -63,7 +64,8 @@ vi.mock('../constants/index.js', () => ({
     'watching': 'play-circle',
     'watched': 'check-circle',
     'want-to-read': 'bookmark',
-    'want-to-watch': 'bookmark'
+    'want-to-watch': 'bookmark',
+    'dnf': 'x-circle'
   },
   STATUS_COLORS: {
     'reading': 'blue',
@@ -71,7 +73,8 @@ vi.mock('../constants/index.js', () => ({
     'watching': 'blue',
     'watched': 'green',
     'want-to-read': 'yellow',
-    'want-to-watch': 'yellow'
+    'want-to-watch': 'yellow',
+    'dnf': 'red'
   }
 }));
 

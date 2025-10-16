@@ -209,6 +209,25 @@ describe('BatchEditModal', () => {
       expect(statusSelect.value).toBe('reading');
     });
 
+    it('should include DNF status option', async () => {
+      render(<BatchEditModal {...defaultProps} />);
+      
+      const statusSelect = screen.getByRole('combobox', { name: /status/i });
+      const options = Array.from(statusSelect.options).map(option => option.value);
+      
+      expect(options).toContain('dnf');
+    });
+
+    it('should update status to DNF', async () => {
+      const user = userEvent.setup();
+      render(<BatchEditModal {...defaultProps} />);
+      
+      const statusSelect = screen.getByRole('combobox', { name: /status/i });
+      await user.selectOptions(statusSelect, 'dnf');
+      
+      expect(statusSelect.value).toBe('dnf');
+    });
+
     it('should update add tags value', async () => {
       const user = userEvent.setup();
       render(<BatchEditModal {...defaultProps} />);

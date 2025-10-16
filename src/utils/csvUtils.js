@@ -89,10 +89,19 @@ const mapGoodreadsShelfToStatus = (shelf) => {
     case 'reading':
       return STATUS_TYPES.BOOK.READING;
     case 'read':
-    default:
       return STATUS_TYPES.BOOK.READ;
+    case 'dnf':
+    case 'did-not-finish':
+    case 'did-not-finish-dnf':
+    case 'abandoned':
+    case 'gave-up':
+      return STATUS_TYPES.BOOK.DNF;
+    default:
+      return STATUS_TYPES.BOOK.READ; // Default to read for unknown shelves
   }
 };
+
+export { mapGoodreadsShelfToStatus };
 
 /**
  * Map Letterboxd watched status to status
@@ -100,13 +109,19 @@ const mapGoodreadsShelfToStatus = (shelf) => {
  * @returns {string} Mapped status value
  */
 const mapLetterboxdWatchedToStatus = (watched) => {
-  if (!watched) return STATUS_TYPES.MOVIE.WATCHED;
+  if (!watched) return STATUS_TYPES.MOVIE.TO_WATCH;
   const watchedLower = watched.toLowerCase().trim();
-  if (watchedLower === 'true' || watchedLower === '1' || watchedLower === 'yes') {
-    return STATUS_TYPES.MOVIE.WATCHED;
+  switch (watchedLower) {
+    case 'true':
+    case '1':
+    case 'yes':
+      return STATUS_TYPES.MOVIE.WATCHED;
+    default:
+      return STATUS_TYPES.MOVIE.TO_WATCH;
   }
-  return STATUS_TYPES.MOVIE.TO_WATCH;
 };
+
+export { mapLetterboxdWatchedToStatus };
 
 /**
  * Parse CSV text into headers and rows
@@ -217,7 +232,7 @@ export const mapGoodreadsRow = (r) => {
 export const mapLetterboxdRow = (r) => {
   const tags = (r['Tags'] || r['tags'] || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
   const rawRating = r['Your Rating'] || r['Rating'] || r['star_rating'] || '';
-  const rating = rawRating ? Math.round(parseFloat(rawRating) * 2) / 2 : 0;
+  const rating = rawRating ? Math.round(parseFloat(rawRating) / 2) : 0;
   const status = mapLetterboxdWatchedToStatus(r['Watched'] || r['watched'] || '');
   
   return {
@@ -307,7 +322,7 @@ export const exportCSV = (items = []) => {
     a.download = `markdown-media-tracker-export-${Date.now()}.csv`;
     document.body.appendChild(a);
     a.click();
-    a.remove();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (err) {
     console.error('Error exporting CSV', err);

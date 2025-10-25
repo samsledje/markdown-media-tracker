@@ -48,6 +48,7 @@ The codebase follows a clean, modular architecture with clear separation of conc
 ### Hooks
 
 Located in `src/hooks/`:
+
 - `useItems.js`: Item management and file operations
 - `useFilters.js`: Search, filtering, and sorting logic
 - `useSelection.js`: Bulk selection and batch operations
@@ -94,6 +95,7 @@ All utility functions should be pure (no side effects):
 ### Critical Patterns to Follow
 
 1. **Progress Reporting**: When implementing long-running operations (imports, batch edits), use progress callbacks to update the UI. Example:
+
    ```javascript
    const items = await storage.loadItems((current, total) => {
      setProgress({ current, total, status: 'Loading...' });
@@ -101,13 +103,14 @@ All utility functions should be pure (no side effects):
    ```
 
 2. **Batch Operations**: Never reload items after each individual operation. Collect all changes, apply them, then reload once:
+
    ```javascript
    // WRONG: reloads after each save
    for (const item of items) {
      await saveItem(item);
      await reloadItems(); // ❌ Very slow!
    }
-   
+
    // RIGHT: batch save, reload once
    for (const item of items) {
      await saveItem(item, { skipReload: true });
@@ -116,6 +119,7 @@ All utility functions should be pure (no side effects):
    ```
 
 3. **Error Handling**: Always show user-friendly error messages via toast notifications:
+
    ```javascript
    try {
      await riskyOperation();
@@ -127,6 +131,7 @@ All utility functions should be pure (no side effects):
    ```
 
 4. **Storage Operations**: Always check if storage is connected before operations:
+
    ```javascript
    if (!storage?.isConnected()) {
      toast.error('Please select a storage location first');
@@ -346,7 +351,7 @@ export const config = {
 ```
 
 - Required only for movie search functionality
-- Get free key from: http://www.omdbapi.com/apikey.aspx
+- Get free key from: <http://www.omdbapi.com/apikey.aspx>
 - File should not be committed (already in .gitignore)
 - App allows runtime configuration via UI if file not present
 
@@ -386,7 +391,7 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 - Stores `FileSystemDirectoryHandle` in IndexedDB (`fileSystemCache.js`) for persistence
 - Direct file system access (fast, no network latency)
 - Browser permission model handles security
-- **Connection Persistence**: 
+- **Connection Persistence**:
   - Handle stored in IndexedDB, connection flags in localStorage
   - `tryReconnect()` method attempts to restore connection on page load
   - Uses `queryPermission()` to check if permissions are still granted
@@ -436,7 +441,7 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 
 1. **OMDb API Rate Limits**: Partially implemented warning when API key runs out
 2. **Hotkey Reliability**: Keyboard shortcuts sometimes stop working (needs investigation)
-3. **Missing Features**: 
+3. **Missing Features**:
    - Loading/progress bar for large batch edits
    - Auto-fetch covers for items with missing cover images
 
@@ -503,21 +508,25 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 ### Common Issues
 
 **"Storage adapter not connected"**:
+
 - User hasn't selected storage yet
 - Permission was revoked
 - Google Drive token expired
 
 **"Failed to load items"**:
+
 - Check browser console for specific error
 - Verify file format (valid YAML frontmatter)
 - Check network tab for API failures
 
 **"Keyboard shortcuts not working"**:
+
 - Check if modal is open (shortcuts are modal-aware)
 - Verify focus is on body (not in input field)
 - Check browser console for errors
 
 **"Google Drive slow to load"**:
+
 - First load is expected to be slow for large libraries
 - Check Network tab to verify caching is working
 - Try clearing cache from Storage Indicator menu
@@ -525,6 +534,7 @@ Both storage backends implement the `StorageAdapter` abstract base class:
 ### Logging
 
 The codebase uses `console.log` for debugging:
+
 - Storage operations logged in adapter classes
 - API calls logged in service files
 - Hook state changes can be logged in custom hooks

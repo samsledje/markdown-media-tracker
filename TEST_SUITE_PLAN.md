@@ -7,6 +7,7 @@ You are working on Markdown Media Tracker (MMT), a React-based local-first appli
 ## Project Architecture Overview
 
 **Technology Stack:**
+
 - React 19 with hooks
 - Vite build tool
 - Tailwind CSS
@@ -15,6 +16,7 @@ You are working on Markdown Media Tracker (MMT), a React-based local-first appli
 - OMDb API (movies) and Open Library API (books)
 
 **Key Modules:**
+
 - `src/hooks/` - Custom React hooks for state and logic
 - `src/components/` - UI components (modals, forms, cards, layout)
 - `src/services/` - External API integrations and persistence
@@ -24,6 +26,7 @@ You are working on Markdown Media Tracker (MMT), a React-based local-first appli
 ## Testing Requirements
 
 ### Primary Goals
+
 1. **Prevent breaking changes** in core functionality during development
 2. **Validate data integrity** across storage operations
 3. **Ensure browser compatibility** for File System Access API and Google Drive features
@@ -63,9 +66,10 @@ Create a multi-layered test suite covering:
 ### Phase 1: Test Infrastructure Setup
 
 1. **Install testing dependencies:**
-```bash
-npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom @playwright/test @vitest/ui
-```
+
+   ```bash
+   npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom @playwright/test @vitest/ui
+   ```
 
 2. **Create test configuration files:**
    - `vitest.config.js` - Vitest configuration
@@ -74,6 +78,7 @@ npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-
    - `src/test/mocks/` - Mock implementations for APIs and storage
 
 3. **Add test scripts to package.json:**
+
 ```json
 {
   "scripts": {
@@ -336,7 +341,7 @@ Ensure comprehensive test coverage:
 
 ## Test Organization
 
-```
+```bash
 src/
 ├── components/
 │   └── __tests__/
@@ -380,31 +385,32 @@ tests/
 ## CI/CD Integration
 
 1. **GitHub Actions Workflow:**
-```yaml
-name: Test Suite
 
-on:
-  pull_request:
-    branches: [dev, main]
-  push:
-    branches: [dev, main]
+   ```yaml
+   name: Test Suite
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test:coverage
-      - run: npm run test:e2e
-      - uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/coverage-final.json
-```
+   on:
+   pull_request:
+      branches: [dev, main]
+   push:
+      branches: [dev, main]
+
+   jobs:
+   test:
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v3
+         - uses: actions/setup-node@v3
+         with:
+            node-version: '18'
+         - run: npm ci
+         - run: npm run lint
+         - run: npm run test:coverage
+         - run: npm run test:e2e
+         - uses: codecov/codecov-action@v3
+         with:
+            files: ./coverage/coverage-final.json
+   ```
 
 2. **Branch Protection Rules:**
    - Require status checks to pass before merging
@@ -454,6 +460,7 @@ The test suite is considered complete when:
 ## Execution Instructions
 
 Start by:
+
 1. Setting up the test infrastructure (Phase 1)
 2. Creating a few example tests for utilities to establish patterns
 3. Gradually expanding coverage module by module
@@ -482,7 +489,7 @@ type: "book"
 This is the note content.`;
 
       const result = parseMarkdownWithFrontmatter(markdown);
-      
+
       expect(result.frontmatter).toEqual({
         title: 'Test Book',
         author: 'Test Author',
@@ -494,7 +501,7 @@ This is the note content.`;
     it('should handle missing frontmatter', () => {
       const markdown = 'Just some content without frontmatter';
       const result = parseMarkdownWithFrontmatter(markdown);
-      
+
       expect(result.frontmatter).toEqual({});
       expect(result.content).toBe('Just some content without frontmatter');
     });
@@ -508,7 +515,7 @@ tags: ["sci-fi", "adventure"]
 Content here.`;
 
       const result = parseMarkdownWithFrontmatter(markdown);
-      
+
       expect(result.frontmatter.title).toBe('Book: A Story');
       expect(result.frontmatter.tags).toEqual(['sci-fi', 'adventure']);
     });
@@ -540,7 +547,7 @@ describe('useItems', () => {
 
   it('should load items from storage', async () => {
     const { result } = renderHook(() => useItems());
-    
+
     act(() => {
       result.current.initializeStorage('filesystem');
     });
@@ -553,7 +560,7 @@ describe('useItems', () => {
 
   it('should save a new item', async () => {
     const { result } = renderHook(() => useItems());
-    
+
     const newItem = {
       id: '2',
       title: 'New Book',
@@ -607,7 +614,7 @@ describe('ItemCard', () => {
 
   it('should call onItemClick when clicked', () => {
     const mockOnClick = vi.fn();
-    
+
     render(
       <ItemCard
         item={mockItem}
@@ -627,7 +634,7 @@ describe('ItemCard', () => {
 
   it('should show selection indicator in selection mode', () => {
     const selectedIds = new Set(['1']);
-    
+
     render(
       <ItemCard
         item={mockItem}
@@ -663,15 +670,15 @@ test.describe('Item Management', () => {
   test('should add a new item manually', async ({ page }) => {
     // Click add button
     await page.click('button:has-text("Add Manually")');
-    
+
     // Fill in form
     await page.fill('input[name="title"]', 'Test Book');
     await page.fill('input[name="author"]', 'Test Author');
     await page.selectOption('select[name="type"]', 'book');
-    
+
     // Save
     await page.click('button:has-text("Save")');
-    
+
     // Verify item appears in library
     await expect(page.locator('text=Test Book')).toBeVisible();
   });
@@ -679,16 +686,16 @@ test.describe('Item Management', () => {
   test('should edit an existing item', async ({ page }) => {
     // Click on an item
     await page.click('text=Test Book');
-    
+
     // Enter edit mode
     await page.click('button:has-text("Edit")');
-    
+
     // Modify title
     await page.fill('input[name="title"]', 'Updated Book Title');
-    
+
     // Save
     await page.click('button:has-text("Save")');
-    
+
     // Verify update
     await expect(page.locator('text=Updated Book Title')).toBeVisible();
   });
@@ -696,13 +703,13 @@ test.describe('Item Management', () => {
   test('should delete an item', async ({ page }) => {
     // Click on an item
     await page.click('text=Test Book');
-    
+
     // Click delete
     await page.click('button[title="Delete"]');
-    
+
     // Confirm deletion
     await page.click('button:has-text("Delete")');
-    
+
     // Verify item is gone
     await expect(page.locator('text=Test Book')).not.toBeVisible();
   });

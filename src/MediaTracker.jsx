@@ -19,6 +19,7 @@ import ItemDetailModal from './components/modals/ItemDetailModal.jsx';
 import AddEditModal from './components/modals/AddEditModal.jsx';
 import ApiKeyModal from './components/modals/ApiKeyModal.jsx';
 import ObsidianBaseModal from './components/modals/ObsidianBaseModal.jsx';
+import FilterModal from './components/modals/FilterModal.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import StorageIndicator from './components/StorageIndicator.jsx';
 import ItemCard from './components/cards/ItemCard.jsx';
@@ -130,7 +131,6 @@ const MediaTracker = () => {
 
   // Refs
   const searchInputRef = useRef(null);
-  const filtersRef = useRef(null);
   const filterButtonRef = useRef(null);
   const menuRef = useRef(null);
   const storageIndicatorRef = useRef(null);
@@ -276,16 +276,16 @@ const MediaTracker = () => {
   // Calculate optimal position for export submenu
   const calculateExportSubmenuPosition = () => {
     if (!exportContainerRef.current) return;
-    
+
     const containerRect = exportContainerRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const submenuWidth = 160; // min-w-[160px]
     const spacing = 8; // ml-2/mr-2
     const buffer = 16; // Extra buffer from screen edge
-    
+
     // Check if submenu would overflow on the right
     const rightEdge = containerRect.right + spacing + submenuWidth + buffer;
-    
+
     if (rightEdge > viewportWidth) {
       // Position to the left
       setExportSubmenuPosition('left');
@@ -298,16 +298,16 @@ const MediaTracker = () => {
   // Calculate optimal position for settings submenu
   const calculateSettingsSubmenuPosition = () => {
     if (!settingsContainerRef.current) return;
-    
+
     const containerRect = settingsContainerRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const submenuWidth = 160; // min-w-[160px]
     const spacing = 8; // ml-2/mr-2
     const buffer = 16; // Extra buffer from screen edge
-    
+
     // Check if submenu would overflow on the right
     const rightEdge = containerRect.right + spacing + submenuWidth + buffer;
-    
+
     if (rightEdge > viewportWidth) {
       // Position to the left
       setSettingsSubmenuPosition('left');
@@ -340,16 +340,16 @@ const MediaTracker = () => {
   // Handle clearing Google Drive cache
   const handleClearCache = async () => {
     if (!storageAdapter || storageAdapter.getStorageType() !== 'googledrive') return;
-    
+
     try {
       await storageAdapter.clearCache();
       toast('Cache cleared! Reloading fresh data...', { type: 'success' });
-      
+
       // Reload items after clearing cache
       setTimeout(() => {
         loadItems();
       }, 500);
-      
+
       // Close menu
       setMenuOpen(false);
       setSettingsSubmenuOpen(false);
@@ -373,23 +373,12 @@ const MediaTracker = () => {
 
   // Since toggleTagFilter and toggleStatusFilter are now memoized in useFilters,
   // we can use them directly without wrapping. But for setters, we still need to wrap.
-  const handleSetFilterRating = useCallback((rating) => {
-    setFilterRating(rating);
-  }, [setFilterRating]);
-
-  const handleSetFilterRecent = useCallback((value) => {
-    setFilterRecent(value);
-  }, [setFilterRecent]);
-
-  const handleSetFilterType = useCallback((type) => {
-    setFilterType(type);
-  }, [setFilterType]);
 
   // Handle file import (CSV or ZIP)
   const handleImportFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    
+
     if (!storageAdapter || !storageAdapter.isConnected()) {
       toast('Please connect to a storage location first', { type: 'error' });
       e.target.value = '';
@@ -409,12 +398,12 @@ const MediaTracker = () => {
 
       let lastProgressUpdate = Date.now();
       const progressThrottleMs = 100; // Update UI at most every 100ms
-      
+
       const progressCb = ({ processed, added, total, currentFile, filesCompleted, totalFiles }) => {
         const now = Date.now();
         // Always update on first/last item, otherwise throttle
         const isFirstOrLast = processed === 0 || processed === total;
-        
+
         if (isFirstOrLast || now - lastProgressUpdate >= progressThrottleMs) {
           setImportProcessed(processed);
           setImportAdded(added);
@@ -433,7 +422,7 @@ const MediaTracker = () => {
           console.warn('[Import] API error occurred while another error modal is showing');
           return { continue: false, skipEnrichment: false };
         }
-        
+
         return new Promise((resolve) => {
           setImportOmdbError(error);
           // Store the resolve function directly, not wrapped
@@ -453,17 +442,17 @@ const MediaTracker = () => {
 
       const result = await processImportFile(file, items, batchSaveItem, progressCb, abortController.signal, handleAPIError);
       const { added, format, filesProcessed } = result;
-      
+
       // Reload items once at the end (much more efficient than reloading after each save)
       if (added > 0) {
         await loadItems();
       }
-      
+
       let message = `Imported ${added} items (detected format: ${format})`;
       if (filesProcessed && filesProcessed.length > 1) {
         message += `\nProcessed files: ${filesProcessed.join(', ')}`;
       }
-      
+
       toast(message, { type: 'success' });
     } catch (error) {
       // Don't show error toast for user-initiated abort
@@ -501,12 +490,12 @@ const MediaTracker = () => {
     try {
       const selectedItems = getSelectedItems(filteredAndSortedItems);
       const totalItems = selectedItems.length;
-      
+
       // Set up progress tracking
       setIsDeleting(true);
       setDeleteProgress(0);
       setDeleteTotal(totalItems);
-      
+
       // Delete items one by one with progress tracking
       if (!storageAdapter || !storageAdapter.isConnected()) {
         throw new Error('Please connect to a storage location first');
@@ -516,7 +505,7 @@ const MediaTracker = () => {
       const undoInfos = [];
       let lastProgressUpdate = 0;
       const progressThrottle = 5; // Update progress every 10 items
-      
+
       for (let i = 0; i < selectedItems.length; i++) {
         const item = selectedItems[i];
         try {
@@ -524,7 +513,7 @@ const MediaTracker = () => {
           const undoInfo = await storageAdapter.deleteItem(item);
           undoInfos.push(undoInfo);
           deletedCount++;
-          
+
           // Throttle progress updates to reduce re-renders
           if (i - lastProgressUpdate >= progressThrottle || i === selectedItems.length - 1) {
             setDeleteProgress(i + 1);
@@ -534,13 +523,13 @@ const MediaTracker = () => {
           console.error('Error deleting item:', item.title, error);
         }
       }
-      
+
       // Reload items only once at the end
       if (deletedCount > 0) {
         await loadItems();
         toast(`Deleted ${deletedCount} item${deletedCount !== 1 ? 's' : ''}`, { type: 'success' });
       }
-      
+
       clearSelection();
       setShowBatchDeleteConfirm(false);
       setIsDeleting(false);
@@ -562,7 +551,7 @@ const MediaTracker = () => {
 
       // Convert Set to Array if needed
       const selectedIdsArray = Array.from(selectedIds);
-      
+
       // Set up progress tracking
       setIsEditingBatch(true);
       setEditProgress(0);
@@ -571,7 +560,7 @@ const MediaTracker = () => {
       const updated = [];
       let lastProgressUpdate = 0;
       const progressThrottle = 10; // Update progress every 10 items
-      
+
       for (let i = 0; i < selectedIdsArray.length; i++) {
         const id = selectedIdsArray[i];
         const item = items.find(it => it.id === id);
@@ -598,7 +587,7 @@ const MediaTracker = () => {
         try {
           await storageAdapter.saveItem(newItem);
           updated.push(newItem.id);
-          
+
           // Throttle progress updates to reduce re-renders
           if (i - lastProgressUpdate >= progressThrottle || i === selectedIdsArray.length - 1) {
             setEditProgress(i + 1);
@@ -692,31 +681,31 @@ const MediaTracker = () => {
       const target = e.target;
       // Check if the target or any of its parents is a button or has interactive behavior
       if (target.tagName === 'BUTTON' ||
-          target.closest('button') ||
-          target.getAttribute('role') === 'button' ||
-          target.closest('[role="button"]')) {
+        target.closest('button') ||
+        target.getAttribute('role') === 'button' ||
+        target.closest('[role="button"]')) {
         return;
       }
     }
 
     // Try multiple strategies for maximum compatibility
-    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
-    try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) {}
-    try { document.body && (document.body.scrollTop = 0); } catch (_) {}
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { }
+    try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) { }
+    try { document.body && (document.body.scrollTop = 0); } catch (_) { }
     const scrollingEl = document.scrollingElement;
     if (scrollingEl && typeof scrollingEl.scrollTo === 'function') {
-      try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+      try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { }
     }
   };
 
-  const handleHeaderTouchStart = (e) => { 
+  const handleHeaderTouchStart = (e) => {
     touchMovedRef.current = false;
     // Check if touch started on a button or interactive element
     const target = e.target;
     touchStartedOnButtonRef.current = target.tagName === 'BUTTON' ||
-                                      target.closest('button') ||
-                                      target.getAttribute('role') === 'button' ||
-                                      target.closest('[role="button"]');
+      target.closest('button') ||
+      target.getAttribute('role') === 'button' ||
+      target.closest('[role="button"]');
   };
   const handleHeaderTouchMove = () => { touchMovedRef.current = true; };
 
@@ -737,12 +726,12 @@ const MediaTracker = () => {
   useEffect(() => {
     if (!showStorageSelector) {
       // Try multiple strategies for maximum compatibility across desktop and mobile
-      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
-      try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) {}
-      try { document.body && (document.body.scrollTop = 0); } catch (_) {}
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { }
+      try { document.documentElement && (document.documentElement.scrollTop = 0); } catch (_) { }
+      try { document.body && (document.body.scrollTop = 0); } catch (_) { }
       const scrollingEl = document.scrollingElement;
       if (scrollingEl && typeof scrollingEl.scrollTo === 'function') {
-        try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+        try { scrollingEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { }
       }
     }
   }, [showStorageSelector]);
@@ -800,18 +789,18 @@ const MediaTracker = () => {
       try {
         const options = await getAvailableStorageOptions();
         setAvailableStorageOptions(options);
-        
+
         // Check if user was previously connected to File System
         const wasFileSystemConnected = localStorage.getItem('fileSystemConnected');
         if (wasFileSystemConnected === 'true') {
           try {
             // Initialize the adapter
             const adapter = await initializeStorage('filesystem');
-            
+
             // Try to reconnect (retrieve stored handle and verify permissions)
             console.log('Attempting to restore File System connection...');
             await adapter.tryReconnect();
-            
+
             // If successful, load items
             await loadItems(adapter);
             setShowStorageSelector(false);
@@ -831,11 +820,11 @@ const MediaTracker = () => {
             try {
               // Initialize the adapter
               const adapter = await initializeStorage('googledrive');
-              
+
               // Try to reconnect silently (without showing popup)
               console.log('Attempting silent reconnection to Google Drive...');
               await adapter.tryReconnect();
-              
+
               // If successful, load items
               await loadItems(adapter);
               setShowStorageSelector(false);
@@ -887,7 +876,7 @@ const MediaTracker = () => {
       await disconnectStorage();
       setShowStorageSelector(true);
       closeModals();
-      
+
       // Scroll to storage selector after a brief delay to allow rendering
       setTimeout(() => {
         if (landingPageRef.current) {
@@ -925,6 +914,30 @@ const MediaTracker = () => {
     };
   }, [menuOpen]);
 
+  // Handle clicks outside filter panel to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFilters &&
+        filterButtonRef.current &&
+        !filterButtonRef.current.contains(event.target)) {
+        // Check if click is inside the FilterModal
+        let el = event.target;
+        while (el) {
+          if (el.getAttribute && el.getAttribute('data-filter-modal') === '1') return;
+          el = el.parentElement;
+        }
+        setShowFilters(false);
+      }
+    };
+
+    if (showFilters) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showFilters, setShowFilters]);
+
   // Compute portal menu position when opened
   useEffect(() => {
     if (!menuOpen || !menuRef.current) {
@@ -940,7 +953,7 @@ const MediaTracker = () => {
 
   // Track when storage is connected to trigger effects properly
   const [isStorageConnected, setIsStorageConnected] = useState(false);
-  
+
   // Update connection status when storage changes
   useEffect(() => {
     const connected = storageAdapter && storageAdapter.isConnected();
@@ -961,7 +974,7 @@ const MediaTracker = () => {
   // Prompt to create Obsidian Base file when storage connects (only once per session)
   const basePromptedRef = useRef(false);
   const [showObsidianBaseModal, setShowObsidianBaseModal] = useState(false);
-  
+
   useEffect(() => {
     if (!storageAdapter || !isStorageConnected || basePromptedRef.current) return;
 
@@ -1037,10 +1050,10 @@ const MediaTracker = () => {
   };
 
   return (
-    <div 
+    <div
       id="app-top"
-      className="min-h-screen text-white flex flex-col" 
-      style={{ 
+      className="min-h-screen text-white flex flex-col"
+      style={{
         background: 'linear-gradient(135deg, var(--mt-primary), rgba(15,23,42,1))',
         touchAction: 'pan-y',
         WebkitOverflowScrolling: 'touch'
@@ -1118,23 +1131,23 @@ const MediaTracker = () => {
               Add Manually
             </button>
 
-                  <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
-                    <input id="import-csv-input" type="file" accept=".csv,.zip,text/csv,application/zip" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
-                    <Upload className="w-4 h-4" />
-                    <div className="flex-1">
-                      <div>Import CSV/ZIP</div>
-                      {isImporting && (
-                        <div className="mt-2">
-                          <div className="text-xs text-slate-300">Imported {importAdded} / {importTotal}</div>
-                          <div className="w-full bg-slate-700 rounded h-2 mt-1 overflow-hidden">
-                            <div className="bg-blue-500 h-2 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
-                          </div>
-                        </div>
-                      )}
+            <label className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center gap-2 cursor-pointer text-white">
+              <input id="import-csv-input" type="file" accept=".csv,.zip,text/csv,application/zip" onChange={(e) => { handleImportFile(e); setMenuOpen(false); }} className="hidden" />
+              <Upload className="w-4 h-4" />
+              <div className="flex-1">
+                <div>Import CSV/ZIP</div>
+                {isImporting && (
+                  <div className="mt-2">
+                    <div className="text-xs text-slate-300">Imported {importAdded} / {importTotal}</div>
+                    <div className="w-full bg-slate-700 rounded h-2 mt-1 overflow-hidden">
+                      <div className="bg-blue-500 h-2 transition-all" style={{ width: importTotal > 0 ? `${Math.round((importProcessed / importTotal) * 100)}%` : '0%' }} />
                     </div>
-                  </label>
+                  </div>
+                )}
+              </div>
+            </label>
 
-            <div 
+            <div
               ref={exportContainerRef}
               className="relative"
               onMouseEnter={handleExportSubmenuEnter}
@@ -1151,11 +1164,10 @@ const MediaTracker = () => {
               </button>
 
               {exportSubmenuOpen && (
-                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${
-                  exportSubmenuPosition === 'left' 
-                    ? 'right-full mr-2 slide-in-from-right-2' 
-                    : 'left-full ml-2 slide-in-from-left-2'
-                }`}>
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[160px] max-w-[200px] z-50 animate-in duration-150 ${exportSubmenuPosition === 'left'
+                  ? 'right-full mr-2 slide-in-from-right-2'
+                  : 'left-full ml-2 slide-in-from-left-2'
+                  }`}>
                   <button
                     onClick={() => { exportAllItems(items); setMenuOpen(false); setExportSubmenuOpen(false); }}
                     className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
@@ -1181,7 +1193,7 @@ const MediaTracker = () => {
               )}
             </div>
 
-            <div 
+            <div
               ref={settingsContainerRef}
               className="relative"
               onMouseEnter={handleSettingsSubmenuEnter}
@@ -1198,11 +1210,10 @@ const MediaTracker = () => {
               </button>
 
               {settingsSubmenuOpen && (
-                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[180px] max-w-[220px] z-50 animate-in duration-150 ${
-                  settingsSubmenuPosition === 'left' 
-                    ? 'right-full mr-2 slide-in-from-right-2' 
-                    : 'left-full ml-2 slide-in-from-left-2'
-                }`}>
+                <div className={`absolute top-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 text-white min-w-[180px] max-w-[220px] z-50 animate-in duration-150 ${settingsSubmenuPosition === 'left'
+                  ? 'right-full mr-2 slide-in-from-right-2'
+                  : 'left-full ml-2 slide-in-from-left-2'
+                  }`}>
                   <button
                     onClick={() => { setShowApiKeyManager(true); setMenuOpen(false); setSettingsSubmenuOpen(false); }}
                     className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
@@ -1300,8 +1311,8 @@ const MediaTracker = () => {
                 )}
                 {importOmdbError.type === 'NETWORK' && (
                   <p className="text-xs text-slate-400 mt-2">
-                    {importOmdbError.name === 'OpenLibraryError' 
-                      ? 'Books will be imported with information from the CSV file only.' 
+                    {importOmdbError.name === 'OpenLibraryError'
+                      ? 'Books will be imported with information from the CSV file only.'
                       : 'Movies will be imported with basic information from the CSV file only.'}
                   </p>
                 )}
@@ -1312,7 +1323,7 @@ const MediaTracker = () => {
                 )}
               </div>
             </div>
-            
+
             <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
               {importCurrentFile && (
                 <div className="mb-3 pb-2 border-b border-slate-700">
@@ -1343,7 +1354,7 @@ const MediaTracker = () => {
                 Continue Without {importOmdbError.name === 'OpenLibraryError' ? 'Enrichment' : 'OMDb'}
               </button>
             </div>
-            
+
             <p className="text-xs text-slate-500 text-center mt-3">
               Continuing will import remaining {importOmdbError.name === 'OpenLibraryError' ? 'books' : 'movies'} using only CSV data
             </p>
@@ -1401,12 +1412,11 @@ const MediaTracker = () => {
                 return (
                   <button
                     key={type}
-                    onClick={() => handleSetFilterType(type)}
-                    className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${
-                      filterType === type
-                        ? ''
-                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                    }`}
+                    onClick={() => setFilterType(type)}
+                    className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] flex items-center justify-center ${filterType === type
+                      ? ''
+                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                      }`}
                     style={filterType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                     title={type === 'all' ? 'All items' : type === 'book' ? 'Books only' : 'Movies only'}
                   >
@@ -1422,7 +1432,7 @@ const MediaTracker = () => {
             {/* Mobile: First row - Sort controls */}
             <div className="flex items-center gap-2 sm:gap-4">
               <label className="text-sm text-slate-300 flex items-center gap-2 flex-shrink-0">
-                <ArrowUpDown className="w-4 h-4"/>
+                <ArrowUpDown className="w-4 h-4" />
                 <span className="hidden sm:inline">Sort:</span>
               </label>
               <select
@@ -1461,7 +1471,7 @@ const MediaTracker = () => {
                 )}
               </button>
             </div>
-            
+
             {/* Mobile: Second row - Action controls */}
             <div className="flex items-center gap-2 sm:ml-auto">
               {selectionMode && (
@@ -1491,20 +1501,20 @@ const MediaTracker = () => {
                   )}
                 </div>
               )}
-              
+
               <button
                 onClick={toggleSelectionMode}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition min-h-[44px] ${
-                  selectionMode ? '' : 'bg-slate-700/50 hover:bg-slate-700'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition min-h-[44px] ${selectionMode ? '' : 'bg-slate-700/50 hover:bg-slate-700'
+                  }`}
                 style={selectionMode ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
                 title="Toggle selection mode"
               >
                 <CheckSquare className="w-4 h-4" />
                 <span className="text-sm hidden sm:inline">{selectionMode ? 'Selecting' : 'Select'}</span>
               </button>
-              
+
               <button
+                ref={filterButtonRef}
                 onClick={() => setShowFilters(!showFilters)}
                 className="px-3 sm:px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center gap-2 min-h-[44px]"
               >
@@ -1512,118 +1522,24 @@ const MediaTracker = () => {
                 <span className="hidden sm:inline">Filters</span>
                 {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              
-              <button
-                onClick={clearFilters}
-                className="px-3 sm:px-4 py-2 rounded-lg transition text-sm min-h-[44px]"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'white' }}
-              >
-                <span className="hidden sm:inline">Clear</span>
-                <X className="w-4 h-4 sm:hidden" />
-              </button>
             </div>
           </div>
 
-          {/* Expanded Filters */}
-          {showFilters && (
-            <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Rating Filter */}
-                <div>
-                  <div className="text-sm text-slate-300 mb-2">Minimum rating</div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setFilterRating(0)}
-                      className={`px-3 py-1 rounded-lg ${filterRating === 0 ? '' : 'bg-slate-700/50'}`}
-                      style={filterRating === 0 ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                    >
-                      Any
-                    </button>
-                    {[1, 2, 3, 4, 5].map(r => (
-                      <button
-                        key={r}
-                        onClick={() => handleSetFilterRating(r)}
-                        className={`px-2 py-1 rounded-lg ${filterRating === r ? '' : 'bg-slate-700/50'}`}
-                        style={filterRating === r ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                        title={`Minimum ${r} star${r > 1 ? 's' : ''}`}
-                      >
-                        <Star className={`w-4 h-4 ${r <= (filterRating || 0) ? 'text-yellow-400' : 'text-slate-600'}`} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Filter */}
-                <div>
-                  <div className="text-sm text-slate-300 mb-2">Recently read / watched</div>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'any', label: 'Any' },
-                      { value: 'last7', label: 'Last 7 days' },
-                      { value: 'last30', label: 'Last 30 days' },
-                      { value: 'last90', label: 'Last 90 days' }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => handleSetFilterRecent(option.value)}
-                        className={`px-3 py-1 rounded-lg text-sm ${filterRecent === option.value ? '' : 'bg-slate-700/50'}`}
-                        style={filterRecent === option.value ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tags Filter */}
-                <div>
-                  <div className="text-sm text-slate-300 mb-2">Tags</div>
-                  <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-                    {allTags.length === 0 ? (
-                      <div className="text-sm text-slate-400">No tags available</div>
-                    ) : (
-                      allTags.map(tag => (
-                        <button
-                          key={tag}
-                          onClick={() => toggleTagFilter(tag)}
-                          className={`px-3 py-1 rounded-full text-sm transition ${
-                            filterTags.includes(tag) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                          }`}
-                          style={filterTags.includes(tag) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                        >
-                          {tag}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Status Filter */}
-                <div>
-                  <div className="text-sm text-slate-300 mb-2">Status</div>
-                  <div className="flex flex-wrap gap-2">
-                    {allStatuses.length === 0 ? (
-                      <div className="text-sm text-slate-400">No status data available</div>
-                    ) : (
-                      allStatuses.map(status => (
-                        <button
-                          key={status}
-                          onClick={() => toggleStatusFilter(status)}
-                          className={`px-3 py-1 rounded-lg text-sm transition flex items-center gap-2 ${
-                            filterStatuses.includes(status) ? '' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                          }`}
-                          style={filterStatuses.includes(status) ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
-                        >
-                          {getStatusIcon(status, 'w-4 h-4')}
-                          {STATUS_LABELS[status]}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Filter Modal - Full width below controls */}
+          <FilterModal
+            showFilters={showFilters}
+            filterRating={filterRating}
+            filterTags={filterTags}
+            filterStatuses={filterStatuses}
+            filterRecent={filterRecent}
+            allTags={allTags}
+            allStatuses={allStatuses}
+            setFilterRating={setFilterRating}
+            setFilterRecent={setFilterRecent}
+            toggleTagFilter={toggleTagFilter}
+            toggleStatusFilter={toggleStatusFilter}
+            clearFilters={clearFilters}
+          />
 
           {/* Items Grid */}
           <div className="mb-6">
@@ -1640,7 +1556,7 @@ const MediaTracker = () => {
                   {hasActiveFilters ? 'No matches found' : 'No items yet'}
                 </h3>
                 <p className="text-slate-400 mb-6">
-                  {hasActiveFilters 
+                  {hasActiveFilters
                     ? 'Try adjusting your search or filter criteria.'
                     : 'Add some books or movies to get started.'
                   }
@@ -1660,28 +1576,27 @@ const MediaTracker = () => {
               </div>
             ) : (
               <div className="w-full min-h-0">
-                <div style={{ gridAutoRows: '1fr' }} className={`grid gap-3 sm:gap-4 w-full ${
-                  cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
+                <div style={{ gridAutoRows: '1fr' }} className={`grid gap-3 sm:gap-4 w-full ${cardSize === 'tiny' ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10' :
                   // Small is now a denser middle-ground between tiny and medium
                   cardSize === 'small' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' :
-                  cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-                  cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
-                  'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
-                }` }>
-                {filteredAndSortedItems.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    cardSize={cardSize}
-                    highlightColor={highlightColor}
-                    selectionMode={selectionMode}
-                    selectedIds={selectedIds}
-                    focusedId={focusedId}
-                    onItemClick={handleItemClick}
-                    registerCardRef={registerCardRef}
-                    halfStarsEnabled={halfStarsEnabled}
-                  />
-                ))}
+                    cardSize === 'large' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                      cardSize === 'xlarge' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' :
+                        'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+                  }`}>
+                  {filteredAndSortedItems.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      cardSize={cardSize}
+                      highlightColor={highlightColor}
+                      selectionMode={selectionMode}
+                      selectedIds={selectedIds}
+                      focusedId={focusedId}
+                      onItemClick={handleItemClick}
+                      registerCardRef={registerCardRef}
+                      halfStarsEnabled={halfStarsEnabled}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -1741,9 +1656,8 @@ const MediaTracker = () => {
                     <button
                       key={index}
                       onClick={() => updatePrimaryColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
-                        primaryColor === color ? 'border-white shadow-lg' : 'border-slate-600 hover:border-slate-400'
-                      }`}
+                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${primaryColor === color ? 'border-white shadow-lg' : 'border-slate-600 hover:border-slate-400'
+                        }`}
                       style={{ backgroundColor: color }}
                       title={`Primary preset ${index + 1}`}
                     />
@@ -1768,9 +1682,8 @@ const MediaTracker = () => {
                     <button
                       key={index}
                       onClick={() => updateHighlightColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
-                        highlightColor === color ? 'border-white shadow-lg' : 'border-slate-600 hover:border-slate-400'
-                      }`}
+                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${highlightColor === color ? 'border-white shadow-lg' : 'border-slate-600 hover:border-slate-400'
+                        }`}
                       style={{ backgroundColor: color }}
                       title={`Highlight preset ${index + 1}`}
                     />
@@ -1830,7 +1743,7 @@ const MediaTracker = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold mb-4">Delete Items</h3>
-            
+
             {!isDeleting ? (
               <>
                 <p className="text-slate-300 mb-6">
@@ -1849,7 +1762,7 @@ const MediaTracker = () => {
                     style={{ backgroundColor: 'rgba(255,0,0,0.8)' }}
                   >
                     Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}
-                  </button> 
+                  </button>
                 </div>
               </>
             ) : (
@@ -1905,7 +1818,7 @@ const MediaTracker = () => {
             onRefresh={() => loadItems()}
           />
         )}
-        
+
         {/* Customize Button */}
         <button
           onClick={() => {
@@ -1923,7 +1836,7 @@ const MediaTracker = () => {
         >
           <Palette className="w-5 h-5 text-white" />
         </button>
-        
+
         {/* Help Button */}
         <button
           onClick={() => {
@@ -1972,7 +1885,7 @@ const MediaTracker = () => {
               title="View on GitHub"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
             </a>
             <span className="text-slate-500">|</span>
@@ -1984,7 +1897,7 @@ const MediaTracker = () => {
               title="Privacy Policy"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16V13C8,12.4 8.6,11.5 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z"/>
+                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16V13C8,12.4 8.6,11.5 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z" />
               </svg>
             </a>
             <span className="text-slate-500">|</span>
@@ -1996,7 +1909,7 @@ const MediaTracker = () => {
               title="Visit samsl.io"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </a>
           </div>

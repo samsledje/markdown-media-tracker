@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Book, Film, Search, Plus, Star, Tag, Calendar, User, Hash, X, FolderOpen, Save, ChevronDown, ChevronUp, ChevronRight, Palette, CheckSquare, SlidersHorizontal, ArrowUpDown, Download, Upload, Key, Cloud, Wifi, WifiOff, ArrowLeft, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Trash2, AlertCircle, Settings, XCircle } from 'lucide-react';
 
@@ -720,17 +720,41 @@ const MediaTracker = () => {
   const handleHeaderTouchMove = () => { touchMovedRef.current = true; };
 
   // Track header height to offset content when header is fixed
-  const [headerHeight, setHeaderHeight] = useState(0);
-  useEffect(() => {
+  const [headerHeight, setHeaderHeight] = useState(72); // Initial estimate: 72px (typical header height)
+
+  // Calculate header height after DOM is ready
+  useLayoutEffect(() => {
     const updateHeaderHeight = () => {
       if (headerRef.current) {
-        setHeaderHeight(headerRef.current.offsetHeight || 0);
+        const height = headerRef.current.offsetHeight;
+        if (height > 0 && height !== headerHeight) {
+          setHeaderHeight(height);
+        }
       }
     };
+
+    // Calculate immediately in layout effect
     updateHeaderHeight();
+
+    // Use ResizeObserver for dynamic header height changes
+    let resizeObserver;
+    if (headerRef.current && window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(updateHeaderHeight);
+      resizeObserver.observe(headerRef.current);
+    }
+
+    // Also update on window resize
     window.addEventListener('resize', updateHeaderHeight);
-    return () => window.removeEventListener('resize', updateHeaderHeight);
-  }, []);
+
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, [headerHeight]);
+
+
 
   // Scroll to top when storage is selected (transitions from landing page to main app)
   useEffect(() => {
@@ -1125,9 +1149,11 @@ const MediaTracker = () => {
       )}
 
       {/* Spacer to offset fixed header height */}
-      {!showStorageSelector && headerHeight > 0 && (
+      {!showStorageSelector && (
         <div style={{ height: headerHeight }} />
       )}
+
+
 
       {menuOpen && menuPos && createPortal(
         <div data-menu-portal="1" style={{ position: 'fixed', left: `${menuPos.left}px`, top: `${menuPos.top}px`, width: `${menuPos.width}px`, zIndex: 99999 }}>
@@ -1384,7 +1410,7 @@ const MediaTracker = () => {
           />
         </div>
       ) : (
-        <div className="flex-1 max-w-7xl mx-auto px-4 py-4 sm:py-6 pt-20 sm:pt-16">
+        <div className="flex-1 max-w-7xl mx-auto px-4 py-4 sm:py-6">
           {/* Search and Type Filters */}
           <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:gap-4">
             <div className="flex-1 relative">

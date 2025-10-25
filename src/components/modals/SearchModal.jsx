@@ -15,6 +15,7 @@ const SearchModal = ({ onClose, onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef(null);
 
   const handleSearchBooks = async (searchQuery) => {
@@ -25,7 +26,7 @@ const SearchModal = ({ onClose, onSelect }) => {
       setResults(books);
     } catch (error) {
       console.error('Error searching books:', error);
-      
+
       // Handle different Open Library error types
       if (error instanceof OpenLibraryError) {
         switch (error.type) {
@@ -59,7 +60,7 @@ const SearchModal = ({ onClose, onSelect }) => {
       setShowApiKeyWarning(false);
     } catch (error) {
       console.error('Error searching movies:', error);
-      
+
       // Handle different OMDB error types
       if (error instanceof OMDBError) {
         switch (error.type) {
@@ -90,27 +91,26 @@ const SearchModal = ({ onClose, onSelect }) => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    
+
+    setHasSearched(true);
     if (searchType === 'book') {
       handleSearchBooks(query);
     } else {
       handleSearchMovies(query);
     }
-  };
-
-  useEffect(() => {
+  }; useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         onClose();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (query.trim()) handleSearch({ preventDefault: () => {} });
+        if (query.trim()) handleSearch({ preventDefault: () => { } });
       }
-      
+
       // Focus search input with / key or Ctrl/Cmd+K (like main app)
-      if ((e.key === '/' && !e.ctrlKey && !e.metaKey) || 
-          ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+      if ((e.key === '/' && !e.ctrlKey && !e.metaKey) ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
         if (document.activeElement !== searchInputRef.current) {
           e.preventDefault();
           if (searchInputRef.current) {
@@ -119,7 +119,7 @@ const SearchModal = ({ onClose, onSelect }) => {
           }
         }
       }
-      
+
       // Handle arrow navigation in search input
       if (e.target === searchInputRef.current) {
         if (e.key === 'ArrowDown' && results.length > 0) {
@@ -131,14 +131,14 @@ const SearchModal = ({ onClose, onSelect }) => {
         // Don't handle other shortcuts while typing in search input
         return;
       }
-      
+
       // Result navigation
       if (results.length > 0 && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
         e.preventDefault();
-        
+
         let newIndex = focusedIndex;
         const cols = 4; // Based on xl:grid-cols-4
-        
+
         if (e.key === 'ArrowLeft') {
           newIndex = Math.max(0, focusedIndex - 1);
         } else if (e.key === 'ArrowRight') {
@@ -161,14 +161,14 @@ const SearchModal = ({ onClose, onSelect }) => {
           }
           return;
         }
-        
+
         setFocusedIndex(newIndex);
         return;
       }
-      
+
       // Don't handle shortcuts while typing in other inputs
       if (e.target.tagName === 'INPUT') return;
-      
+
       // Switch to books: B
       if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_BOOKS) {
         e.preventDefault();
@@ -176,8 +176,8 @@ const SearchModal = ({ onClose, onSelect }) => {
         setFocusedIndex(-1); // Reset focus when switching type
         return;
       }
-      
-      // Switch to movies: M  
+
+      // Switch to movies: M
       if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.FILTER_MOVIES) {
         e.preventDefault();
         setSearchType('movie');
@@ -189,6 +189,11 @@ const SearchModal = ({ onClose, onSelect }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [query, searchType, results, focusedIndex]);
 
+  // Reset hasSearched when query changes
+  useEffect(() => {
+    setHasSearched(false);
+  }, [query]);
+
   const handleSelect = (result) => {
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
@@ -197,7 +202,7 @@ const SearchModal = ({ onClose, onSelect }) => {
     };
 
     // Only set the appropriate date field based on the item type
-    const dateFields = result.type === 'movie' 
+    const dateFields = result.type === 'movie'
       ? { dateWatched: getTodayDate() }
       : { dateRead: getTodayDate() };
 
@@ -238,11 +243,10 @@ const SearchModal = ({ onClose, onSelect }) => {
               <button
                 key={type}
                 onClick={() => setSearchType(type)}
-                className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize flex items-center justify-center gap-2 min-h-[44px] ${
-                  searchType === type
-                    ? ''
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
+                className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize flex items-center justify-center gap-2 min-h-[44px] ${searchType === type
+                  ? ''
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
                 style={searchType === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
               >
                 {type === 'book' ? <Book className="w-4 h-4" /> : <Film className="w-4 h-4" />}
@@ -252,14 +256,26 @@ const SearchModal = ({ onClose, onSelect }) => {
           </div>
 
           <form onSubmit={handleSearch} className="space-y-3 sm:space-y-0 sm:flex sm:gap-2">
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search for ${searchType}s...`}
-              className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
-            />
+            <div className="flex-1 relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search for ${searchType}s...`}
+                className="w-full pl-4 pr-10 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 hover:text-slate-200 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             <button
               type="submit"
               disabled={loading}
@@ -279,40 +295,54 @@ const SearchModal = ({ onClose, onSelect }) => {
               <p className="mt-4 text-slate-400">Searching...</p>
             </div>
           ) : results.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {results.map((result, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleSelect(result)}
-                  className={`bg-slate-700/30 border rounded-lg p-3 transition cursor-pointer touch-manipulation ${
-                    focusedIndex === index 
-                      ? 'border-blue-500 bg-blue-500/10' 
-                      : 'border-slate-600 hover:border-blue-500'
-                  }`}
-                >
-                  {result.coverUrl && (
-                    <img
-                      src={result.coverUrl}
-                      alt={result.title}
-                      className="w-full h-40 sm:h-48 object-cover rounded mb-3"
-                    />
-                  )}
-                  <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-2 leading-mobile">{result.title}</h3>
-                  {result.author && (
-                    <p className="text-xs text-slate-400 truncate">{result.author}</p>
-                  )}
-                  {result.director && (
-                    <p className="text-xs text-slate-400 truncate">{result.director}</p>
-                  )}
-                  {result.year && (
-                    <p className="text-xs text-slate-500 mt-1">{result.year}</p>
-                  )}
+            <>
+              {results.some(result => result._fuzzySearch) && (
+                <div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                  <p className="text-sm text-blue-200">
+                    🔍 No exact matches found. Showing results for similar searches.
+                  </p>
                 </div>
-              ))}
-            </div>
-          ) : query && !loading ? (
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                {results.map((result, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelect(result)}
+                    className={`bg-slate-700/30 border rounded-lg p-3 transition cursor-pointer touch-manipulation relative ${focusedIndex === index
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-slate-600 hover:border-blue-500'
+                      }`}
+                  >
+                    {result._fuzzySearch && (
+                      <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                        Similar
+                      </div>
+                    )}
+                    {result.coverUrl && (
+                      <img
+                        src={result.coverUrl}
+                        alt={result.title}
+                        className="w-full h-40 sm:h-48 object-cover rounded mb-3"
+                      />
+                    )}
+                    <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-2 leading-mobile">{result.title}</h3>
+                    {result.author && (
+                      <p className="text-xs text-slate-400 truncate">{result.author}</p>
+                    )}
+                    {result.director && (
+                      <p className="text-xs text-slate-400 truncate">{result.director}</p>
+                    )}
+                    {result.year && (
+                      <p className="text-xs text-slate-500 mt-1">{result.year}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : hasSearched && !loading && results.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <p>No results found for "{query}"</p>
+              <p className="text-sm mt-2">Try checking your spelling or using fewer words</p>
             </div>
           ) : (
             <div className="text-center py-12 text-slate-400">

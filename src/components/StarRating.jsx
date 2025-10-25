@@ -9,15 +9,27 @@ import { Star } from 'lucide-react';
  * @param {boolean} halfStarsEnabled - Whether to show/allow half stars
  * @param {string} size - Size class for stars (e.g., 'w-6 h-6')
  */
-const StarRating = ({ 
-  rating = 0, 
-  onChange, 
-  interactive = false, 
+const StarRating = ({
+  rating = 0,
+  onChange,
+  interactive = false,
   halfStarsEnabled = true,
   size = 'w-8 h-8'
 }) => {
   // Track hovered star index and half (left/right)
   const [hover, setHover] = React.useState(null); // { index: number, isLeftHalf: boolean } | null
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  // Detect mobile devices to disable hover behavior
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Tailwind's md breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   /**
    * Handle click on a star
    * Cycles through: full rating → half rating → unrated
@@ -84,7 +96,7 @@ const StarRating = ({
     <div className="flex gap-2">
       {[0, 1, 2, 3, 4].map((i) => {
         const fillState = getStarFill(i);
-        const ghostFill = interactive && hover ? getGhostFill(i) : null;
+        const ghostFill = interactive && hover && !isMobile ? getGhostFill(i) : null;
         return (
           <button
             key={i}
@@ -92,13 +104,13 @@ const StarRating = ({
             className={`transition relative ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
             disabled={!interactive}
             type="button"
-            onMouseMove={interactive ? (e) => {
+            onMouseMove={interactive && !isMobile ? (e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const x = e.clientX - rect.left;
               const isLeftHalf = x < rect.width / 2;
               setHover({ index: i, isLeftHalf });
             } : undefined}
-            onMouseLeave={interactive ? () => setHover(null) : undefined}
+            onMouseLeave={interactive && !isMobile ? () => setHover(null) : undefined}
           >
             {/* Ghost fill (hover preview) */}
             {ghostFill && ghostFill !== 'empty' && (
@@ -116,7 +128,7 @@ const StarRating = ({
             )}
             {/* Actual fill */}
             {fillState === 'half' ? (
-              <span className={`relative flex items-center ${size}`}> 
+              <span className={`relative flex items-center ${size}`}>
                 {/* Background empty star */}
                 <Star className={`${size} text-slate-600`} style={{ position: 'absolute', left: 0, top: 0 }} />
                 {/* Clipped filled half */}
@@ -126,11 +138,10 @@ const StarRating = ({
               </span>
             ) : (
               <Star
-                className={`${size} ${
-                  fillState === 'full'
+                className={`${size} ${fillState === 'full'
                     ? 'text-yellow-400 fill-yellow-400'
                     : 'text-slate-600'
-                }`}
+                  }`}
               />
             )}
           </button>

@@ -19,11 +19,11 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
   useEffect(() => {
     // Only apply focus prevention on mobile devices where keyboard popup is an issue
     const isMobile = window.innerWidth < 768; // Tailwind's md breakpoint
-    
+
     if (!isMobile) return;
-    
+
     let cleanupFunctions = [];
-    
+
     // Prevent focus on all inputs within this form for the first 100ms
     if (formRef.current) {
       const inputs = formRef.current.querySelectorAll('input, textarea');
@@ -34,19 +34,19 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
           e.target.blur();
         }
       };
-      
+
       inputs.forEach(input => {
         input.addEventListener('focus', preventFocus, { capture: true, once: true });
         cleanupFunctions.push(() => input.removeEventListener('focus', preventFocus, { capture: true }));
       });
     }
-    
+
     // Remove the focus prevention after 100ms
     const timer = setTimeout(() => {
       cleanupFunctions.forEach(cleanup => cleanup());
       cleanupFunctions = [];
     }, 100);
-    
+
     return () => {
       clearTimeout(timer);
       cleanupFunctions.forEach(cleanup => cleanup());
@@ -55,7 +55,7 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
 
   const handleTypeChange = (newType) => {
     if (fromSearch) return;
-    
+
     // Update type and set appropriate default status
     const newStatus = newType === 'book' ? STATUS_TYPES.BOOK.TO_READ : STATUS_TYPES.MOVIE.TO_WATCH;
     onChange({ ...item, type: newType, status: newStatus });
@@ -94,13 +94,12 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
               key={type}
               onClick={() => handleTypeChange(type)}
               disabled={fromSearch}
-              className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${
-                item.type === type
+              className={`flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg transition capitalize min-h-[44px] ${item.type === type
                   ? ''
                   : fromSearch
-                  ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
+                    ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
               style={item.type === type ? { backgroundColor: 'var(--mt-highlight)', color: 'white' } : {}}
             >
               {type}
@@ -121,12 +120,11 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
               <button
                 key={status}
                 onClick={() => onChange({ ...item, status })}
-                className={`px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] border-2 ${
-                  isSelected
+                className={`px-4 py-3 sm:py-2 rounded-lg transition min-h-[44px] border-2 ${isSelected
                     ? 'text-white font-medium border-transparent'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-transparent hover:border-slate-500'
-                }`}
-                style={isSelected ? { 
+                  }`}
+                style={isSelected ? {
                   backgroundColor: getStatusColor(status),
                   borderColor: getStatusColor(status)
                 } : {}}
@@ -328,7 +326,7 @@ const EditForm = ({ item, onChange, fromSearch = false, allTags = [] }) => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Review / Notes</label>
+        <label className="block text-sm font-medium mb-2">Review</label>
         <textarea
           value={item.review || ''}
           onChange={(e) => onChange({ ...item, review: e.target.value })}

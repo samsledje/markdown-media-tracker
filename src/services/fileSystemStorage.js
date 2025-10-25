@@ -15,9 +15,9 @@ export class FileSystemStorage extends StorageAdapter {
 
   static isSupported() {
     // Check if File System Access API is supported
-    return typeof window !== 'undefined' && 
-           'showDirectoryPicker' in window && 
-           'FileSystemDirectoryHandle' in window;
+    return typeof window !== 'undefined' &&
+      'showDirectoryPicker' in window &&
+      'FileSystemDirectoryHandle' in window;
   }
 
   getStorageType() {
@@ -46,10 +46,10 @@ export class FileSystemStorage extends StorageAdapter {
       console.log('Opening directory picker...');
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       console.log('Directory selected:', handle.name);
-      
+
       this.directoryHandle = handle;
       this.trashHandle = null; // Reset trash handle, will be created when needed
-      
+
       // Store handle in IndexedDB for persistence
       try {
         await fileSystemCache.storeDirectoryHandle(handle);
@@ -60,7 +60,7 @@ export class FileSystemStorage extends StorageAdapter {
         console.error('[FileSystem] Failed to persist connection:', cacheError);
         // Continue anyway - connection works even if persistence fails
       }
-      
+
       return {
         handle: handle,
         name: handle.name
@@ -74,12 +74,51 @@ export class FileSystemStorage extends StorageAdapter {
     }
   }
 
-  // ...existing code...
+  /**
+   * Attempt to reconnect to previously selected directory without user interaction
+   * This tries to restore the stored handle and verify permissions are still valid
+   * @returns {Promise<void>}
+   */
+  async tryReconnect() {
+    console.log('Attempting to restore File System connection...');
+
+    try {
+      // Try to get the stored handle from IndexedDB
+      const storedHandle = await fileSystemCache.getDirectoryHandle();
+
+      if (!storedHandle) {
+        throw new Error('No stored directory handle found');
+      }
+
+      // Verify the handle is still valid and permissions are granted
+      const hasPermission = await fileSystemCache.verifyHandlePermission(storedHandle, false);
+
+      if (!hasPermission) {
+        throw new Error('Stored directory permissions have been revoked');
+      }
+
+      // Set the handle and verify it works
+      this.directoryHandle = storedHandle;
+      this.trashHandle = null; // Will be created when needed
+
+      console.log('Successfully reconnected to File System directory:', storedHandle.name);
+
+    } catch (error) {
+      console.log('File System reconnection failed:', error.message);
+
+      // Clear invalid stored data
+      await fileSystemCache.clearDirectoryHandle();
+      localStorage.removeItem('fileSystemConnected');
+      localStorage.removeItem('fileSystemDirectoryName');
+
+      throw error;
+    }
+  }
 
   async disconnect() {
     this.directoryHandle = null;
     this.trashHandle = null;
-    
+
     // Clear persisted connection
     try {
       await fileSystemCache.clearDirectoryHandle();
@@ -98,15 +137,15 @@ export class FileSystemStorage extends StorageAdapter {
 
     console.log('Loading items from directory...');
     const loadedItems = [];
-    
+
     try {
       for await (const entry of this.directoryHandle.values()) {
         if (entry.kind === 'file' && entry.name.endsWith('.md')) {
           try {
             const file = await entry.getFile();
-            const content = await file.text(); 
+            const content = await file.text();
             const { metadata, body } = parseMarkdown(content);
-            
+
             loadedItems.push({
               id: entry.name.replace('.md', ''),
               filename: entry.name,
@@ -132,8 +171,8 @@ export class FileSystemStorage extends StorageAdapter {
           }
         }
       }
-      
-      return loadedItems.sort((a, b) => 
+
+      return loadedItems.sort((a, b) =>
         new Date(b.dateAdded) - new Date(a.dateAdded)
       );
     } catch (err) {
@@ -249,7 +288,7 @@ export class FileSystemStorage extends StorageAdapter {
       const trashDir = await this._getOrCreateTrashDir();
       const srcHandle = await this.directoryHandle.getFileHandle(item.filename);
       const file = await srcHandle.getFile();
-      
+
       let trashName = item.filename;
       // if file exists in trash, append timestamp
       try {

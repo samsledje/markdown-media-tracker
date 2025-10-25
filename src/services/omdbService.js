@@ -1,5 +1,6 @@
 // OMDb API service for movie searches
 import { getConfig, hasApiKey } from '../config.js';
+import { generateFuzzyAlternatives, shouldTryFuzzySearch } from '../utils/fuzzySearchUtils.js';
 
 const OMDB_BASE_URL = 'https://www.omdbapi.com';
 
@@ -39,90 +40,38 @@ export const searchMovies = async (query, limit = 12) => {
     throw new Error('API_KEY_MISSING');
   }
 
+  const trimmedQuery = query.trim();
+
   try {
-    const response = await fetch(
-      `${OMDB_BASE_URL}/?s=${encodeURIComponent(query)}&apikey=${apiKey}`
-    );
+    // Try the original search first
+    const movies = await performMovieSearch(trimmedQuery, limit, apiKey);
 
-    // Check for HTTP errors
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new OMDBError(
-          'OMDb API authentication failed. Your API key may be invalid or expired.',
-          'AUTH_FAILED',
-          401
-        );
-      } else if (response.status === 429) {
-        throw new OMDBError(
-          'OMDb API rate limit exceeded. Please try again later.',
-          'RATE_LIMIT',
-          429
-        );
-      }
-      throw new OMDBError(
-        `OMDb API error: ${response.status}`,
-        'NETWORK',
-        response.status
-      );
+    // If we got results or this was already a fuzzy attempt, return them
+    if (!shouldTryFuzzySearch(movies, 1)) {
+      return movies;
     }
 
-    const data = await response.json();
-    
-    if (data.Response === 'False') {
-      if (data.Error === 'Invalid API key!') {
-        throw new OMDBError(
-          'Invalid OMDb API key. Please check your API key in settings.',
-          'INVALID_KEY'
-        );
-      } else if (data.Error && data.Error.toLowerCase().includes('limit')) {
-        throw new OMDBError(
-          'OMDb API daily limit reached. You can continue importing without movie data enrichment.',
-          'QUOTA_EXCEEDED'
-        );
-      } else {
-        return [];
-      }
-    }
+    // Try fuzzy alternatives
+    console.debug('[OMDb] No results for exact search, trying fuzzy alternatives');
+    const alternatives = generateFuzzyAlternatives(trimmedQuery, 2);
 
-    // Get detailed information for each movie
-    const detailedMovies = await Promise.all(
-      data.Search.slice(0, limit).map(async (movie) => {
-        try {
-          const detailResponse = await fetch(
-            `${OMDB_BASE_URL}/?i=${movie.imdbID}&apikey=${apiKey}`
-          );
-          
-          if (!detailResponse.ok) {
-            console.warn(`Failed to get details for ${movie.Title}`);
-            return null;
-          }
-          
-          const details = await detailResponse.json();
-          
-          // Extract and process actors - OMDb typically returns 3-4 main cast members
-          let actors = [];
-          if (details.Actors && details.Actors !== 'N/A') {
-            actors = details.Actors.split(', ').map(actor => actor.trim()).filter(actor => actor);
-          }
-          
-          return {
-            title: details.Title,
-            director: details.Director !== 'N/A' ? details.Director : '',
-            actors: actors,
-            year: details.Year,
-            coverUrl: details.Poster !== 'N/A' ? details.Poster : null,
-            type: 'movie',
-            rating: details.imdbRating !== 'N/A' ? Math.round(parseFloat(details.imdbRating) / 2) : 0
-          };
-        } catch (error) {
-          console.warn(`Error getting details for ${movie.Title}:`, error);
-          return null;
+    for (const alternative of alternatives) {
+      console.debug(`[OMDb] Trying fuzzy alternative: "${alternative}"`);
+      try {
+        const fuzzyMovies = await performMovieSearch(alternative, limit, apiKey);
+        if (fuzzyMovies.length > 0) {
+          console.debug(`[OMDb] Found ${fuzzyMovies.length} results with fuzzy search: "${alternative}"`);
+          // Mark these results as coming from fuzzy search
+          return fuzzyMovies.map(movie => ({ ...movie, _fuzzySearch: true, _originalQuery: trimmedQuery }));
         }
-      })
-    );
-    
-    // Filter out failed requests
-    return detailedMovies.filter(movie => movie !== null);
+      } catch (error) {
+        // Continue to next alternative if this one fails
+        console.debug(`[OMDb] Fuzzy alternative "${alternative}" failed:`, error.message);
+      }
+    }
+
+    // Return empty array if no fuzzy alternatives worked
+    return movies;
   } catch (error) {
     console.error('Error searching movies:', error);
     throw error;
@@ -130,6 +79,97 @@ export const searchMovies = async (query, limit = 12) => {
 };
 
 /**
+ * Internal function to perform the actual movie search
+ * @param {string} query - Search query
+ * @param {number} limit - Maximum number of results
+ * @param {string} apiKey - OMDb API key
+ * @returns {Promise<object[]>} Array of movie objects
+ */
+const performMovieSearch = async (query, limit, apiKey) => {
+  const response = await fetch(
+    `${OMDB_BASE_URL}/?s=${encodeURIComponent(query)}&apikey=${apiKey}`
+  );
+
+  // Check for HTTP errors
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new OMDBError(
+        'OMDb API authentication failed. Your API key may be invalid or expired.',
+        'AUTH_FAILED',
+        401
+      );
+    } else if (response.status === 429) {
+      throw new OMDBError(
+        'OMDb API rate limit exceeded. Please try again later.',
+        'RATE_LIMIT',
+        429
+      );
+    }
+    throw new OMDBError(
+      `OMDb API error: ${response.status}`,
+      'NETWORK',
+      response.status
+    );
+  }
+
+  const data = await response.json();
+
+  if (data.Response === 'False') {
+    if (data.Error === 'Invalid API key!') {
+      throw new OMDBError(
+        'Invalid OMDb API key. Please check your API key in settings.',
+        'INVALID_KEY'
+      );
+    } else if (data.Error && data.Error.toLowerCase().includes('limit')) {
+      throw new OMDBError(
+        'OMDb API daily limit reached. You can continue importing without movie data enrichment.',
+        'QUOTA_EXCEEDED'
+      );
+    } else {
+      return [];
+    }
+  }
+
+  // Get detailed information for each movie
+  const detailedMovies = await Promise.all(
+    data.Search.slice(0, limit).map(async (movie) => {
+      try {
+        const detailResponse = await fetch(
+          `${OMDB_BASE_URL}/?i=${movie.imdbID}&apikey=${apiKey}`
+        );
+
+        if (!detailResponse.ok) {
+          console.warn(`Failed to get details for ${movie.Title}`);
+          return null;
+        }
+
+        const details = await detailResponse.json();
+
+        // Extract and process actors - OMDb typically returns 3-4 main cast members
+        let actors = [];
+        if (details.Actors && details.Actors !== 'N/A') {
+          actors = details.Actors.split(', ').map(actor => actor.trim()).filter(actor => actor);
+        }
+
+        return {
+          title: details.Title,
+          director: details.Director !== 'N/A' ? details.Director : '',
+          actors: actors,
+          year: details.Year,
+          coverUrl: details.Poster !== 'N/A' ? details.Poster : null,
+          type: 'movie',
+          rating: details.imdbRating !== 'N/A' ? Math.round(parseFloat(details.imdbRating) / 2) : 0
+        };
+      } catch (error) {
+        console.warn(`Error getting details for ${movie.Title}:`, error);
+        return null;
+      }
+    })
+  );
+
+  // Filter out failed requests
+  return detailedMovies.filter(movie => movie !== null);
+};/**
  * Get a single movie by title and optional year using OMDb API
  * @param {string} title - Movie title
  * @param {string|number} year - Optional year to narrow search
@@ -144,9 +184,8 @@ export const getMovieByTitleYear = async (title, year = null) => {
   }
 
   try {
-    const q = `${title}${year ? `&y=${encodeURIComponent(String(year))}` : ''}`;
     const response = await fetch(`${OMDB_BASE_URL}/?t=${encodeURIComponent(title)}${year ? `&y=${encodeURIComponent(String(year))}` : ''}&apikey=${apiKey}`);
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         throw new OMDBError(
@@ -167,9 +206,9 @@ export const getMovieByTitleYear = async (title, year = null) => {
         response.status
       );
     }
-    
+
     const data = await response.json();
-    
+
     if (data.Response === 'False') {
       if (data.Error === 'Invalid API key!') {
         throw new OMDBError(
@@ -209,12 +248,12 @@ export const getMovieByTitleYear = async (title, year = null) => {
 export const validateApiKey = async (apiKey = null) => {
   const keyToTest = apiKey || getApiKey();
   if (!keyToTest) return false;
-  
+
   try {
     const response = await fetch(`${OMDB_BASE_URL}/?t=test&apikey=${keyToTest}`);
     const data = await response.json();
     return data.Response !== 'False' || data.Error !== 'Invalid API key!';
-  } catch (error) {
+  } catch {
     return false;
   }
 };

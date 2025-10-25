@@ -2,6 +2,7 @@
 
 const OPEN_LIBRARY_BASE_URL = 'https://openlibrary.org';
 const COVERS_BASE_URL = 'https://covers.openlibrary.org';
+import { generateFuzzyAlternatives, shouldTryFuzzySearch } from '../utils/fuzzySearchUtils.js';
 
 /**
  * Custom error class for Open Library API errors
@@ -19,6 +20,7 @@ export class OpenLibraryError extends Error {
  * Search for books using Open Library API
  * Note: This function requests edition data to get ISBN information from the most relevant edition.
  * It prefers ISBN-13 over ISBN-10 when both are available.
+ * Includes fuzzy search fallback for misspelled queries.
  * @param {string} query - Search query
  * @param {number} limit - Maximum number of results (default: 12)
  * @returns {Promise<object[]>} Array of book objects
@@ -28,54 +30,37 @@ export const searchBooks = async (query, limit = 12) => {
     throw new Error('Query cannot be empty');
   }
 
-  try {
-    // Request edition ISBN data along with work data
-    const response = await fetch(
-      `${OPEN_LIBRARY_BASE_URL}/search.json?q=${encodeURIComponent(query)}&fields=key,title,author_name,first_publish_year,cover_i,editions,editions.isbn&limit=${limit}`
-    );
+  const trimmedQuery = query.trim();
 
-    if (!response.ok) {
-      if (response.status >= 500) {
-        throw new OpenLibraryError(
-          'Open Library service is temporarily unavailable. Please try again later.',
-          'SERVICE_DOWN',
-          response.status
-        );
-      }
-      throw new OpenLibraryError(
-        `Open Library error: ${response.status}`,
-        'NETWORK',
-        response.status
-      );
+  try {
+    // Try the original search first
+    const books = await performBookSearch(trimmedQuery, limit);
+
+    // If we got results or this was already a fuzzy attempt, return them
+    if (!shouldTryFuzzySearch(books, 1)) {
+      return books;
     }
 
-    const data = await response.json();
-    
-    const books = data.docs.slice(0, limit).map(book => {
-      // Get the best ISBN from the most relevant edition
-      let isbn = null;
-      if (book.editions && book.editions.docs && book.editions.docs.length > 0) {
-        const firstEdition = book.editions.docs[0];
-        if (firstEdition.isbn && firstEdition.isbn.length > 0) {
-          // Prefer ISBN-13 (13 characters) over ISBN-10 (10 characters)
-          const isbn13 = firstEdition.isbn.find(isbn => isbn.length === 13);
-          const isbn10 = firstEdition.isbn.find(isbn => isbn.length === 10);
-          isbn = isbn13 || isbn10 || firstEdition.isbn[0];
-        }
-      }
+    // Try fuzzy alternatives
+    console.debug('[OpenLibrary] No results for exact search, trying fuzzy alternatives');
+    const alternatives = generateFuzzyAlternatives(trimmedQuery, 2);
 
-      return {
-        title: book.title || 'Unknown Title',
-        author: book.author_name?.[0] || 'Unknown Author',
-        year: book.first_publish_year,
-        isbn: isbn,
-        coverUrl: book.cover_i 
-          ? `${COVERS_BASE_URL}/b/id/${book.cover_i}-M.jpg`
-          : null,
-        type: 'book'
-      };
-    });
-    
+    for (const alternative of alternatives) {
+      console.debug(`[OpenLibrary] Trying fuzzy alternative: "${alternative}"`);
+      try {
+        const fuzzyBooks = await performBookSearch(alternative, limit);
+        if (fuzzyBooks.length > 0) {
+          console.debug(`[OpenLibrary] Found ${fuzzyBooks.length} results with fuzzy search: "${alternative}"`);
+          // Mark these results as coming from fuzzy search
+          return fuzzyBooks.map(book => ({ ...book, _fuzzySearch: true, _originalQuery: trimmedQuery }));
+        }
+      } catch (error) {
+        // Continue to next alternative if this one fails
+        console.debug(`[OpenLibrary] Fuzzy alternative "${alternative}" failed:`, error.message);
+      }
+    }
+
+    // Return empty array if no fuzzy alternatives worked
     return books;
   } catch (error) {
     console.error('Error searching books:', error);
@@ -98,6 +83,61 @@ export const searchBooks = async (query, limit = 12) => {
 };
 
 /**
+ * Internal function to perform the actual book search
+ * @param {string} query - Search query
+ * @param {number} limit - Maximum number of results
+ * @returns {Promise<object[]>} Array of book objects
+ */
+const performBookSearch = async (query, limit) => {
+  // Request edition ISBN data along with work data
+  const response = await fetch(
+    `${OPEN_LIBRARY_BASE_URL}/search.json?q=${encodeURIComponent(query)}&fields=key,title,author_name,first_publish_year,cover_i,editions,editions.isbn&limit=${limit}`
+  );
+
+  if (!response.ok) {
+    if (response.status >= 500) {
+      throw new OpenLibraryError(
+        'Open Library service is temporarily unavailable. Please try again later.',
+        'SERVICE_DOWN',
+        response.status
+      );
+    }
+    throw new OpenLibraryError(
+      `Open Library error: ${response.status}`,
+      'NETWORK',
+      response.status
+    );
+  }
+
+  const data = await response.json();
+
+  const books = data.docs.slice(0, limit).map(book => {
+    // Get the best ISBN from the most relevant edition
+    let isbn = null;
+    if (book.editions && book.editions.docs && book.editions.docs.length > 0) {
+      const firstEdition = book.editions.docs[0];
+      if (firstEdition.isbn && firstEdition.isbn.length > 0) {
+        // Prefer ISBN-13 (13 characters) over ISBN-10 (10 characters)
+        const isbn13 = firstEdition.isbn.find(isbn => isbn.length === 13);
+        const isbn10 = firstEdition.isbn.find(isbn => isbn.length === 10);
+        isbn = isbn13 || isbn10 || firstEdition.isbn[0];
+      }
+    }
+
+    return {
+      title: book.title || 'Unknown Title',
+      author: book.author_name?.[0] || 'Unknown Author',
+      year: book.first_publish_year,
+      isbn: isbn,
+      coverUrl: book.cover_i
+        ? `${COVERS_BASE_URL}/b/id/${book.cover_i}-M.jpg`
+        : null,
+      type: 'book'
+    };
+  });
+
+  return books;
+};/**
  * Fetch book data by ISBN using Open Library API
  * Returns null if not found or on error
  * @param {string} isbn
@@ -110,20 +150,20 @@ export const getBookByISBN = async (isbn) => {
   const normalized = String(isbn).replace(/[^0-9Xx]/g, '').toUpperCase();
 
   try {
-  // Try the ISBN endpoint first
-  const isbnUrl = `${OPEN_LIBRARY_BASE_URL}/isbn/${encodeURIComponent(normalized)}.json`;
-  console.debug('[OpenLibrary] fetching ISBN URL:', isbnUrl);
-  let resp;
+    // Try the ISBN endpoint first
+    const isbnUrl = `${OPEN_LIBRARY_BASE_URL}/isbn/${encodeURIComponent(normalized)}.json`;
+    console.debug('[OpenLibrary] fetching ISBN URL:', isbnUrl);
+    let resp;
     try {
       resp = await fetch(isbnUrl);
-    } catch (fetchError) {
+    } catch {
       // Network error on first fetch - throw immediately to avoid multiple prompts
       throw new OpenLibraryError(
         'Unable to connect to Open Library. Please check your internet connection.',
         'NETWORK'
       );
     }
-    
+
     let data = null;
     if (resp.ok) {
       data = await resp.json();
@@ -138,18 +178,18 @@ export const getBookByISBN = async (isbn) => {
     } else if (resp.status === 404) {
       // Fallback: use the search endpoint which can sometimes find editions by ISBN
       try {
-  const searchUrl = `${OPEN_LIBRARY_BASE_URL}/search.json?isbn=${encodeURIComponent(normalized)}&limit=1`;
-  console.debug('[OpenLibrary] fetching search fallback URL:', searchUrl);
-  let sresp;
+        const searchUrl = `${OPEN_LIBRARY_BASE_URL}/search.json?isbn=${encodeURIComponent(normalized)}&limit=1`;
+        console.debug('[OpenLibrary] fetching search fallback URL:', searchUrl);
+        let sresp;
         try {
           sresp = await fetch(searchUrl);
-        } catch (fetchError) {
+        } catch {
           // Network error - already handled above, just return null for 404 fallback
           return null;
         }
         if (sresp.ok) {
           const sdata = await sresp.json();
-          console.debug('[OpenLibrary] search.json fallback for ISBN', normalized, 'response.docs:', sdata.docs && sdata.docs.slice(0,1));
+          console.debug('[OpenLibrary] search.json fallback for ISBN', normalized, 'response.docs:', sdata.docs && sdata.docs.slice(0, 1));
           // sdata.docs may contain edition keys (edition_key) or work keys; prefer edition_key
           const doc = sdata.docs && sdata.docs[0];
           if (doc) {
@@ -168,7 +208,7 @@ export const getBookByISBN = async (isbn) => {
             }
           }
         }
-      } catch (err) {
+      } catch {
         // ignore fallback errors
       }
     } else {
@@ -189,7 +229,7 @@ export const getBookByISBN = async (isbn) => {
           const authorData = await authorResp.json();
           author = authorData.name || null;
         }
-      } catch (err) {
+      } catch {
         // fallback: leave author null
       }
     }
@@ -208,7 +248,7 @@ export const getBookByISBN = async (isbn) => {
             coverUrl = `${COVERS_BASE_URL}/b/id/${ed.covers[0]}-L.jpg`;
           }
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -225,7 +265,7 @@ export const getBookByISBN = async (isbn) => {
             console.debug('[OpenLibrary] obtained cover via search.json cover_i for ISBN', normalized, 'cover_i:', doc.cover_i);
           }
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -240,32 +280,13 @@ export const getBookByISBN = async (isbn) => {
     };
     console.debug('[OpenLibrary] returning normalized book data for ISBN', normalized, result);
     return result;
-  } catch (err) {
-    console.error('Error fetching book by ISBN', isbn, err);
-    
-    // If it's already an OpenLibraryError, re-throw it
-    if (err instanceof OpenLibraryError) {
-      throw err;
-    }
-    
+  } catch {
+    console.error('Error fetching book by ISBN', isbn);
+
     // For network errors during imports, we want to alert the user
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      throw new OpenLibraryError(
-        'Unable to connect to Open Library. Please check your internet connection.',
-        'NETWORK'
-      );
-    }
-    
-    // For 500+ errors, indicate service is down
-    if (err.statusCode && err.statusCode >= 500) {
-      throw new OpenLibraryError(
-        'Open Library service is temporarily unavailable. Please try again later.',
-        'SERVICE_DOWN',
-        err.statusCode
-      );
-    }
-    
-    // For other errors, just return null (book not found is okay)
-    return null;
+    throw new OpenLibraryError(
+      'Unable to connect to Open Library. Please check your internet connection.',
+      'NETWORK'
+    );
   }
 };

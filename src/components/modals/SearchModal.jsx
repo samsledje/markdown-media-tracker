@@ -295,39 +295,54 @@ const SearchModal = ({ onClose, onSelect }) => {
               <p className="mt-4 text-slate-400">Searching...</p>
             </div>
           ) : results.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {results.map((result, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleSelect(result)}
-                  className={`bg-slate-700/30 border rounded-lg p-3 transition cursor-pointer touch-manipulation ${focusedIndex === index
-                    ? 'border-blue-500 bg-blue-500/10'
-                    : 'border-slate-600 hover:border-blue-500'
-                    }`}
-                >
-                  {result.coverUrl && (
-                    <img
-                      src={result.coverUrl}
-                      alt={result.title}
-                      className="w-full h-40 sm:h-48 object-cover rounded mb-3"
-                    />
-                  )}
-                  <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-2 leading-mobile">{result.title}</h3>
-                  {result.author && (
-                    <p className="text-xs text-slate-400 truncate">{result.author}</p>
-                  )}
-                  {result.director && (
-                    <p className="text-xs text-slate-400 truncate">{result.director}</p>
-                  )}
-                  {result.year && (
-                    <p className="text-xs text-slate-500 mt-1">{result.year}</p>
-                  )}
+            <>
+              {results.some(result => result._fuzzySearch) && (
+                <div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                  <p className="text-sm text-blue-200">
+                    🔍 No exact matches found. Showing results for similar searches.
+                  </p>
                 </div>
-              ))}
-            </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                {results.map((result, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelect(result)}
+                    className={`bg-slate-700/30 border rounded-lg p-3 transition cursor-pointer touch-manipulation relative ${focusedIndex === index
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-slate-600 hover:border-blue-500'
+                      }`}
+                  >
+                    {result._fuzzySearch && (
+                      <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                        Similar
+                      </div>
+                    )}
+                    {result.coverUrl && (
+                      <img
+                        src={result.coverUrl}
+                        alt={result.title}
+                        className="w-full h-40 sm:h-48 object-cover rounded mb-3"
+                      />
+                    )}
+                    <h3 className="font-semibold text-sm sm:text-base mb-1 line-clamp-2 leading-mobile">{result.title}</h3>
+                    {result.author && (
+                      <p className="text-xs text-slate-400 truncate">{result.author}</p>
+                    )}
+                    {result.director && (
+                      <p className="text-xs text-slate-400 truncate">{result.director}</p>
+                    )}
+                    {result.year && (
+                      <p className="text-xs text-slate-500 mt-1">{result.year}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           ) : hasSearched && !loading && results.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <p>No results found for "{query}"</p>
+              <p className="text-sm mt-2">Try checking your spelling or using fewer words</p>
             </div>
           ) : (
             <div className="text-center py-12 text-slate-400">

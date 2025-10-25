@@ -13,9 +13,14 @@ export const useFilters = (items) => {
   const [sortBy, setSortBy] = useState(SORT_OPTIONS.DATE_CONSUMED);
   const [sortOrder, setSortOrder] = useState(SORT_ORDERS.DESC);
   const [filterRating, setFilterRating] = useState(0);
+  const [filterMaxRating, setFilterMaxRating] = useState(0);
+  const [filterHasReview, setFilterHasReview] = useState({ withReview: true, withoutReview: true });
+  const [filterHasCover, setFilterHasCover] = useState({ withCover: true, withoutCover: true });
   const [filterTags, setFilterTags] = useState([]);
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [filterRecent, setFilterRecent] = useState(RECENT_FILTER_OPTIONS.ANY);
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   // Get all available tags and statuses
@@ -28,21 +33,26 @@ export const useFilters = (items) => {
       searchTerm,
       filterType,
       filterRating,
+      filterMaxRating,
+      filterHasReview,
+      filterHasCover,
       filterTags,
       filterStatuses,
-      filterRecent
+      filterRecent,
+      filterStartDate,
+      filterEndDate
     };
 
     const filtered = filterItems(items, filters);
     return sortItems(filtered, sortBy, sortOrder);
-  }, [items, searchTerm, filterType, filterRating, filterTags, filterStatuses, filterRecent, sortBy, sortOrder]);
+  }, [items, searchTerm, filterType, filterRating, filterMaxRating, filterHasReview, filterHasCover, filterTags, filterStatuses, filterRecent, filterStartDate, filterEndDate, sortBy, sortOrder]);
 
   /**
    * Toggle a tag in the filter list
    */
   const toggleTagFilter = useCallback((tag) => {
-    setFilterTags(prev => 
-      prev.includes(tag) 
+    setFilterTags(prev =>
+      prev.includes(tag)
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
@@ -52,8 +62,8 @@ export const useFilters = (items) => {
    * Toggle a status in the filter list
    */
   const toggleStatusFilter = useCallback((status) => {
-    setFilterStatuses(prev => 
-      prev.includes(status) 
+    setFilterStatuses(prev =>
+      prev.includes(status)
         ? prev.filter(s => s !== status)
         : [...prev, status]
     );
@@ -66,9 +76,14 @@ export const useFilters = (items) => {
     setSearchTerm('');
     setFilterType(FILTER_TYPES.ALL);
     setFilterRating(0);
+    setFilterMaxRating(0);
+    setFilterHasReview({ withReview: true, withoutReview: true });
+    setFilterHasCover({ withCover: true, withoutCover: true });
     setFilterTags([]);
     setFilterStatuses([]);
     setFilterRecent(RECENT_FILTER_OPTIONS.ANY);
+    setFilterStartDate('');
+    setFilterEndDate('');
   }, []);
 
   /**
@@ -92,13 +107,21 @@ export const useFilters = (items) => {
    * Check if any filters are active
    */
   const hasActiveFilters = useMemo(() => {
+    const isReviewFilterActive = !(filterHasReview.withReview && filterHasReview.withoutReview);
+    const isCoverFilterActive = !(filterHasCover.withCover && filterHasCover.withoutCover);
+
     return searchTerm !== '' ||
-           filterType !== FILTER_TYPES.ALL ||
-           filterRating !== 0 ||
-           filterTags.length > 0 ||
-           filterStatuses.length > 0 ||
-           filterRecent !== RECENT_FILTER_OPTIONS.ANY;
-  }, [searchTerm, filterType, filterRating, filterTags, filterStatuses, filterRecent]);
+      filterType !== FILTER_TYPES.ALL ||
+      filterRating !== 0 ||
+      filterMaxRating !== 0 ||
+      isReviewFilterActive ||
+      isCoverFilterActive ||
+      filterTags.length > 0 ||
+      filterStatuses.length > 0 ||
+      filterRecent !== RECENT_FILTER_OPTIONS.ANY ||
+      filterStartDate !== '' ||
+      filterEndDate !== '';
+  }, [searchTerm, filterType, filterRating, filterMaxRating, filterHasReview, filterHasCover, filterTags, filterStatuses, filterRecent, filterStartDate, filterEndDate]);
 
   return {
     // Filter state
@@ -107,9 +130,14 @@ export const useFilters = (items) => {
     sortBy,
     sortOrder,
     filterRating,
+    filterMaxRating,
+    filterHasReview,
+    filterHasCover,
     filterTags,
     filterStatuses,
     filterRecent,
+    filterStartDate,
+    filterEndDate,
     showFilters,
     allTags,
     allStatuses,
@@ -124,9 +152,14 @@ export const useFilters = (items) => {
     setSortBy,
     setSortOrder,
     setFilterRating,
+    setFilterMaxRating,
+    setFilterHasReview,
+    setFilterHasCover,
     setFilterTags,
     setFilterStatuses,
     setFilterRecent,
+    setFilterStartDate,
+    setFilterEndDate,
     setShowFilters,
     toggleTagFilter,
     toggleStatusFilter,

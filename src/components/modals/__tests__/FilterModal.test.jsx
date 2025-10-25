@@ -8,12 +8,18 @@ describe('FilterModal', () => {
     const defaultProps = {
         showFilters: true,
         filterRating: 0,
+        filterMaxRating: 0,
+        filterHasReview: { withReview: true, withoutReview: true },
+        filterHasCover: { withCover: true, withoutCover: true },
         filterTags: [],
         filterStatuses: [],
         filterRecent: 'any',
         allTags: ['Fiction', 'Sci-Fi', 'Drama'],
         allStatuses: ['to-read', 'reading', 'read', 'to-watch', 'watching', 'watched'],
         setFilterRating: vi.fn(),
+        setFilterMaxRating: vi.fn(),
+        setFilterHasReview: vi.fn(),
+        setFilterHasCover: vi.fn(),
         setFilterRecent: vi.fn(),
         toggleTagFilter: vi.fn(),
         toggleStatusFilter: vi.fn(),
@@ -32,7 +38,7 @@ describe('FilterModal', () => {
         it('does not render when showFilters is false', () => {
             renderFilterModal({ showFilters: false });
             expect(screen.queryByText('Status')).not.toBeInTheDocument();
-            expect(screen.queryByText('Minimum rating')).not.toBeInTheDocument();
+            expect(screen.queryByText('Rating range')).not.toBeInTheDocument();
             expect(screen.queryByText('Recently read / watched')).not.toBeInTheDocument();
             expect(screen.queryByText('Tags')).not.toBeInTheDocument();
         });
@@ -40,7 +46,7 @@ describe('FilterModal', () => {
         it('renders filter interface when showFilters is true', () => {
             renderFilterModal();
             expect(screen.getByText('Status')).toBeInTheDocument();
-            expect(screen.getByText('Minimum rating')).toBeInTheDocument();
+            expect(screen.getByText('Rating range')).toBeInTheDocument();
             expect(screen.getByText('Recently read / watched')).toBeInTheDocument();
             expect(screen.getByText('Tags')).toBeInTheDocument();
         });
@@ -93,9 +99,10 @@ describe('FilterModal', () => {
     describe('Rating Filter', () => {
         it('renders rating buttons from 1 to 5 plus Any', () => {
             renderFilterModal();
-            // Find the rating section and get Any button within it
-            const ratingSection = screen.getByText('Minimum rating').parentElement;
-            const anyButton = ratingSection.querySelector('button');
+            // Find the minimum rating section (under "Min:" label)
+            const minLabel = screen.getByText('Min:');
+            const minSection = minLabel.parentElement;
+            const anyButton = minSection.querySelector('button');
             expect(anyButton).toHaveTextContent('Any');
 
             for (let i = 1; i <= 5; i++) {
@@ -106,8 +113,9 @@ describe('FilterModal', () => {
         it('applies active styling to selected rating', () => {
             renderFilterModal({ filterRating: 3 });
             const rating3Button = screen.getAllByTitle('Minimum 3 stars')[0];
-            const ratingSection = screen.getByText('Minimum rating').parentElement;
-            const anyButton = ratingSection.querySelector('button');
+            const minLabel = screen.getByText('Min:');
+            const minSection = minLabel.parentElement;
+            const anyButton = minSection.querySelector('button');
 
             expect(rating3Button).toHaveAttribute('style', expect.stringContaining('var(--mt-highlight)'));
             expect(anyButton).not.toHaveAttribute('style', expect.stringContaining('var(--mt-highlight)'));
@@ -125,8 +133,9 @@ describe('FilterModal', () => {
         it('calls setFilterRating with 0 when Any is clicked', async () => {
             const user = userEvent.setup();
             renderFilterModal({ filterRating: 3 });
-            const ratingSection = screen.getByText('Minimum rating').parentElement;
-            const anyButton = ratingSection.querySelector('button');
+            const minLabel = screen.getByText('Min:');
+            const minSection = minLabel.parentElement;
+            const anyButton = minSection.querySelector('button');
 
             await user.click(anyButton);
             expect(defaultProps.setFilterRating).toHaveBeenCalledWith(0);
@@ -141,14 +150,14 @@ describe('FilterModal', () => {
             const anyButton = recentSection.querySelector('button');
             expect(anyButton).toHaveTextContent('Any');
 
-            expect(screen.getByText('Last 7 days')).toBeInTheDocument();
-            expect(screen.getByText('Last 30 days')).toBeInTheDocument();
-            expect(screen.getByText('Last 90 days')).toBeInTheDocument();
+            expect(screen.getByText('7d')).toBeInTheDocument();
+            expect(screen.getByText('30d')).toBeInTheDocument();
+            expect(screen.getByText('90d')).toBeInTheDocument();
         });
 
         it('applies active styling to selected recent filter', () => {
             renderFilterModal({ filterRecent: 'last30' });
-            const last30Button = screen.getByText('Last 30 days');
+            const last30Button = screen.getByText('30d');
             const recentSection = screen.getByText('Recently read / watched').parentElement;
             const anyButton = recentSection.querySelector('button');
 
@@ -159,7 +168,7 @@ describe('FilterModal', () => {
         it('calls setFilterRecent when recent filter button is clicked', async () => {
             const user = userEvent.setup();
             renderFilterModal();
-            const last7Button = screen.getByText('Last 7 days');
+            const last7Button = screen.getByText('7d');
 
             await user.click(last7Button);
             expect(defaultProps.setFilterRecent).toHaveBeenCalledWith('last7');
@@ -241,6 +250,73 @@ describe('FilterModal', () => {
         });
     });
 
+    describe('Content Filters', () => {
+        it('renders review and cover checkboxes', () => {
+            renderFilterModal();
+            expect(screen.getByText('With review')).toBeInTheDocument();
+            expect(screen.getByText('Without review')).toBeInTheDocument();
+            expect(screen.getByText('With cover')).toBeInTheDocument();
+            expect(screen.getByText('Without cover')).toBeInTheDocument();
+        });
+
+        it('shows checkboxes as checked when filters are enabled', () => {
+            renderFilterModal({
+                filterHasReview: { withReview: true, withoutReview: false },
+                filterHasCover: { withCover: false, withoutCover: true }
+            });
+
+            const withReviewCheckbox = screen.getByLabelText('With review');
+            const withoutReviewCheckbox = screen.getByLabelText('Without review');
+            const withCoverCheckbox = screen.getByLabelText('With cover');
+            const withoutCoverCheckbox = screen.getByLabelText('Without cover');
+
+            expect(withReviewCheckbox).toBeChecked();
+            expect(withoutReviewCheckbox).not.toBeChecked();
+            expect(withCoverCheckbox).not.toBeChecked();
+            expect(withoutCoverCheckbox).toBeChecked();
+        });
+
+        it('calls setFilterHasReview when review checkboxes are changed', async () => {
+            const user = userEvent.setup();
+            renderFilterModal();
+
+            const withReviewCheckbox = screen.getByLabelText('With review');
+            const withoutReviewCheckbox = screen.getByLabelText('Without review');
+
+            await user.click(withReviewCheckbox);
+            expect(defaultProps.setFilterHasReview).toHaveBeenCalledWith({
+                withReview: false,
+                withoutReview: true
+            });
+
+            await user.click(withoutReviewCheckbox);
+            expect(defaultProps.setFilterHasReview).toHaveBeenCalledWith({
+                withReview: true,
+                withoutReview: false
+            });
+        });
+
+        it('calls setFilterHasCover when cover checkboxes are changed', async () => {
+            const user = userEvent.setup();
+            renderFilterModal();
+
+            const withCoverCheckbox = screen.getByLabelText('With cover');
+            const withoutCoverCheckbox = screen.getByLabelText('Without cover');
+
+            await user.click(withCoverCheckbox);
+            expect(defaultProps.setFilterHasCover).toHaveBeenCalledWith({
+                withCover: false,
+                withoutCover: true
+            });
+
+            await user.click(withoutCoverCheckbox);
+            expect(defaultProps.setFilterHasCover).toHaveBeenCalledWith({
+                withCover: true,
+                withoutCover: false
+            });
+        });
+    });
+
     describe('Styling and Layout', () => {
         it('applies correct CSS classes for layout', () => {
             renderFilterModal();
@@ -251,7 +327,7 @@ describe('FilterModal', () => {
         it('uses responsive grid layout', () => {
             renderFilterModal();
             const grid = screen.getByTestId('filter-modal').querySelector('.grid');
-            expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3');
+            expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2');
         });
     });
 });

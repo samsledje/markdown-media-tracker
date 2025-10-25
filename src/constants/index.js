@@ -2,7 +2,7 @@
 
 export const CARD_SIZES = {
   TINY: 'tiny',
-  SMALL: 'small', 
+  SMALL: 'small',
   MEDIUM: 'medium',
   LARGE: 'large',
   XLARGE: 'xlarge'
@@ -17,7 +17,7 @@ export const FILTER_TYPES = {
 export const STATUS_TYPES = {
   BOOK: {
     TO_READ: 'to-read',
-    READING: 'reading', 
+    READING: 'reading',
     READ: 'read',
     DNF: 'dnf'
   },
@@ -33,7 +33,7 @@ export const STATUS_LABELS = {
   'to-read': 'To Read',
   'reading': 'Reading',
   'read': 'Read',
-  'to-watch': 'To Watch', 
+  'to-watch': 'To Watch',
   'watching': 'Watching',
   'watched': 'Watched',
   'dnf': 'Did Not Finish'
@@ -51,7 +51,7 @@ export const STATUS_ICONS = {
 
 export const STATUS_COLORS = {
   'to-read': 'blue',
-  'reading': 'yellow', 
+  'reading': 'yellow',
   'read': 'green',
   'to-watch': 'blue',
   'watching': 'yellow',
@@ -78,7 +78,11 @@ export const RECENT_FILTER_OPTIONS = {
   ANY: 'any',
   LAST_7: 'last7',
   LAST_30: 'last30',
-  LAST_90: 'last90'
+  LAST_90: 'last90',
+  LAST_6_MONTHS: 'last6months',
+  LAST_YEAR: 'lastyear',
+  YEAR_TO_DATE: 'yeartodate',
+  CUSTOM_DATE_RANGE: 'customdaterange'
 };
 
 export const DEFAULT_THEME = {
@@ -117,7 +121,7 @@ export const KEYBOARD_SHORTCUTS = {
   ARROW_DOWN: 'ArrowDown',
   // Modal-specific shortcuts
   STATUS_TO_READ_WATCH: 'u',
-  STATUS_IN_PROGRESS: 'i', 
+  STATUS_IN_PROGRESS: 'i',
   STATUS_COMPLETED: 'o',
   STATUS_DNF: 'x',
   RATING_1: '1',
@@ -141,7 +145,7 @@ export const GRID_COLUMNS_BY_SIZE = {
 
 export const LOCAL_STORAGE_KEYS = {
   CARD_SIZE: 'cardSize',
-  THEME_PRIMARY: 'themePrimary', 
+  THEME_PRIMARY: 'themePrimary',
   THEME_HIGHLIGHT: 'themeHighlight',
   OMDB_API_KEY: 'omdbApiKey',
   HALF_STARS_ENABLED: 'halfStarsEnabled'

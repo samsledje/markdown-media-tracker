@@ -176,9 +176,14 @@ const MediaTracker = () => {
     sortBy,
     sortOrder,
     filterRating,
+    filterMaxRating,
+    filterHasReview,
+    filterHasCover,
     filterTags,
     filterStatuses,
     filterRecent,
+    filterStartDate,
+    filterEndDate,
     showFilters,
     allTags,
     allStatuses,
@@ -189,9 +194,14 @@ const MediaTracker = () => {
     setSortBy,
     setSortOrder,
     setFilterRating,
+    setFilterMaxRating,
+    setFilterHasReview,
+    setFilterHasCover,
     setFilterTags,
     setFilterStatuses,
     setFilterRecent,
+    setFilterStartDate,
+    setFilterEndDate,
     setShowFilters,
     toggleTagFilter,
     toggleStatusFilter,
@@ -1529,13 +1539,23 @@ const MediaTracker = () => {
           <FilterModal
             showFilters={showFilters}
             filterRating={filterRating}
+            filterMaxRating={filterMaxRating}
+            filterHasReview={filterHasReview}
+            filterHasCover={filterHasCover}
             filterTags={filterTags}
             filterStatuses={filterStatuses}
             filterRecent={filterRecent}
+            filterStartDate={filterStartDate}
+            filterEndDate={filterEndDate}
             allTags={allTags}
             allStatuses={allStatuses}
             setFilterRating={setFilterRating}
+            setFilterMaxRating={setFilterMaxRating}
+            setFilterHasReview={setFilterHasReview}
+            setFilterHasCover={setFilterHasCover}
             setFilterRecent={setFilterRecent}
+            setFilterStartDate={setFilterStartDate}
+            setFilterEndDate={setFilterEndDate}
             toggleTagFilter={toggleTagFilter}
             toggleStatusFilter={toggleStatusFilter}
             clearFilters={clearFilters}

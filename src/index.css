@@ -3,20 +3,23 @@
 @tailwind utilities;
 
 /* Global background and overscroll fixes to avoid white gaps when scrolling */
-html, body {
+html,
+body {
 	height: 100%;
 }
 
 /* Apply the same background as the app container to the page so overscroll doesn't reveal white.
 	 Put a solid background-color fallback on html for browsers that may show it during bounce. */
 html {
-	background-color: #0f172a; /* solid fallback to avoid white flash */
+	background-color: #0f172a;
+	/* solid fallback to avoid white flash */
 	background-image: linear-gradient(135deg, #0f172a 0%, #0b1220 50%, #0f172a 100%);
 	background-attachment: fixed;
 }
 
 body {
-	background: transparent; /* background provided by html to avoid double-paint issues */
+	background: transparent;
+	/* background provided by html to avoid double-paint issues */
 	color: #0f172a;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
@@ -35,25 +38,33 @@ body {
 /* Mobile responsive typography */
 @media (max-width: 640px) {
 	body {
-		font-size: 16px; /* Prevent zoom on iOS */
+		font-size: 16px;
+		/* Prevent zoom on iOS */
 		line-height: 1.6;
 	}
-	
+
 	/* Prevent horizontal scroll on small screens */
-	html, body {
+	html,
+	body {
 		overflow-x: hidden;
 	}
 }
 
 /* Touch-friendly targets - ensure minimum 44x44px */
 @media (max-width: 768px) {
-	button, input, select, textarea, [role="button"] {
+
+	button,
+	input,
+	select,
+	textarea,
+	[role="button"] {
 		min-height: 44px;
 	}
-	
+
 	/* Remove hover effects on touch devices */
 	@media (hover: none) {
-		button:hover, 
+
+		button:hover,
 		[role="button"]:hover,
 		.hover\:bg-slate-700:hover,
 		.hover\:bg-slate-600:hover,
@@ -61,6 +72,29 @@ body {
 		.hover\:border-purple-500:hover {
 			background-color: inherit;
 			border-color: inherit;
+		}
+	}
+
+	/* Fix mobile active state styling for filter buttons */
+	button,
+	[role="button"] {
+		-webkit-tap-highlight-color: transparent;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+		touch-action: manipulation;
+		outline: none;
+	}
+
+	/* Prevent mobile browsers from applying default active state styling */
+	@media (hover: none) {
+
+		button:active,
+		[role="button"]:active {
+			-webkit-tap-highlight-color: transparent !important;
+			outline: none !important;
+			box-shadow: none !important;
+			/* Don't change background or color - let React state control appearance */
 		}
 	}
 }
@@ -115,6 +149,7 @@ input[type="range"].slider::-moz-range-thumb:hover {
 		opacity: 0;
 		transform: translateY(10px);
 	}
+
 	to {
 		opacity: 1;
 		transform: translateY(0);
@@ -137,7 +172,8 @@ html {
 
 /* Custom markdown styling for review text */
 .prose-review {
-	color: #cbd5e1; /* slate-300 */
+	color: #cbd5e1;
+	/* slate-300 */
 }
 
 .prose-review h1,
@@ -146,17 +182,29 @@ html {
 .prose-review h4,
 .prose-review h5,
 .prose-review h6 {
-	color: #e2e8f0; /* slate-200 */
+	color: #e2e8f0;
+	/* slate-200 */
 	font-weight: 600;
 	margin-top: 1.5em;
 	margin-bottom: 0.5em;
 	line-height: 1.3;
 }
 
-.prose-review h1 { font-size: 1.5em; }
-.prose-review h2 { font-size: 1.3em; }
-.prose-review h3 { font-size: 1.15em; }
-.prose-review h4 { font-size: 1em; }
+.prose-review h1 {
+	font-size: 1.5em;
+}
+
+.prose-review h2 {
+	font-size: 1.3em;
+}
+
+.prose-review h3 {
+	font-size: 1.15em;
+}
+
+.prose-review h4 {
+	font-size: 1em;
+}
 
 .prose-review p {
 	margin-bottom: 1em;
@@ -164,30 +212,36 @@ html {
 }
 
 .prose-review a {
-	color: #818cf8; /* indigo-400 */
+	color: #818cf8;
+	/* indigo-400 */
 	text-decoration: underline;
 	text-decoration-color: rgba(129, 140, 248, 0.3);
 	transition: all 0.2s ease;
 }
 
 .prose-review a:hover {
-	color: #a5b4fc; /* indigo-300 */
+	color: #a5b4fc;
+	/* indigo-300 */
 	text-decoration-color: rgba(165, 180, 252, 0.5);
 }
 
 .prose-review strong {
-	color: #e2e8f0; /* slate-200 */
+	color: #e2e8f0;
+	/* slate-200 */
 	font-weight: 600;
 }
 
 .prose-review em {
 	font-style: italic;
-	color: #cbd5e1; /* slate-300 */
+	color: #cbd5e1;
+	/* slate-300 */
 }
 
 .prose-review code {
-	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
-	color: #f1f5f9; /* slate-100 */
+	background-color: rgba(51, 65, 85, 0.5);
+	/* slate-700 with opacity */
+	color: #f1f5f9;
+	/* slate-100 */
 	padding: 0.2em 0.4em;
 	border-radius: 0.25rem;
 	font-size: 0.9em;
@@ -195,7 +249,8 @@ html {
 }
 
 .prose-review pre {
-	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+	background-color: rgba(51, 65, 85, 0.5);
+	/* slate-700 with opacity */
 	padding: 1em;
 	border-radius: 0.5rem;
 	overflow-x: auto;
@@ -227,17 +282,20 @@ html {
 }
 
 .prose-review blockquote {
-	border-left: 3px solid rgba(129, 140, 248, 0.5); /* indigo-400 */
+	border-left: 3px solid rgba(129, 140, 248, 0.5);
+	/* indigo-400 */
 	padding-left: 1em;
 	margin-left: 0;
 	margin-bottom: 1em;
-	color: #94a3b8; /* slate-400 */
+	color: #94a3b8;
+	/* slate-400 */
 	font-style: italic;
 }
 
 .prose-review hr {
 	border: none;
-	border-top: 1px solid rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
+	border-top: 1px solid rgba(148, 163, 184, 0.2);
+	/* slate-400 with opacity */
 	margin: 1.5em 0;
 }
 
@@ -249,15 +307,18 @@ html {
 
 .prose-review th,
 .prose-review td {
-	border: 1px solid rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
+	border: 1px solid rgba(148, 163, 184, 0.2);
+	/* slate-400 with opacity */
 	padding: 0.5em;
 	text-align: left;
 }
 
 .prose-review th {
-	background-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+	background-color: rgba(51, 65, 85, 0.5);
+	/* slate-700 with opacity */
 	font-weight: 600;
-	color: #e2e8f0; /* slate-200 */
+	color: #e2e8f0;
+	/* slate-200 */
 }
 
 .prose-review img {

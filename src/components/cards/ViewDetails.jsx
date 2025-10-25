@@ -1,57 +1,13 @@
 import React from 'react';
-import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image, XCircle } from 'lucide-react';
+import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image, XCircle, ChevronDown } from 'lucide-react';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import StarRating from '../StarRating.jsx';
-import { useHalfStars } from '../../hooks/useHalfStars.js';
 import { renderMarkdown } from '../../utils/markdownUtils.js';
-
-/**
- * Get the icon component for a given status
- */
-const getStatusIcon = (status, className = '') => {
-  const iconType = STATUS_ICONS[status];
-  switch (iconType) {
-    case 'bookmark':
-      return <Bookmark className={className} />;
-    case 'layers':
-      return <Layers className={className} />;
-    case 'book-open':
-      return <BookOpen className={className} />;
-    case 'check-circle':
-      return <CheckCircle className={className} />;
-    case 'play-circle':
-      return <PlayCircle className={className} />;
-    case 'x-circle':
-      return <XCircle className={className} />;
-    default:
-      return <Bookmark className={className} />;
-  }
-};
-
-/**
- * Get color class for status badge
- */
-const getStatusColorClass = (status) => {
-  const colorType = STATUS_COLORS[status];
-  switch (colorType) {
-    case 'blue':
-      return 'bg-blue-500';
-    case 'yellow':
-      return 'bg-yellow-500';
-    case 'green':
-      return 'bg-green-500';
-    case 'red':
-      return 'bg-red-500';
-    default:
-      return 'bg-blue-500';
-  }
-};
 
 /**
  * Component for displaying item details in read-only view
  */
-const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false }) => {
-  const [halfStarsEnabled] = useHalfStars();
+const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false, onRatingChange = null, onStatusChange = null, currentStatus = null, getStatusColor = null, getStatusIcon = null, STATUS_LABELS = {}, halfStarsEnabled = false, showStatusMenu = false, onStatusMenuSelect = null, statusOptions = [] }) => {
   return (
     <div className="space-y-4">
       {item.coverUrl ? (
@@ -79,7 +35,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
           </div>
         </div>
       )}
-      
+
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0">
           {item.type === 'book' ? (
@@ -103,11 +59,65 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
           {item.director && (
             <div className="flex items-center gap-2 text-slate-300">
               <User className="w-4 h-4" />
-              <span>Directed by {item.director}</span>
+              <span>{item.director}</span>
             </div>
           )}
         </div>
       </div>
+
+      {/* Rating and Status section - prominently placed after basic info */}
+      {(onRatingChange || currentStatus) && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Rating section */}
+            {onRatingChange && (
+              <div className="flex-1 max-w-xs">
+                <StarRating
+                  rating={item.rating ? item.rating : undefined}
+                  onChange={onRatingChange}
+                  interactive={true}
+                  halfStarsEnabled={halfStarsEnabled}
+                  size="w-7 h-7 sm:w-8 sm:h-8"
+                />
+              </div>
+            )}
+
+            {/* Status section */}
+            {currentStatus && getStatusColor && getStatusIcon && STATUS_LABELS && (
+              <div className="flex-shrink-0 relative">
+                <button
+                  onClick={onStatusChange}
+                  className="flex items-center justify-center rounded-full text-white shadow-lg w-8 h-8 sm:w-10 sm:h-10 hover:opacity-80 transition-opacity"
+                  style={{ backgroundColor: getStatusColor(currentStatus) }}
+                  title="Quick change status"
+                >
+                  {getStatusIcon(currentStatus, 'w-4 h-4 sm:w-5 sm:h-5')}
+                  <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-slate-800 rounded-full p-0.5" />
+                </button>
+
+                {showStatusMenu && statusOptions && onStatusMenuSelect && (
+                  <div className="absolute right-0 bottom-full mb-1 sm:mb-2 w-48 sm:w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 sm:p-2 z-[200] pointer-events-auto max-w-[calc(100vw-2rem)]">
+                    {statusOptions.map(status => (
+                      <button
+                        key={status}
+                        onClick={() => onStatusMenuSelect(status)}
+                        className={`flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 rounded hover:bg-slate-700/50 ${currentStatus === status ? 'bg-slate-700/60' : ''}`}
+                      >
+                        <div className="flex items-center justify-center rounded-full p-1.5 sm:p-2 text-white flex-shrink-0" style={{ backgroundColor: getStatusColor(status) }}>
+                          {getStatusIcon(status, 'w-3 h-3 sm:w-4 sm:h-4')}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs sm:text-sm font-medium truncate">{STATUS_LABELS[status]}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {item.type === 'movie' && item.actors && item.actors.length > 0 && (
         <div>
@@ -160,7 +170,7 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
             rating={item.rating}
             interactive={false}
             halfStarsEnabled={halfStarsEnabled}
-            size="w-6 h-6"
+            size="w-7 h-7 sm:w-8 sm:h-8"
           />
         </div>
       )}
@@ -176,10 +186,10 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
               <span
                 key={i}
                 className="px-3 py-1 rounded-full text-sm"
-                style={{ 
-                  backgroundColor: hexToRgba(highlightColor, 0.12), 
-                  color: 'white', 
-                  border: `1px solid ${hexToRgba(highlightColor, 0.12)}` 
+                style={{
+                  backgroundColor: hexToRgba(highlightColor, 0.12),
+                  color: 'white',
+                  border: `1px solid ${hexToRgba(highlightColor, 0.12)}`
                 }}
               >
                 {tag}
@@ -191,8 +201,8 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
 
       {item.review && (
         <div>
-          <div className="text-sm font-medium text-slate-400 mb-2">Review / Notes</div>
-          <div 
+          <div className="text-sm font-medium text-slate-400 mb-2">Review</div>
+          <div
             className="bg-slate-700/30 rounded-lg p-4 prose-review"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(item.review) }}
           />

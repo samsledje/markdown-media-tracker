@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Save, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import EditForm from '../forms/EditForm.jsx';
 import ViewDetails from '../cards/ViewDetails.jsx';
@@ -20,7 +20,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFetchingCover, setIsFetchingCover] = useState(false);
   const [halfStarsEnabled] = useHalfStars();
-  
+
   // Ensure item has a status when creating editedItem
   const [editedItem, setEditedItem] = useState(() => {
     const defaultStatus = item.type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED;
@@ -29,24 +29,24 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       status: item.status || defaultStatus
     };
   });
-  
+
   const modalRef = useRef(null);
 
   // Update editedItem when item prop changes
   useEffect(() => {
     const defaultStatus = item.type === 'book' ? STATUS_TYPES.BOOK.READ : STATUS_TYPES.MOVIE.WATCHED;
     const finalStatus = item.status || defaultStatus;
-    
+
     setEditedItem({
       ...item,
       status: finalStatus
     });
   }, [item]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     onSave(editedItem);
     setIsEditing(false);
-  };
+  }, [onSave, editedItem]);
 
   const handleDelete = () => {
     setShowDeleteConfirm(true);
@@ -61,7 +61,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
     setShowDeleteConfirm(false);
   };
 
-  const handleQuickStatusChange = (newStatus) => {
+  const handleQuickStatusChange = useCallback((newStatus) => {
     // Save immediately and update local editedItem so UI updates
     const updated = { ...editedItem, status: newStatus };
     setEditedItem(updated);
@@ -72,9 +72,13 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       onSave(updated);
     }
     setShowStatusMenu(false);
-  };
+  }, [editedItem, onQuickSave, onSave]);
 
-  const handleQuickRatingChange = (newRating) => {
+  const handleStatusClick = useCallback(() => {
+    setShowStatusMenu(v => !v);
+  }, []);
+
+  const handleQuickRatingChange = useCallback((newRating) => {
     const updated = { ...editedItem, rating: newRating };
     setEditedItem(updated);
     // Persist change via onQuickSave if provided, otherwise use onSave
@@ -83,31 +87,31 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
     } else {
       onSave(updated);
     }
-  };
+  }, [editedItem, onQuickSave, onSave]);
 
   const handleFetchCover = async () => {
     setIsFetchingCover(true);
     try {
       const coverUrl = await fetchCoverForItem(editedItem);
-      
+
       if (coverUrl) {
         const updated = { ...editedItem, coverUrl };
         setEditedItem(updated);
-        
+
         // Persist the change
         if (typeof onQuickSave === 'function') {
           onQuickSave(updated);
         } else {
           onSave(updated);
         }
-        
+
         toast('Cover image found and added!', { type: 'success' });
       } else {
         toast('No cover image found. Try adding one manually.', { type: 'info' });
       }
     } catch (error) {
       console.error('Error fetching cover:', error);
-      
+
       // Handle specific error types
       if (error.message === 'API_KEY_MISSING') {
         toast('OMDb API key required for movie covers. Please configure in settings.', { type: 'error' });
@@ -147,7 +151,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
         onClose();
         return;
       }
-      
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         if (isEditing) {
           e.preventDefault();
@@ -164,7 +168,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       // Quick status changes (U/I/O)
       if (!isEditing) {
         const statusOptions = editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE);
-        
+
         if (e.key.toLowerCase() === KEYBOARD_SHORTCUTS.STATUS_TO_READ_WATCH) {
           e.preventDefault();
           handleQuickStatusChange(statusOptions[0]); // To Read/Watch
@@ -188,8 +192,8 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
       }
 
       // Quick rating changes (0-5)
-      if (!isEditing && [KEYBOARD_SHORTCUTS.RATING_CLEAR, KEYBOARD_SHORTCUTS.RATING_1, KEYBOARD_SHORTCUTS.RATING_2, 
-                         KEYBOARD_SHORTCUTS.RATING_3, KEYBOARD_SHORTCUTS.RATING_4, KEYBOARD_SHORTCUTS.RATING_5].includes(e.key)) {
+      if (!isEditing && [KEYBOARD_SHORTCUTS.RATING_CLEAR, KEYBOARD_SHORTCUTS.RATING_1, KEYBOARD_SHORTCUTS.RATING_2,
+      KEYBOARD_SHORTCUTS.RATING_3, KEYBOARD_SHORTCUTS.RATING_4, KEYBOARD_SHORTCUTS.RATING_5].includes(e.key)) {
         e.preventDefault();
         const rating = parseInt(e.key);
         handleQuickRatingChange(rating);
@@ -243,16 +247,16 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
 
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClickOutside);
-    
+
     return () => {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onClickOutside);
     };
-  }, [isEditing, editedItem, onClose, items, item, onNavigate]);
+  }, [isEditing, editedItem, onClose, items, item, onNavigate, handleQuickRatingChange, handleQuickStatusChange, handleSave, handleStatusClick]);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
-      <div 
+      <div
         ref={modalRef}
         className="bg-slate-800 border border-slate-700 rounded-lg w-full h-full sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto overflow-y-auto"
       >
@@ -299,77 +303,34 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
             </button>
           </div>
         </div>
-        
+
         <div className="p-4 sm:p-6 pb-6 relative">
           {isEditing ? (
             <EditForm item={editedItem} onChange={setEditedItem} allTags={allTags} />
           ) : (
             <div className="relative">
-              <ViewDetails 
-                item={editedItem} 
-                hexToRgba={hexToRgba} 
-                highlightColor={highlightColor} 
+              <ViewDetails
+                item={editedItem}
+                hexToRgba={hexToRgba}
+                highlightColor={highlightColor}
                 hideRating={true}
                 onFetchCover={handleFetchCover}
                 isFetchingCover={isFetchingCover}
-              />
-            </div>
-          )}
-
-          {/* Quick rating at bottom - only show when not editing */}
-          {!isEditing && (
-            <div className="mt-6">
-              <label className="block text-sm font-medium mb-2">Rating</label>
-              <StarRating
-                rating={editedItem.rating ? editedItem.rating : undefined}
-                onChange={handleQuickRatingChange}
-                interactive={true}
+                onRatingChange={handleQuickRatingChange}
+                onStatusChange={handleStatusClick}
+                currentStatus={editedItem.status}
+                getStatusColor={getStatusColor}
+                getStatusIcon={getIconForStatus}
+                STATUS_LABELS={STATUS_LABELS}
                 halfStarsEnabled={halfStarsEnabled}
-                size="w-8 h-8"
+                showStatusMenu={showStatusMenu}
+                onStatusMenuSelect={handleQuickStatusChange}
+                statusOptions={editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)}
               />
-            </div>
-          )}
-          
-          {/* Status switcher in bottom right corner - only show when not editing */}
-          {!isEditing && editedItem && editedItem.status && (
-            <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6">
-              <div className="relative flex items-center gap-2">
-                <div className="flex items-center justify-center rounded-full p-2 text-white shadow-lg w-10 h-10" style={{ backgroundColor: getStatusColor(editedItem.status) }} title={STATUS_LABELS[editedItem.status]}>
-                  {getIconForStatus(editedItem.status, 'w-5 h-5')}
-                </div>
-                <div className="relative z-[100]">
-                  <button
-                    onClick={() => setShowStatusMenu(v => !v)}
-                    className="p-2 rounded bg-slate-700/40 hover:bg-slate-700/60 shadow-lg"
-                    title="Quick change status"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-
-                  {showStatusMenu && (
-                    <div className="absolute right-0 bottom-full mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 z-[200] pointer-events-auto">
-                      {(editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)).map(status => (
-                        <button
-                          key={status}
-                          onClick={() => handleQuickStatusChange(status)}
-                          className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-700/50 ${editedItem.status === status ? 'bg-slate-700/60' : ''}`}
-                        >
-                          <div className="flex items-center justify-center rounded-full p-2 text-white" style={{ backgroundColor: getStatusColor(status) }}>
-                            {getIconForStatus(status, 'w-4 h-4')}
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">{STATUS_LABELS[status]}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </div>
-        
+
         {/* Delete Confirmation Dialog */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[300]">

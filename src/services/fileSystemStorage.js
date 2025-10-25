@@ -16,8 +16,8 @@ export class FileSystemStorage extends StorageAdapter {
   static isSupported() {
     // Check if File System Access API is supported
     return typeof window !== 'undefined' &&
-           'showDirectoryPicker' in window &&
-           'FileSystemDirectoryHandle' in window;
+      'showDirectoryPicker' in window &&
+      'FileSystemDirectoryHandle' in window;
   }
 
   getStorageType() {

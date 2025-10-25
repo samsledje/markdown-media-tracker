@@ -1389,6 +1389,16 @@ const MediaTracker = () => {
           <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 hover:text-slate-200 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
               <input
                 type="text"
                 placeholder="Search your library by title, author, director..."
@@ -1401,7 +1411,7 @@ const MediaTracker = () => {
                     setSearchTerm('');
                   }
                 }}
-                className="w-full pl-10 pr-4 py-3 sm:py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
+                className="w-full pl-10 pr-10 py-3 sm:py-2 bg-slate-700/50 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
             </div>
             <div className="flex gap-2 justify-center sm:justify-start">

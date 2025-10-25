@@ -28,6 +28,8 @@ import ItemCard from './components/cards/ItemCard.jsx';
 import { hexToRgba } from './utils/colorUtils.js';
 import { exportCSV } from './utils/csvUtils.js';
 import { OBSIDIAN_BASE_CONTENT, OBSIDIAN_BASE_FILENAME } from './services/obsidianBase.js';
+import { generateYearbookPDF } from './features/yearbook/YearbookGenerator.js';
+import { getCurrentFilteredItems } from './features/yearbook/filterStateReader.js';
 import { processImportFile } from './utils/importUtils.js';
 import { hasApiKey } from './config.js';
 import { toast } from './services/toastService.js';
@@ -95,7 +97,44 @@ const exportMovies = (items) => {
   exportCSV(movies);
 };
 
-const MediaTracker = () => {
+const exportYearbookPDF = async (filteredItems, highlightColor) => {
+  try {
+    console.log('Starting yearbook PDF generation with', filteredItems?.length || 0, 'items');
+    console.log('Sample item:', filteredItems?.[0]);
+
+    const options = {
+      accentColor: highlightColor,
+      userName: 'Media Tracker User',
+      coverTitle: 'My 2024 Media Yearbook',
+      dateRange: 'January - December 2024'
+    };
+
+    console.log('Generating PDF with options:', options);
+    const pdfBlob = await generateYearbookPDF(filteredItems, options);
+
+    console.log('PDF generated successfully, blob size:', pdfBlob.size);
+    if (pdfBlob.size === 0) {
+      throw new Error('Generated PDF blob is empty');
+    }
+
+    // Create download link
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `MediaTracker_Yearbook_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log('PDF download initiated');
+    toast('Yearbook PDF generated successfully!', { type: 'success' });
+  } catch (error) {
+    console.error('Error generating yearbook PDF:', error);
+    console.error('Error stack:', error.stack);
+    toast('Failed to generate yearbook PDF', { type: 'error' });
+  }
+}; const MediaTracker = () => {
   // Modal states
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -1224,6 +1263,31 @@ const MediaTracker = () => {
                   >
                     <Film className="w-3 h-3" />
                     Export Movies
+                  </button>
+                  <button
+                    onClick={() => {
+                      const filterState = {
+                        filteredAndSortedItems,
+                        hasActiveFilters,
+                        filterType,
+                        sortBy,
+                        sortOrder,
+                        filterRating,
+                        filterStartDate,
+                        filterEndDate,
+                        searchTerm
+                      };
+                      const filteredItems = getCurrentFilteredItems(filterState);
+                      console.log('Generating yearbook PDF with items:', filteredItems.items?.length || 0);
+                      console.log('Sample item coverUrl:', filteredItems.items?.[0]?.coverUrl);
+                      exportYearbookPDF(filteredItems.items, highlightColor);
+                      setMenuOpen(false);
+                      setExportSubmenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-white text-sm transition-colors"
+                  >
+                    <BookOpen className="w-3 h-3" />
+                    Generate Yearbook PDF
                   </button>
                 </div>
               )}

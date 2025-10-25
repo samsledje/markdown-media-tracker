@@ -326,6 +326,7 @@ const ItemDetailModal = ({ item, onClose, onSave, onDelete, onQuickSave, hexToRg
                 showStatusMenu={showStatusMenu}
                 onStatusMenuSelect={handleQuickStatusChange}
                 statusOptions={editedItem.type === 'book' ? Object.values(STATUS_TYPES.BOOK) : Object.values(STATUS_TYPES.MOVIE)}
+                onCloseStatusMenu={() => setShowStatusMenu(false)}
               />
             </div>
           )}

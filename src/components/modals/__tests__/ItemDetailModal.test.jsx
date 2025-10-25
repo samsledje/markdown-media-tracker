@@ -81,7 +81,7 @@ describe('ItemDetailModal', () => {
     it('should render status dropdown toggle', () => {
       render(<ItemDetailModal {...defaultProps} />);
 
-      const dropdown = screen.getByTitle('Quick change status');
+      const dropdown = screen.getByTitle('Change status');
       expect(dropdown).toBeInTheDocument();
     });
   });
@@ -235,7 +235,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} />);
 
-      const dropdown = screen.getByTitle('Quick change status');
+      const dropdown = screen.getByTitle('Change status');
       await user.click(dropdown);
 
       // Should show status options
@@ -248,7 +248,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} />);
 
-      await user.click(screen.getByTitle('Quick change status'));
+      await user.click(screen.getByTitle('Change status'));
       await user.click(screen.getByText('Reading'));
 
       // Menu should close
@@ -259,7 +259,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} />);
 
-      await user.click(screen.getByTitle('Quick change status'));
+      await user.click(screen.getByTitle('Change status'));
       await user.click(screen.getByText('Reading'));
 
       expect(mockOnQuickSave).toHaveBeenCalledWith(
@@ -273,7 +273,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} />);
 
-      await user.click(screen.getByTitle('Quick change status'));
+      await user.click(screen.getByTitle('Change status'));
 
       expect(screen.getByText('To Read')).toBeInTheDocument();
       expect(screen.getByText('Reading')).toBeInTheDocument();
@@ -284,7 +284,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} item={sampleMovie} />);
 
-      await user.click(screen.getByTitle('Quick change status'));
+      await user.click(screen.getByTitle('Change status'));
 
       expect(screen.getByText('To Watch')).toBeInTheDocument();
       expect(screen.getByText('Watching')).toBeInTheDocument();
@@ -295,7 +295,7 @@ describe('ItemDetailModal', () => {
       const user = userEvent.setup();
       render(<ItemDetailModal {...defaultProps} />);
 
-      await user.click(screen.getByTitle('Quick change status'));
+      await user.click(screen.getByTitle('Change status'));
 
       const readButton = screen.getByText('Read').closest('button');
       expect(readButton).toHaveClass('bg-slate-700/60');
@@ -727,7 +727,7 @@ describe('ItemDetailModal', () => {
       render(<ItemDetailModal {...defaultProps} item={itemWithoutStatus} />);
 
       // Should use default status (read for books)
-      expect(screen.getByTitle('Quick change status')).toBeInTheDocument();
+      expect(screen.getByTitle('Change status')).toBeInTheDocument();
     });
 
     it('should handle item without rating', () => {

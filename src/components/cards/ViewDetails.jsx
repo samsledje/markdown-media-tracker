@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Book, Film, Tag, Calendar, User, Hash, Bookmark, BookOpen, CheckCircle, PlayCircle, Layers, Image, XCircle, ChevronDown } from 'lucide-react';
 import { STATUS_LABELS, STATUS_ICONS, STATUS_COLORS } from '../../constants/index.js';
 import StarRating from '../StarRating.jsx';
@@ -7,7 +7,24 @@ import { renderMarkdown } from '../../utils/markdownUtils.js';
 /**
  * Component for displaying item details in read-only view
  */
-const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false, onRatingChange = null, onStatusChange = null, currentStatus = null, getStatusColor = null, getStatusIcon = null, STATUS_LABELS = {}, halfStarsEnabled = false, showStatusMenu = false, onStatusMenuSelect = null, statusOptions = [] }) => {
+const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFetchCover = null, isFetchingCover = false, onRatingChange = null, onStatusChange = null, currentStatus = null, getStatusColor = null, getStatusIcon = null, STATUS_LABELS = {}, halfStarsEnabled = false, showStatusMenu = false, onStatusMenuSelect = null, statusOptions = [], onCloseStatusMenu = null }) => {
+  const statusMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(event.target)) {
+        onCloseStatusMenu?.();
+      }
+    };
+
+    if (showStatusMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showStatusMenu, onCloseStatusMenu]);
   return (
     <div className="space-y-4">
       {item.coverUrl ? (
@@ -84,19 +101,34 @@ const ViewDetails = ({ item, hexToRgba, highlightColor, hideRating = false, onFe
 
             {/* Status section */}
             {currentStatus && getStatusColor && getStatusIcon && STATUS_LABELS && (
-              <div className="flex-shrink-0 relative">
-                <button
-                  onClick={onStatusChange}
-                  className="flex items-center justify-center rounded-full text-white shadow-lg w-8 h-8 sm:w-10 sm:h-10 hover:opacity-80 transition-opacity"
+              <div className="flex-shrink-0 relative flex items-center gap-1 sm:gap-2">
+                {/* Status indicator (not a button) */}
+                <div
+                  className="flex-none p-0 leading-none min-h-0 flex items-center justify-center rounded-full text-white shadow-lg w-8 h-8 sm:w-10 sm:h-10"
                   style={{ backgroundColor: getStatusColor(currentStatus) }}
-                  title="Quick change status"
+                  title={STATUS_LABELS[currentStatus]}
                 >
                   {getStatusIcon(currentStatus, 'w-4 h-4 sm:w-5 sm:h-5')}
-                  <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-slate-800 rounded-full p-0.5" />
-                </button>
+                </div>
 
+                {/* Chevron button to open menu */}
+                {onStatusChange && (
+                  <button
+                    type="button"
+                    onClick={onStatusChange}
+                    className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors border border-slate-700 ml-1"
+                    title="Change status"
+                  >
+                    <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
+                  </button>
+                )}
+
+                {/* Status menu */}
                 {showStatusMenu && statusOptions && onStatusMenuSelect && (
-                  <div className="absolute right-0 bottom-full mb-1 sm:mb-2 w-48 sm:w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 sm:p-2 z-[200] pointer-events-auto max-w-[calc(100vw-2rem)]">
+                  <div
+                    ref={statusMenuRef}
+                    className="absolute right-0 bottom-full mb-1 sm:mb-2 w-48 sm:w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 sm:p-2 z-[200] pointer-events-auto max-w-[calc(100vw-2rem)]"
+                  >
                     {statusOptions.map(status => (
                       <button
                         key={status}

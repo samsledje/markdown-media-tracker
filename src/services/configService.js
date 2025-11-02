@@ -108,3 +108,82 @@ export const saveHalfStarsEnabled = (enabled) => {
     console.warn('Error saving half stars setting:', error);
   }
 };
+
+// File-based configuration functions with localStorage fallback
+
+/**
+ * Load all settings, prioritizing file-based config over localStorage
+ * @param {StorageAdapter} storage - Storage adapter instance
+ * @returns {Promise<object>} All configuration settings
+ */
+export const loadAllSettings = async (storage) => {
+  // Load from localStorage as fallback
+  const localStorageConfig = {
+    themePrimary: loadThemeColors().primary,
+    themeHighlight: loadThemeColors().highlight,
+    cardSize: loadCardSize(),
+    halfStarsEnabled: loadHalfStarsEnabled(),
+    omdbApiKey: loadOmdbApiKey()
+  };
+
+  // If storage is not connected, return localStorage values
+  if (!storage || !storage.isConnected()) {
+    return localStorageConfig;
+  }
+
+  try {
+    // Load from file
+    const { loadConfigFromFile, mergeConfigs } = await import('./configFileService.js');
+    const fileConfig = await loadConfigFromFile(storage);
+    
+    // Merge configs (file takes priority)
+    return mergeConfigs(localStorageConfig, fileConfig);
+  } catch (error) {
+    console.warn('Error loading settings from file, using localStorage:', error);
+    return localStorageConfig;
+  }
+};
+
+/**
+ * Save all settings to both localStorage and file
+ * @param {StorageAdapter} storage - Storage adapter instance
+ * @param {object} settings - Settings object
+ * @returns {Promise<void>}
+ */
+export const saveAllSettings = async (storage, settings) => {
+  // Always save to localStorage as fallback
+  if (settings.themePrimary !== undefined && settings.themeHighlight !== undefined) {
+    saveThemeColors(settings.themePrimary, settings.themeHighlight);
+  }
+  if (settings.cardSize !== undefined) {
+    saveCardSize(settings.cardSize);
+  }
+  if (settings.halfStarsEnabled !== undefined) {
+    saveHalfStarsEnabled(settings.halfStarsEnabled);
+  }
+  if (settings.omdbApiKey !== undefined) {
+    saveOmdbApiKey(settings.omdbApiKey);
+  }
+
+  // Also save to file if storage is connected
+  if (storage && storage.isConnected()) {
+    try {
+      const { saveConfigToFile } = await import('./configFileService.js');
+      await saveConfigToFile(storage, settings);
+    } catch (error) {
+      console.warn('Error saving settings to file:', error);
+    }
+  }
+};
+
+/**
+ * Save a single setting to both localStorage and file
+ * @param {StorageAdapter} storage - Storage adapter instance
+ * @param {string} key - Setting key
+ * @param {any} value - Setting value
+ * @returns {Promise<void>}
+ */
+export const saveSetting = async (storage, key, value) => {
+  const settings = { [key]: value };
+  await saveAllSettings(storage, settings);
+};

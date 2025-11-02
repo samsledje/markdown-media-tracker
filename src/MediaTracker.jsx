@@ -229,11 +229,11 @@ const MediaTracker = () => {
     updatePrimaryColor,
     updateHighlightColor,
     updateCardSize
-  } = useTheme();
+  } = useTheme(storageAdapter);
 
-  const { omdbApiKey, updateApiKey } = useOmdbApi();
+  const { omdbApiKey, updateApiKey } = useOmdbApi(storageAdapter);
 
-  const [halfStarsEnabled, setHalfStarsEnabled] = useHalfStars();
+  const [halfStarsEnabled, setHalfStarsEnabled] = useHalfStars(storageAdapter);
 
   // Close modals and clear states
   const closeModals = () => {

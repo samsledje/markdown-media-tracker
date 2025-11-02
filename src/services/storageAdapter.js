@@ -86,6 +86,15 @@ export class StorageAdapter {
   }
 
   /**
+   * Read an arbitrary file from storage
+   * @param {string} filename
+   * @returns {Promise<string|null>} File content or null if not found
+   */
+  async readFile(filename) {
+    throw new Error('readFile() must be implemented by subclass');
+  }
+
+  /**
    * Write an arbitrary file to storage (used for misc files like Obsidian Base)
    * @param {string} filename
    * @param {string} content

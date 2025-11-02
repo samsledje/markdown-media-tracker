@@ -101,10 +101,11 @@ export const generateFuzzyAlternatives = (query, maxAlternatives = 3) => {
     // This catches common typos like "Inceptoin" -> "Inception"
     // Only add first few to avoid explosion of alternatives
     const maxTranspositions = 3;
+    const chars = trimmedQuery.split('');
     for (let i = 0; i < Math.min(trimmedQuery.length - 1, maxTranspositions); i++) {
-        const chars = trimmedQuery.split('');
-        [chars[i], chars[i + 1]] = [chars[i + 1], chars[i]];
-        const transposed = chars.join('');
+        const charsCopy = [...chars]; // Create a copy for each iteration
+        [charsCopy[i], charsCopy[i + 1]] = [charsCopy[i + 1], charsCopy[i]];
+        const transposed = charsCopy.join('');
         if (transposed !== trimmedQuery && transposed.length > 2) {
             variations.push(transposed);
         }

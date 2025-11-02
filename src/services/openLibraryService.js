@@ -43,9 +43,9 @@ export const searchBooks = async (query, limit = 12) => {
     // Open Library supports field-specific searches: title:, author:, etc.
     let searchQuery = trimmedQuery;
     
-    if (parsedQuery.searchType === 'author' || parsedQuery.director) {
-      // OpenLibrary uses 'author' field, and director is treated as author for books
-      const authorName = parsedQuery.actor || parsedQuery.director;
+    if (parsedQuery.searchType === 'author' || parsedQuery.director || parsedQuery.actor) {
+      // OpenLibrary uses 'author' field, and director/actor is treated as author for books
+      const authorName = parsedQuery.director || parsedQuery.actor;
       if (authorName) {
         searchQuery = `author:${authorName}`;
         console.debug(`[OpenLibrary] Searching by author: "${authorName}"`);

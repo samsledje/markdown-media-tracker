@@ -93,7 +93,10 @@ export const searchMovies = async (query, limit = 12) => {
     const seen = new Set();
     
     for (const movie of allMovies) {
-      const key = movie.imdbID || `${movie.title}_${movie.year}`;
+      // Ensure we have a valid key for deduplication
+      const key = (movie.imdbID && typeof movie.imdbID === 'string') 
+        ? movie.imdbID 
+        : `${movie.title || 'unknown'}_${movie.year || 'unknown'}`;
       if (!seen.has(key)) {
         seen.add(key);
         uniqueMovies.push(movie);

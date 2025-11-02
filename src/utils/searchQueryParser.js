@@ -38,12 +38,30 @@ const SERIES_KEYWORDS = [
 ];
 
 /**
+ * Pre-compiled regex patterns for director keywords
+ * Maps keyword to regex pattern
+ */
+const DIRECTOR_PATTERNS = {};
+DIRECTOR_KEYWORDS.forEach(keyword => {
+  DIRECTOR_PATTERNS[keyword] = new RegExp(`(.+?)\\s+${keyword}\\s+(.+?)(?:\\s+\\d{4})?$`, 'i');
+});
+
+/**
+ * Pre-compiled regex patterns for actor keywords
+ * Maps keyword to regex pattern
+ */
+const ACTOR_PATTERNS = {};
+ACTOR_KEYWORDS.forEach(keyword => {
+  ACTOR_PATTERNS[keyword] = new RegExp(`(.+?)\\s+${keyword}\\s+(.+?)(?:\\s+\\d{4})?$`, 'i');
+});
+
+/**
  * Parse a search query to detect search intent and extract metadata
  * @param {string} query - The search query
  * @returns {object} Parsed query information
  */
 export const parseSearchQuery = (query) => {
-  if (!query || typeof query !== 'string') {
+  if (!query || typeof query !== 'string' || query.trim() === '') {
     return {
       original: '',
       titleKeywords: [],
@@ -86,7 +104,7 @@ export const parseSearchQuery = (query) => {
 
   // Check for director search
   for (const keyword of DIRECTOR_KEYWORDS) {
-    const directorPattern = new RegExp(`(.+?)\\s+${keyword}\\s+(.+?)(?:\\s+\\d{4})?$`, 'i');
+    const directorPattern = DIRECTOR_PATTERNS[keyword];
     const match = query.match(directorPattern);
     if (match) {
       // Check which group has the director name
@@ -126,7 +144,7 @@ export const parseSearchQuery = (query) => {
   // Check for actor search (only if not director search)
   if (!result.director) {
     for (const keyword of ACTOR_KEYWORDS) {
-      const actorPattern = new RegExp(`(.+?)\\s+${keyword}\\s+(.+?)(?:\\s+\\d{4})?$`, 'i');
+      const actorPattern = ACTOR_PATTERNS[keyword];
       const match = query.match(actorPattern);
       if (match) {
         if (keyword === 'with' || keyword === 'featuring') {

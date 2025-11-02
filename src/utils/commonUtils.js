@@ -137,13 +137,24 @@ export const isMobileScreen = () => {
   return window.innerWidth < 640;
 };
 
+// Status constants for completed states
+const STATUS_READ = 'read';
+const STATUS_WATCHED = 'watched';
+
 /**
- * Get today's date in YYYY-MM-DD format
- * @returns {string} Today's date
+ * Get today's date in YYYY-MM-DD format (local timezone).
+ * Note: Uses local date to ensure the date matches the user's timezone,
+ * not UTC. This ensures consistency with user expectations.
+ * 
+ * @returns {string} Today's date in YYYY-MM-DD format
  */
 export const getTodayDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  // Use local date components to avoid timezone issues
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**
@@ -151,17 +162,22 @@ export const getTodayDate = () => {
  * When a book is marked as 'read' or movie as 'watched', sets the date to today
  * if it's not already set.
  * 
- * @param {object} item - The item being updated
+ * @param {object} item - The item being updated (must not be null/undefined)
  * @param {string} newStatus - The new status being set
  * @param {string} oldStatus - The old status (optional)
  * @returns {object} Updated item with auto-updated date if applicable
+ * @throws {TypeError} If item is null or undefined
  */
 export const autoUpdateDateOnStatusChange = (item, newStatus, oldStatus = null) => {
+  if (!item) {
+    throw new TypeError('item parameter is required and cannot be null or undefined');
+  }
+  
   const updatedItem = { ...item, status: newStatus };
   
   // Only auto-update if status is changing to a completed state
-  const isCompletingBook = newStatus === 'read' && oldStatus !== 'read';
-  const isCompletingMovie = newStatus === 'watched' && oldStatus !== 'watched';
+  const isCompletingBook = newStatus === STATUS_READ && oldStatus !== STATUS_READ;
+  const isCompletingMovie = newStatus === STATUS_WATCHED && oldStatus !== STATUS_WATCHED;
   
   if (isCompletingBook) {
     // Set dateRead to today if not already set

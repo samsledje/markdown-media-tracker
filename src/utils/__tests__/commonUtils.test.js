@@ -111,8 +111,12 @@ describe('commonUtils', () => {
       const today = getTodayDate();
       expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       
-      // Verify it's actually today's date
-      const expectedDate = new Date().toISOString().split('T')[0];
+      // Verify it's actually today's date in local timezone
+      const now = new Date();
+      const expectedYear = now.getFullYear();
+      const expectedMonth = String(now.getMonth() + 1).padStart(2, '0');
+      const expectedDay = String(now.getDate()).padStart(2, '0');
+      const expectedDate = `${expectedYear}-${expectedMonth}-${expectedDay}`;
       expect(today).toBe(expectedDate);
     });
   });
@@ -252,6 +256,16 @@ describe('commonUtils', () => {
       
       expect(result.status).toBe('read');
       expect(result.dateRead).toBeDefined();
+    });
+
+    it('should throw error when item is null', () => {
+      expect(() => autoUpdateDateOnStatusChange(null, 'read')).toThrow(TypeError);
+      expect(() => autoUpdateDateOnStatusChange(null, 'read')).toThrow('item parameter is required');
+    });
+
+    it('should throw error when item is undefined', () => {
+      expect(() => autoUpdateDateOnStatusChange(undefined, 'read')).toThrow(TypeError);
+      expect(() => autoUpdateDateOnStatusChange(undefined, 'read')).toThrow('item parameter is required');
     });
   });
 });

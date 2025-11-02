@@ -152,8 +152,13 @@ export const loadAllSettings = async (storage) => {
  */
 export const saveAllSettings = async (storage, settings) => {
   // Always save to localStorage as fallback
-  if (settings.themePrimary !== undefined && settings.themeHighlight !== undefined) {
-    saveThemeColors(settings.themePrimary, settings.themeHighlight);
+  // For theme colors, we need both values to call saveThemeColors
+  // So we load existing colors if only one is provided
+  if (settings.themePrimary !== undefined || settings.themeHighlight !== undefined) {
+    const currentColors = loadThemeColors();
+    const primary = settings.themePrimary !== undefined ? settings.themePrimary : currentColors.primary;
+    const highlight = settings.themeHighlight !== undefined ? settings.themeHighlight : currentColors.highlight;
+    saveThemeColors(primary, highlight);
   }
   if (settings.cardSize !== undefined) {
     saveCardSize(settings.cardSize);

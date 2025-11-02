@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getConfig, saveConfig, hasApiKey } from '../config.js';
-import { loadAllSettings, saveSetting } from '../services/configService.js';
+import { loadAllSettings, saveAllSettings } from '../services/configService.js';
 
 /**
  * Custom hook for managing OMDb API key
@@ -35,7 +35,7 @@ export const useOmdbApi = (storage = null) => {
     saveConfig({ omdbApiKey: key });
     // Also save to file if storage is available
     if (storage && storage.isConnected()) {
-      saveSetting(storage, 'omdbApiKey', key);
+      saveAllSettings(storage, { omdbApiKey: key });
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { loadThemeColors, saveThemeColors, loadCardSize, saveCardSize, loadAllSettings, saveSetting } from '../services/configService.js';
+import { loadThemeColors, saveThemeColors, loadCardSize, saveCardSize, loadAllSettings, saveAllSettings } from '../services/configService.js';
 import { applyThemeColors } from '../utils/colorUtils.js';
+import { DEFAULT_THEME } from '../constants/index.js';
 
 /**
  * Custom hook for managing theme and appearance settings
@@ -39,10 +40,12 @@ export const useTheme = (storage = null) => {
   useEffect(() => {
     saveThemeColors(primaryColor, highlightColor);
     applyThemeColors(primaryColor, highlightColor);
-    // Also save to file if storage is available
+    // Also save to file if storage is available (batch both colors)
     if (storage && storage.isConnected()) {
-      saveSetting(storage, 'themePrimary', primaryColor);
-      saveSetting(storage, 'themeHighlight', highlightColor);
+      saveAllSettings(storage, {
+        themePrimary: primaryColor,
+        themeHighlight: highlightColor
+      });
     }
   }, [primaryColor, highlightColor, storage]);
 
@@ -51,7 +54,7 @@ export const useTheme = (storage = null) => {
     saveCardSize(cardSize);
     // Also save to file if storage is available
     if (storage && storage.isConnected()) {
-      saveSetting(storage, 'cardSize', cardSize);
+      saveAllSettings(storage, { cardSize });
     }
   }, [cardSize, storage]);
 
@@ -80,8 +83,8 @@ export const useTheme = (storage = null) => {
    * Reset theme to defaults
    */
   const resetTheme = () => {
-    setPrimaryColor('#0b1220');
-    setHighlightColor('#7c3aed');
+    setPrimaryColor(DEFAULT_THEME.PRIMARY);
+    setHighlightColor(DEFAULT_THEME.HIGHLIGHT);
   };
 
   return {

@@ -1,6 +1,7 @@
 // Configuration service for managing app settings
 
 import { LOCAL_STORAGE_KEYS, DEFAULT_THEME } from '../constants/index.js';
+import { loadConfigFromFile, saveConfigToFile, mergeConfigs } from './configFileService.js';
 
 /**
  * Load OMDb API key from localStorage
@@ -133,7 +134,6 @@ export const loadAllSettings = async (storage) => {
 
   try {
     // Load from file
-    const { loadConfigFromFile, mergeConfigs } = await import('./configFileService.js');
     const fileConfig = await loadConfigFromFile(storage);
     
     // Merge configs (file takes priority)
@@ -168,7 +168,6 @@ export const saveAllSettings = async (storage, settings) => {
   // Also save to file if storage is connected
   if (storage && storage.isConnected()) {
     try {
-      const { saveConfigToFile } = await import('./configFileService.js');
       await saveConfigToFile(storage, settings);
     } catch (error) {
       console.warn('Error saving settings to file:', error);
@@ -176,14 +175,3 @@ export const saveAllSettings = async (storage, settings) => {
   }
 };
 
-/**
- * Save a single setting to both localStorage and file
- * @param {StorageAdapter} storage - Storage adapter instance
- * @param {string} key - Setting key
- * @param {any} value - Setting value
- * @returns {Promise<void>}
- */
-export const saveSetting = async (storage, key, value) => {
-  const settings = { [key]: value };
-  await saveAllSettings(storage, settings);
-};

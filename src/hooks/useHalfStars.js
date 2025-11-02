@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadHalfStarsEnabled, saveHalfStarsEnabled, loadAllSettings, saveSetting } from '../services/configService.js';
+import { loadHalfStarsEnabled, saveHalfStarsEnabled, loadAllSettings, saveAllSettings } from '../services/configService.js';
 
 /**
  * Custom hook for managing half stars setting
@@ -14,7 +14,7 @@ export const useHalfStars = (storage = null) => {
     saveHalfStarsEnabled(enabled);
     // Also save to file if storage is available
     if (storage && storage.isConnected()) {
-      saveSetting(storage, 'halfStarsEnabled', enabled);
+      saveAllSettings(storage, { halfStarsEnabled: enabled });
     }
   };
 

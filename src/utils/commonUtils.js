@@ -136,3 +136,44 @@ export const sanitizeDisplayString = (val) => {
 export const isMobileScreen = () => {
   return window.innerWidth < 640;
 };
+
+/**
+ * Get today's date in YYYY-MM-DD format
+ * @returns {string} Today's date
+ */
+export const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
+/**
+ * Auto-update date field when status changes to completed state.
+ * When a book is marked as 'read' or movie as 'watched', sets the date to today
+ * if it's not already set.
+ * 
+ * @param {object} item - The item being updated
+ * @param {string} newStatus - The new status being set
+ * @param {string} oldStatus - The old status (optional)
+ * @returns {object} Updated item with auto-updated date if applicable
+ */
+export const autoUpdateDateOnStatusChange = (item, newStatus, oldStatus = null) => {
+  const updatedItem = { ...item, status: newStatus };
+  
+  // Only auto-update if status is changing to a completed state
+  const isCompletingBook = newStatus === 'read' && oldStatus !== 'read';
+  const isCompletingMovie = newStatus === 'watched' && oldStatus !== 'watched';
+  
+  if (isCompletingBook) {
+    // Set dateRead to today if not already set
+    if (!updatedItem.dateRead) {
+      updatedItem.dateRead = getTodayDate();
+    }
+  } else if (isCompletingMovie) {
+    // Set dateWatched to today if not already set
+    if (!updatedItem.dateWatched) {
+      updatedItem.dateWatched = getTodayDate();
+    }
+  }
+  
+  return updatedItem;
+};

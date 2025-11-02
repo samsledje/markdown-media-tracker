@@ -262,7 +262,10 @@ const SearchModal = ({ onClose, onSelect }) => {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={`Search for ${searchType}s...`}
+                placeholder={searchType === 'movie' 
+                  ? 'Try: "Inception", "director Nolan", "actor Tom Hanks"'
+                  : 'Try: "Harry Potter", "author Rowling"'
+                }
                 className="w-full pl-4 pr-10 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 text-base"
               />
               {query && (
@@ -286,6 +289,18 @@ const SearchModal = ({ onClose, onSelect }) => {
               Search
             </button>
           </form>
+          
+          {/* Search tips */}
+          {!hasSearched && (
+            <div className="mt-3 p-3 bg-slate-700/30 border border-slate-600 rounded-lg">
+              <p className="text-xs text-slate-400">
+                💡 <strong>Search tips:</strong> {searchType === 'movie' 
+                  ? 'Try "director [name]", "actor [name]", or "[title] [year]" for better results'
+                  : 'Try "author [name]" or "[title] [year]" for targeted searches'
+                }
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="p-4 pb-6">
@@ -303,6 +318,13 @@ const SearchModal = ({ onClose, onSelect }) => {
                   </p>
                 </div>
               )}
+              {results.some(result => result._relevanceScore !== undefined) && (
+                <div className="mb-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                  <p className="text-sm text-green-200">
+                    ✨ Results ranked by relevance to your search criteria
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {results.map((result, index) => (
                   <div
@@ -316,6 +338,11 @@ const SearchModal = ({ onClose, onSelect }) => {
                     {result._fuzzySearch && (
                       <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
                         Similar
+                      </div>
+                    )}
+                    {result._relevanceScore !== undefined && result._relevanceScore > 50 && !result._fuzzySearch && (
+                      <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                        ✓ Match
                       </div>
                     )}
                     {result.coverUrl && (

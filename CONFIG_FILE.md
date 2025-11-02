@@ -101,3 +101,20 @@ The configuration system maintains full backward compatibility:
 - The file starts with a dot (`.`) making it hidden on Unix-like systems
 - Invalid JSON in the file will be ignored, and defaults will be used
 - The app never deletes the config file, even if you disconnect from storage
+
+## Security Note
+
+The OMDb API key is stored in plain text in both localStorage and the `.mmt.config` file. This is intentional for the following reasons:
+
+1. **User convenience**: The API key is user-provided and not a secret owned by the application. Requiring users to re-enter it every session would create poor user experience.
+
+2. **Standard practice**: This follows the same pattern as the original implementation and is common for client-side applications where users manage their own API keys.
+
+3. **Low risk**: The OMDb API key is a free, per-user API key with limited scope. It only allows access to public movie data and has built-in rate limiting.
+
+4. **Privacy-first design**: The app is designed to be privacy-first with no server-side components. All data stays on the user's device or in their chosen storage location.
+
+**Best Practices:**
+- Don't share your `.mmt.config` file publicly if it contains your API key
+- Treat your API key like a password - don't commit it to public repositories
+- If your key is compromised, you can easily regenerate it at http://www.omdbapi.com/apikey.aspx

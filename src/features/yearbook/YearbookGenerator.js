@@ -183,54 +183,54 @@ const YEARBOOK_STYLES = {
  * @returns {Promise<Blob>} PDF blob
  */
 export async function generateYearbookPDF(items, options) {
-  console.log('generateYearbookPDF called with', items?.length || 0, 'items');
-  console.log('Options:', options);
+    console.log('generateYearbookPDF called with', items?.length || 0, 'items');
+    console.log('Options:', options);
 
-  const pdf = new jsPDF();
-  console.log('Created jsPDF instance');
+    const pdf = new jsPDF();
+    console.log('Created jsPDF instance');
 
-  // Add a test text to ensure PDF is not blank
-  pdf.setFontSize(12);
-  pdf.setTextColor(0, 0, 0); // Black text
-  pdf.text('PDF Generation Test - If you see this, PDF is working!', 20, 20);
-  console.log('Added test text to PDF');
+    // Add a test text to ensure PDF is not blank
+    pdf.setFontSize(12);
+    pdf.setTextColor(0, 0, 0); // Black text
+    pdf.text('PDF Generation Test - If you see this, PDF is working!', 20, 20);
+    console.log('Added test text to PDF');
 
-  // Set accent color - convert hex to RGB for jsPDF
-  let accentColor = [124, 58, 237]; // Default purple
-  if (options.accentColor && options.accentColor.startsWith('#')) {
-    // Convert hex to RGB
-    const hex = options.accentColor.slice(1);
-    accentColor = [
-      parseInt(hex.slice(0, 2), 16),
-      parseInt(hex.slice(2, 4), 16),
-      parseInt(hex.slice(4, 6), 16)
-    ];
-  }
-  YEARBOOK_STYLES.colors.accent = accentColor;
-  console.log('Set accent color to:', accentColor);
+    // Set accent color - convert hex to RGB for jsPDF
+    let accentColor = [124, 58, 237]; // Default purple
+    if (options.accentColor && options.accentColor.startsWith('#')) {
+        // Convert hex to RGB
+        const hex = options.accentColor.slice(1);
+        accentColor = [
+            parseInt(hex.slice(0, 2), 16),
+            parseInt(hex.slice(2, 4), 16),
+            parseInt(hex.slice(4, 6), 16)
+        ];
+    }
+    YEARBOOK_STYLES.colors.accent = accentColor;
+    console.log('Set accent color to:', accentColor);
 
-  // Create cover page
-  const stats = calculateStats(items);
-  console.log('Calculated stats:', stats);
-  createCoverPage(pdf, stats, options);
-  console.log('Created cover page');
+    // Create cover page
+    const stats = calculateStats(items);
+    console.log('Calculated stats:', stats);
+    createCoverPage(pdf, stats, options);
+    console.log('Created cover page');
 
-  // Create individual item pages
-  console.log('Starting to create', items.length, 'item pages');
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    console.log(`Creating page ${i + 1} for item:`, item.title);
-    pdf.addPage();
-    await createItemPage(pdf, item);
-    console.log(`Completed page ${i + 1}`);
-  }
+    // Create individual item pages
+    console.log('Starting to create', items.length, 'item pages');
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        console.log(`Creating page ${i + 1} for item:`, item.title);
+        pdf.addPage();
+        await createItemPage(pdf, item);
+        console.log(`Completed page ${i + 1}`);
+    }
 
-  console.log('All pages created, generating blob...');
-  // Return PDF as blob
-  const blob = pdf.output('blob');
-  console.log('Generated blob with size:', blob.size);
+    console.log('All pages created, generating blob...');
+    // Return PDF as blob
+    const blob = pdf.output('blob');
+    console.log('Generated blob with size:', blob.size);
 
-  return blob;
+    return blob;
 }/**
  * Create the cover page with title and statistics
  * @param {jsPDF} pdf - PDF document
@@ -238,40 +238,40 @@ export async function generateYearbookPDF(items, options) {
  * @param {object} options - PDF options
  */
 export function createCoverPage(pdf, stats, options) {
-  console.log('Creating cover page with stats:', stats, 'and options:', options);
-  const { pageMargin, sectionGap } = YEARBOOK_STYLES.spacing;
-  let yPosition = pageMargin;
+    console.log('Creating cover page with stats:', stats, 'and options:', options);
+    const { pageMargin, sectionGap } = YEARBOOK_STYLES.spacing;
+    let yPosition = pageMargin;
 
-  // Title
-  pdf.setFontSize(YEARBOOK_STYLES.fonts.title.size);
-  pdf.setTextColor(YEARBOOK_STYLES.colors.accent[0], YEARBOOK_STYLES.colors.accent[1], YEARBOOK_STYLES.colors.accent[2]);
-  pdf.text(options.coverTitle, pageMargin, yPosition);
-  console.log('Added title:', options.coverTitle);
-  yPosition += sectionGap * 2;
+    // Title
+    pdf.setFontSize(YEARBOOK_STYLES.fonts.title.size);
+    pdf.setTextColor(YEARBOOK_STYLES.colors.accent[0], YEARBOOK_STYLES.colors.accent[1], YEARBOOK_STYLES.colors.accent[2]);
+    pdf.text(options.coverTitle, pageMargin, yPosition);
+    console.log('Added title:', options.coverTitle);
+    yPosition += sectionGap * 2;
 
-  // Subtitle/date range
-  pdf.setFontSize(YEARBOOK_STYLES.fonts.subtitle.size);
-  pdf.setTextColor(YEARBOOK_STYLES.colors.text[0], YEARBOOK_STYLES.colors.text[1], YEARBOOK_STYLES.colors.text[2]);
-  pdf.text(options.dateRange, pageMargin, yPosition);
-  console.log('Added date range:', options.dateRange);
-  yPosition += sectionGap * 2;
-
-  // Statistics
-  pdf.setFontSize(YEARBOOK_STYLES.fonts.body.size);
-
-  const statLines = [
-    `${stats.totalItems} items (${stats.bookCount} books, ${stats.movieCount} movies)`,
-    `Average rating: ${stats.averageRating > 0 ? '★'.repeat(Math.min(Math.max(Math.round(stats.averageRating), 0), 5)) + '☆'.repeat(Math.max(5 - Math.min(Math.max(Math.round(stats.averageRating), 0), 5), 0)) + ` (${stats.averageRating.toFixed(1)})` : 'N/A'}`
-  ];
-
-  console.log('Adding stat lines:', statLines);
-  statLines.forEach(line => {
+    // Subtitle/date range
+    pdf.setFontSize(YEARBOOK_STYLES.fonts.subtitle.size);
     pdf.setTextColor(YEARBOOK_STYLES.colors.text[0], YEARBOOK_STYLES.colors.text[1], YEARBOOK_STYLES.colors.text[2]);
-    pdf.text(line, pageMargin, yPosition);
-    yPosition += YEARBOOK_STYLES.spacing.elementGap;
-  });
+    pdf.text(options.dateRange, pageMargin, yPosition);
+    console.log('Added date range:', options.dateRange);
+    yPosition += sectionGap * 2;
 
-  console.log('Cover page creation completed');
+    // Statistics
+    pdf.setFontSize(YEARBOOK_STYLES.fonts.body.size);
+
+    const statLines = [
+        `${stats.totalItems} items (${stats.bookCount} books, ${stats.movieCount} movies)`,
+        `Average rating: ${stats.averageRating > 0 ? '★'.repeat(Math.min(Math.max(Math.round(stats.averageRating), 0), 5)) + '☆'.repeat(Math.max(5 - Math.min(Math.max(Math.round(stats.averageRating), 0), 5), 0)) + ` (${stats.averageRating.toFixed(1)})` : 'N/A'}`
+    ];
+
+    console.log('Adding stat lines:', statLines);
+    statLines.forEach(line => {
+        pdf.setTextColor(YEARBOOK_STYLES.colors.text[0], YEARBOOK_STYLES.colors.text[1], YEARBOOK_STYLES.colors.text[2]);
+        pdf.text(line, pageMargin, yPosition);
+        yPosition += YEARBOOK_STYLES.spacing.elementGap;
+    });
+
+    console.log('Cover page creation completed');
 }/**
  * Create a page for an individual item
  * @param {jsPDF} pdf - PDF document

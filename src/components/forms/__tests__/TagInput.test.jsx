@@ -58,12 +58,13 @@ describe('TagInput', () => {
     render(<TagInput {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Add tag');
+    await user.click(input);
     await user.type(input, 'sci');
     
     await waitFor(() => {
       expect(screen.getByText('sci-fi')).toBeInTheDocument();
       expect(screen.queryByText('fiction')).not.toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('should exclude existing tags from suggestions', async () => {

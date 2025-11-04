@@ -13,8 +13,9 @@ function createMockIndexedDB() {
         onsuccess: null,
         onerror: null
       };
+      // Immediately store the value
+      data.set(value.fileId || value.id || value, value);
       setTimeout(() => {
-        data.set(value.fileId || value.id || value, value);
         if (request.onsuccess) {
           request.onsuccess({ target: request });
         }
@@ -26,8 +27,9 @@ function createMockIndexedDB() {
         onsuccess: null,
         onerror: null
       };
+      // Immediately delete the value
+      data.delete(key);
       setTimeout(() => {
-        data.delete(key);
         if (request.onsuccess) {
           request.onsuccess({ target: request });
         }
@@ -77,6 +79,7 @@ function createMockIndexedDB() {
         const cursor = {
           value: null,
           key: null,
+          _transaction: null, // Will be set by transaction
           continue: () => {
             setTimeout(() => {
               if (cursorIndex < items.length) {
@@ -98,9 +101,35 @@ function createMockIndexedDB() {
           delete: () => {
             if (cursor.key) {
               data.delete(cursor.key);
+              // Track delete operation for transaction
+              if (cursor._transaction) {
+                cursor._transaction._deleteCount++;
+                setTimeout(() => {
+                  cursor._transaction._completedDeletes++;
+                  const totalOps = cursor._transaction._putCount + cursor._transaction._deleteCount + cursor._transaction._clearCount;
+                  const completedOps = cursor._transaction._completedPuts + cursor._transaction._completedDeletes + cursor._transaction._completedClears;
+                  if (totalOps > 0 && totalOps === completedOps && cursor._transaction.oncomplete) {
+                    setTimeout(() => {
+                      cursor._transaction.oncomplete({ target: cursor._transaction });
+                    }, 10);
+                  }
+                }, 1);
+              } else {
+                // Try to get transaction from store if cursor doesn't have it
+                // This is a fallback for cases where cursor._transaction wasn't set
+                setTimeout(() => {
+                  // If no transaction found, we can't track it
+                  // This should not happen in normal operation
+                }, 10);
+              }
             }
           }
         };
+        
+        // Attach transaction to cursor if store has it
+        if (mockStore._transaction) {
+          cursor._transaction = mockStore._transaction;
+        }
         
         setTimeout(() => {
           if (items.length > 0) {
@@ -118,15 +147,119 @@ function createMockIndexedDB() {
     }))
   };
   
-  const mockTransaction = {
-    objectStore: vi.fn(() => mockStore),
-    oncomplete: null,
-    onerror: null,
-    error: null
-  };
   
   const mockDB = {
-    transaction: vi.fn(() => mockTransaction),
+    transaction: vi.fn(() => {
+      // Create a fresh transaction each time
+      const transaction = {
+        objectStore: vi.fn(() => mockStore),
+        oncomplete: null,
+        onerror: null,
+        error: null,
+        _putCount: 0,
+        _completedPuts: 0
+      };
+      
+      // Wrap put and delete to track operations for this transaction
+      const originalPut = mockStore.put;
+      const originalDelete = mockStore.delete;
+      const originalClear = mockStore.clear;
+      
+      transaction._putCount = 0;
+      transaction._completedPuts = 0;
+      transaction._deleteCount = 0;
+      transaction._completedDeletes = 0;
+      transaction._clearCount = 0;
+      transaction._completedClears = 0;
+      
+      const checkTransactionComplete = () => {
+        const totalOps = transaction._putCount + transaction._deleteCount + transaction._clearCount;
+        const completedOps = transaction._completedPuts + transaction._completedDeletes + transaction._completedClears;
+        if (totalOps > 0 && totalOps === completedOps && transaction.oncomplete) {
+          setTimeout(() => {
+            transaction.oncomplete({ target: transaction });
+          }, 10);
+        }
+      };
+      
+      const transactionPut = vi.fn((value) => {
+        const request = originalPut(value);
+        transaction._putCount++;
+        
+        // After the original put completes, check if all operations are done
+        setTimeout(() => {
+          transaction._completedPuts++;
+          checkTransactionComplete();
+        }, 1);
+        
+        return request;
+      });
+      
+      const transactionDelete = vi.fn((key) => {
+        const request = originalDelete(key);
+        transaction._deleteCount++;
+        
+        // After the original delete completes, check if all operations are done
+        setTimeout(() => {
+          transaction._completedDeletes++;
+          checkTransactionComplete();
+        }, 1);
+        
+        return request;
+      });
+      
+      const transactionClear = vi.fn(() => {
+        const request = originalClear();
+        transaction._clearCount++;
+        
+        // After the original clear completes, check if all operations are done
+        setTimeout(() => {
+          transaction._completedClears++;
+          checkTransactionComplete();
+        }, 1);
+        
+        return request;
+      });
+      
+      // Override mockStore methods for this transaction
+      const originalObjectStore = transaction.objectStore;
+      transaction.objectStore = vi.fn(() => {
+        const store = originalObjectStore();
+        store.put = transactionPut;
+        store.delete = transactionDelete;
+        store.clear = transactionClear;
+        
+        // Attach transaction to store so cursor can access it
+        store._transaction = transaction;
+        
+        // Wrap index.openCursor to attach transaction to cursor
+        const originalIndex = store.index;
+        store.index = vi.fn((name) => {
+          const index = originalIndex(name);
+          const originalOpenCursor = index.openCursor;
+          index.openCursor = vi.fn((range) => {
+            const request = originalOpenCursor(range);
+            // Wrap onsuccess to attach transaction to cursor
+            const originalOnSuccess = request.onsuccess;
+            request.onsuccess = (event) => {
+              if (originalOnSuccess) {
+                originalOnSuccess(event);
+              }
+              // Attach transaction to cursor when it's created
+              if (request.result && typeof request.result === 'object' && request.result._transaction === null) {
+                request.result._transaction = transaction;
+              }
+            };
+            return request;
+          });
+          return index;
+        });
+        
+        return store;
+      });
+      
+      return transaction;
+    }),
     createObjectStore: vi.fn(() => mockStore),
     objectStoreNames: {
       contains: vi.fn(() => true)
